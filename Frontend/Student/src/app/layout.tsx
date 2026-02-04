@@ -4,7 +4,7 @@ import "./globals.css";
 import "react-toastify/dist/ReactToastify.css";
 import Providers from "./providers";
 import Footer from "../components/Footer";
-import PublicNavbar from "../components/PublicNavbar";
+import StudentNavbar from "../components/StudentNavbar";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -33,7 +33,7 @@ export default function RootLayout({
       >
         <Providers>
           <div className="min-h-screen flex flex-col">
-            <PublicNavbar />
+            <StudentNavbar />
             <main className="flex-1">{children}</main>
             <Footer />
           </div>
