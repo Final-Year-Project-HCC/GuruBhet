@@ -7,7 +7,7 @@ export default function PublicNavbar() {
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
         <div className="flex items-center gap-2">
           <Link href="/">
-            <Image src="/GuruBhet.png" alt="Logo" width={150} height={37} />
+            <Image src="/GuruBhet.png" alt="Logo" width={150} height={37} className="dark:invert" />
           </Link>
         </div>
 
