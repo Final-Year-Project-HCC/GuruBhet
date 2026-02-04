@@ -78,7 +78,7 @@ export default function StudentNavbar() {
             {open && (
               <div className="absolute right-0 mt-2 w-48 overflow-hidden rounded-md border border-border bg-background shadow-lg">
                 <button
-                  className="block w-full px-4 py-2 text-left text-sm text-foreground hover:bg-muted"
+                  className="block w-full px-4 py-2 text-left text-base text-foreground hover:bg-muted"
                   onClick={handleLogout}
                 >
                   Logout
