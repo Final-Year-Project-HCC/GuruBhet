@@ -122,7 +122,7 @@ export default function SignupPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm mb-1" htmlFor="firstName">First Name</label>
+            <label className="block mb-1" htmlFor="firstName">First Name</label>
             <input
               id="firstName"
               name="firstName"
@@ -136,7 +136,7 @@ export default function SignupPage() {
             {errors.firstName && <p className="mt-1 text-sm text-red-600">{errors.firstName}</p>}
           </div>
           <div>
-            <label className="block text-sm mb-1" htmlFor="middleName">Middle Name</label>
+            <label className="block mb-1" htmlFor="middleName">Middle Name</label>
             <input
               id="middleName"
               name="middleName"
@@ -151,7 +151,7 @@ export default function SignupPage() {
         </div>
 
         <div>
-          <label className="block text-sm mb-1" htmlFor="lastName">Last Name</label>
+          <label className="block mb-1" htmlFor="lastName">Last Name</label>
           <input
             id="lastName"
             name="lastName"
@@ -166,7 +166,7 @@ export default function SignupPage() {
         </div>
 
         <div>
-          <label className="block text-sm mb-1" htmlFor="email">Email</label>
+          <label className="block mb-1" htmlFor="email">Email</label>
           <input
             id="email"
             name="email"
@@ -181,7 +181,7 @@ export default function SignupPage() {
         </div>
 
         <div>
-          <label className="block text-sm mb-1" htmlFor="password">Password</label>
+          <label className="block mb-1" htmlFor="password">Password</label>
           <div className="relative">
             <input
               id="password"
@@ -206,7 +206,7 @@ export default function SignupPage() {
         </div>
 
         <div>
-          <label className="block text-sm mb-1" htmlFor="confirmPassword">Confirm Password</label>
+          <label className="block mb-1" htmlFor="confirmPassword">Confirm Password</label>
           <div className="relative">
             <input
               id="confirmPassword"

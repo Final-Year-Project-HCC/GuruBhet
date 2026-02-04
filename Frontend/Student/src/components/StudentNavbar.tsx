@@ -45,13 +45,13 @@ export default function StudentNavbar() {
         <nav className="flex items-center gap-3">
           <Link
             href="/sessions"
-            className="rounded-md px-3 py-2 text-sm text-foreground hover:bg-muted"
+            className="rounded-md px-3 py-2 text-base text-foreground hover:bg-muted"
           >
             Search Teacher
           </Link>
           <Link
             href="/search-teacher"
-            className="rounded-md px-3 py-2 text-sm text-foreground hover:bg-muted"
+            className="rounded-md px-3 py-2 text-base text-foreground hover:bg-muted"
           >
             Sessions
           </Link>
@@ -91,20 +91,20 @@ export default function StudentNavbar() {
               <div className="absolute right-0 mt-2 w-48 overflow-hidden rounded-md border border-border bg-background shadow-lg">
                 <Link
                   href="/profile"
-                  className="block px-4 py-2 text-sm text-foreground hover:bg-muted"
+                  className="block px-4 py-2 text-base text-foreground hover:bg-muted"
                   onClick={() => setOpen(false)}
                 >
                   Update Profile
                 </Link>
                 <Link
                   href="/payment-method"
-                  className="block px-4 py-2 text-sm text-foreground hover:bg-muted"
+                  className="block px-4 py-2 text-base text-foreground hover:bg-muted"
                   onClick={() => setOpen(false)}
                 >
                   Payment Method
                 </Link>
                 <button
-                  className="block w-full px-4 py-2 text-left text-sm text-foreground hover:bg-muted cursor-pointer"
+                  className="block w-full px-4 py-2 text-left text-base text-foreground hover:bg-muted cursor-pointer"
                   onClick={handleLogout}
                 >
                   Logout

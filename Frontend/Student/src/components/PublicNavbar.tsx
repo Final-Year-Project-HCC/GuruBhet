@@ -14,25 +14,25 @@ export default function PublicNavbar() {
         <nav className="flex items-center gap-3">
           <Link
             href="/search-teacher"
-            className="rounded-md px-3 py-2 text-sm text-foreground hover:bg-muted"
+            className="rounded-md px-3 py-2 text-base text-foreground hover:bg-muted"
           >
             Search Teacher
           </Link>
           <Link
             href="#"
-            className="rounded-md px-3 py-2 text-sm text-foreground hover:bg-muted"
+            className="rounded-md px-3 py-2 text-base text-foreground hover:bg-muted"
           >
             Become a Teacher
           </Link>
           <Link
             href="/login"
-            className="rounded-md px-3 py-2 text-sm text-foreground hover:bg-muted"
+            className="rounded-md px-3 py-2 text-base text-foreground hover:bg-muted"
           >
             Login
           </Link>
           <Link
             href="/signup"
-            className="rounded-md bg-primary px-3 py-2 text-sm text-primary-foreground hover:opacity-90"
+            className="rounded-md bg-primary px-3 py-2 text-base text-primary-foreground hover:opacity-90"
           >
             Sign up
           </Link>
