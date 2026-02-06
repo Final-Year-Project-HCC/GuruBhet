@@ -101,7 +101,7 @@ export default function TeacherProfilePage() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-6">
-      <h1 className="mb-4 text-xl font-semibold">Update Profile</h1>
+      <h1 className="mb-4 text-xl font-semibold">Update Account</h1>
       <form onSubmit={onSubmit} className="space-y-6">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>

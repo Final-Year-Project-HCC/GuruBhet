@@ -67,7 +67,7 @@ export default function StudentProfilePage() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-6">
-      <h1 className="mb-2 text-2xl font-semibold">Update Profile</h1>
+      <h1 className="mb-2 text-2xl font-semibold">Update Account</h1>
       <p className="mb-4 text-muted-foreground">Keep your information up to date.</p>
       <div className="rounded-lg border border-border bg-card p-6 shadow-sm">
         <form onSubmit={onSubmit} className="space-y-5">

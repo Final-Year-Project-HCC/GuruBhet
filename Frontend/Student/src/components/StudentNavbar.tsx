@@ -90,11 +90,11 @@ export default function StudentNavbar() {
             {open && (
               <div className="absolute right-0 mt-2 w-48 overflow-hidden rounded-md border border-border bg-background shadow-lg">
                 <Link
-                  href="/profile"
+                  href="/account"
                   className="block px-4 py-2 text-base text-foreground hover:bg-muted"
                   onClick={() => setOpen(false)}
                 >
-                  Update Profile
+                  Account
                 </Link>
                 <Link
                   href="/payment-method"

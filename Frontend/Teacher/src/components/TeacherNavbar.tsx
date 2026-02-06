@@ -41,7 +41,13 @@ export default function StudentNavbar() {
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
         <div className="flex items-center gap-2">
           <Link href="/">
-            <Image src="/GuruBhet.png" alt="Logo" width={150} height={37} className="dark:invert" />
+            <Image
+              src="/GuruBhet.png"
+              alt="Logo"
+              width={150}
+              height={37}
+              className="dark:invert"
+            />
           </Link>
         </div>
 
@@ -87,11 +93,18 @@ export default function StudentNavbar() {
             {open && (
               <div className="absolute right-0 mt-2 w-48 overflow-hidden rounded-md border border-border bg-background shadow-lg">
                 <Link
-                  href="/profile"
+                  href="/account"
                   className="block px-4 py-2 text-base text-foreground hover:bg-muted"
                   onClick={() => setOpen(false)}
                 >
-                  Update Profile
+                  Account
+                </Link>
+                <Link
+                  href="/public-profile"
+                  className="block px-4 py-2 text-base text-foreground hover:bg-muted"
+                  onClick={() => setOpen(false)}
+                >
+                  Public Profile
                 </Link>
                 <Link
                   href="/payment-method"
