@@ -1,7 +1,7 @@
 "use client";
 import React from 'react';
 import Carousel from './Carousel';
-import { LEVELS } from './constants';
+import { LEVELS } from '../constants';
 
 const SubjectLevels: React.FC = () => {
   return (

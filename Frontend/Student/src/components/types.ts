@@ -28,7 +28,10 @@ export interface Session {
   teacherName: string;
   subject: string;
   subjectLevel: SubjectLevel;
-  status: 'Active' | 'Live';
+  status: 'Scheduled' | 'Live' | 'Active';
   duration_minutes: number;
+  completed_sessions: number;
+  total_sessions: number;
+  next_session_time: string;
   startTime?: string;
 }

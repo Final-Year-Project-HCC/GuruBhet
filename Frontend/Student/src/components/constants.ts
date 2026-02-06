@@ -1,13 +1,60 @@
 
 import { Teacher, Session, SubjectLevel } from './types';
 
+// export const ACTIVE_SESSIONS: Session[] = [
+//   { id: '1', teacherName: 'Sarah Jenkins', subject: 'Advanced Calculus', subjectLevel: 'Bachelor', status: 'Live', duration_minutes: 60 },
+//   { id: '2', teacherName: 'Dr. Marcus Thorne', subject: 'Organic Chemistry', subjectLevel: 'Bachelor', status: 'Active', duration_minutes: 90 },
+//   { id: '3', teacherName: 'Elena Rodriguez', subject: 'UI/UX Design', subjectLevel: 'Diploma', status: 'Live', duration_minutes: 45 },
+//   { id: '4', teacherName: 'Kevin Wang', subject: 'Data Structures', subjectLevel: 'Bachelor', status: 'Active', duration_minutes: 60 },
+//   { id: '5', teacherName: 'Chloe Baker', subject: 'English Literature', subjectLevel: '11-12', status: 'Live', duration_minutes: 60 },
+// ];
 export const ACTIVE_SESSIONS: Session[] = [
-  { id: '1', teacherName: 'Sarah Jenkins', subject: 'Advanced Calculus', subjectLevel: 'Bachelor', status: 'Live', duration_minutes: 60 },
-  { id: '2', teacherName: 'Dr. Marcus Thorne', subject: 'Organic Chemistry', subjectLevel: 'Bachelor', status: 'Active', duration_minutes: 90 },
-  { id: '3', teacherName: 'Elena Rodriguez', subject: 'UI/UX Design', subjectLevel: 'Diploma', status: 'Live', duration_minutes: 45 },
-  { id: '4', teacherName: 'Kevin Wang', subject: 'Data Structures', subjectLevel: 'Bachelor', status: 'Active', duration_minutes: 60 },
-  { id: '5', teacherName: 'Chloe Baker', subject: 'English Literature', subjectLevel: '11-12', status: 'Live', duration_minutes: 60 },
+  { 
+    id: '1', 
+    teacherName: 'Sarah Jenkins', 
+    subject: 'Advanced Calculus', 
+    subjectLevel: 'Bachelor', 
+    status: 'Live', 
+    duration_minutes: 60,
+    completed_sessions: 8,
+    total_sessions: 12,
+    next_session_time: 'Starts in 15 mins'
+  },
+  { 
+    id: '2', 
+    teacherName: 'Dr. Marcus Thorne', 
+    subject: 'Organic Chemistry', 
+    subjectLevel: 'Bachelor', 
+    status: 'Scheduled', 
+    duration_minutes: 90,
+    completed_sessions: 3,
+    total_sessions: 20,
+    next_session_time: 'Tomorrow, 4:00 PM'
+  },
+  { 
+    id: '3', 
+    teacherName: 'Elena Rodriguez', 
+    subject: 'UI/UX Design', 
+    subjectLevel: 'Diploma', 
+    status: 'Active', 
+    duration_minutes: 45,
+    completed_sessions: 15,
+    total_sessions: 15,
+    next_session_time: 'Review Pending'
+  },
+  { 
+    id: '4', 
+    teacherName: 'Kevin Wang', 
+    subject: 'Data Structures', 
+    subjectLevel: 'Bachelor', 
+    status: 'Scheduled', 
+    duration_minutes: 60,
+    completed_sessions: 5,
+    total_sessions: 10,
+    next_session_time: 'Wednesday, 10:00 AM'
+  },
 ];
+
 
 export const TRENDING_TEACHERS: Teacher[] = [
   { 

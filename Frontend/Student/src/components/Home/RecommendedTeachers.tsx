@@ -1,14 +1,17 @@
 "use client";
 import React from 'react';
 import Carousel from './Carousel';
-import { RECOMMENDED_TEACHERS } from './constants';
+import { RECOMMENDED_TEACHERS } from '../constants';
+import Link from 'next/link';
 
 const RecommendedTeachers: React.FC = () => {
+ 
   return (
-    <section className="py-24 bg-white border-t border-border">
+    <section className="py-12 bg-white border-t border-border">
       <Carousel 
         title="Recommended for You" 
-        subtitle="Our AI matched these expert tutors specifically to your learning profile."
+       subtitle="These expert tutors have been matched to your learning profile."
+
       >
         {RECOMMENDED_TEACHERS.map((teacher, index) => (
           <div 
@@ -16,12 +19,12 @@ const RecommendedTeachers: React.FC = () => {
             className="min-w-[280px] sm:min-w-[320px] group relative bg-white border border-border rounded-[1.5rem] overflow-hidden scroll-snap-align-start hover:shadow-xl hover:border-primary/20 transition-all duration-500 cursor-pointer flex flex-col"
           >
             {/* Top Badge Section - Scaled down */}
-            <div className="absolute top-3 right-3 z-10 flex flex-col items-end gap-2">
+            {/* <div className="absolute top-3 right-3 z-10 flex flex-col items-end gap-2">
               <div className="bg-primary text-primary-foreground text-[9px] font-black px-2 py-1 rounded-full shadow-lg flex items-center gap-1 tracking-wider">
                 <div className="w-1 h-1 bg-green-400 rounded-full animate-pulse"></div>
                 {index === 0 ? "TOP MATCH" : "98% MATCH"}
               </div>
-            </div>
+            </div> */}
 
             <div className="p-5 flex-grow">
               {/* Header: Image & Basic Info - Optimized for smaller width */}
@@ -88,12 +91,14 @@ const RecommendedTeachers: React.FC = () => {
               </div>
 
               <div className="flex flex-col gap-1.5 items-end">
-                <button className="bg-primary text-primary-foreground px-4 py-2 rounded-xl font-bold text-[11px] hover:bg-destructive transition-all shadow-md active:scale-95 flex items-center gap-1.5">
-                  <span>Book Trial</span>
+                <Link href={`/teacher-detail/${teacher.id}`}>
+                <button  className="bg-primary cursor-pointer text-primary-foreground px-4 py-2 rounded-xl font-bold text-[11px] hover:bg-destructive transition-all shadow-md active:scale-95 flex items-center gap-1.5">
+                  <span>View Profile</span>
                   <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
                   </svg>
                 </button>
+                </Link>
               </div>
             </div>
           </div>

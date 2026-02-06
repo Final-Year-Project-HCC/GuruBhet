@@ -1,8 +1,14 @@
-export default function SearchTeacherPage() {
-  return (
-    <div className="mx-auto max-w-6xl px-4 py-10">
-      <h1 className="text-2xl font-semibold">Search Teacher</h1>
-      <p className="mt-2 text-muted-foreground">This is a placeholder page. I can implement a real search experience here when you’re ready.</p>
-    </div>
-  );
+"use client";
+
+import { useRouter } from "next/navigation";
+import SearchPage from "@/components/SearchTeacher/SearchPage";
+
+export default function Page() {
+  const router = useRouter();
+
+  const handleViewProfile = (id: string) => {
+    router.push(`/teacher-detail/${id}`);
+  };
+
+  return <SearchPage onViewProfile={handleViewProfile} />;
 }

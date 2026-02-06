@@ -44,7 +44,7 @@ export default function StudentNavbar() {
 
         <nav className="flex items-center gap-3">
           <Link
-            href="/sessions"
+            href="/search-teacher"
             className="rounded-md px-3 py-2 text-base text-foreground hover:bg-muted"
           >
             Search Teacher

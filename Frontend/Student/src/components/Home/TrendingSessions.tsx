@@ -1,7 +1,7 @@
 "use client";
 import React from 'react';
 import Carousel from './Carousel';
-import { TRENDING_TEACHERS } from './constants';
+import { TRENDING_TEACHERS } from '../constants';
 
 const TrendingSessions: React.FC = () => {
   return (

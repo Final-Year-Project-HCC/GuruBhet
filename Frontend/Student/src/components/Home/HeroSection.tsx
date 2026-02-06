@@ -1,4 +1,5 @@
 "use client";
+import Link from 'next/link';
 import React from 'react';
 
 const HeroSection: React.FC = () => {
@@ -22,7 +23,7 @@ const HeroSection: React.FC = () => {
             From SLC/SEE to Master&apos;s level, connect with verified tutors for personalized sessions tailored to your curriculum.
           </p>
 
-          <div className="bg-white p-2 rounded-2xl shadow-xl border border-border flex flex-col sm:flex-row gap-2 mt-4 max-w-2xl">
+          {/* <div className="bg-white p-2 rounded-2xl shadow-xl border border-border flex flex-col sm:flex-row gap-2 mt-4 max-w-2xl">
             <div className="flex-grow flex items-center px-4 gap-3 bg-muted/50 rounded-xl">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -46,6 +47,19 @@ const HeroSection: React.FC = () => {
             <button className="bg-primary text-primary-foreground px-8 py-4 rounded-xl font-bold hover:bg-destructive transition-colors">
               Find
             </button>
+          </div> */}
+           <div className="mt-4">
+            <Link href="/search-teacher">
+            <button 
+              
+              className="group flex cursor-pointer items-center gap-3 bg-primary text-primary-foreground px-8 py-5 rounded-2xl font-bold text-lg hover:bg-destructive transition-all shadow-xl shadow-primary/10 hover:scale-[1.05] active:scale-[0.98]"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-primary-foreground/70 group-hover:text-white transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <span>Search Teachers</span>
+            </button>
+              </Link>
           </div>
 
           <div className="flex items-center gap-4 mt-2">
