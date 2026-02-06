@@ -7,6 +7,7 @@ export default function TeacherEsewaVerifyFailedPage() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setPid(params.get("pid"));
   }, []);
 

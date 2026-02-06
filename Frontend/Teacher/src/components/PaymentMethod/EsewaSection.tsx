@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "react-toastify";
 import EsewaForm from "./EsewaForm";
+import Modal from "../Modal";
 import maskMobile from "@/lib/utils";
 
 type SavedPaymentMethod = {
@@ -114,30 +115,30 @@ export default function EsewaSection() {
         </div>
       )}
 
-      {confirmId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="w-full max-w-sm rounded-md bg-background p-4 border border-border">
-            <h3 className="text-base font-semibold">Remove eSewa method?</h3>
-            <p className="text-sm text-muted-foreground mt-1">
-              This will unlink your eSewa wallet from GuruBhet. You can add it again later.
-            </p>
-            <div className="mt-4 flex justify-end gap-2">
-              <button
-                onClick={() => setConfirmId(null)}
-                className="rounded-md px-3 py-2 text-sm bg-background ring-1 ring-border hover:bg-muted"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => deleteMutation.mutate(confirmId)}
-                className="rounded-md px-3 py-2 text-sm bg-red-600 text-white ring-1 ring-border hover:opacity-90"
-              >
-                Remove
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <Modal
+        isOpen={!!confirmId}
+        onClose={() => setConfirmId(null)}
+        title={"Remove eSewa method?"}
+        size="sm"
+        actions={
+          <>
+            <button
+              onClick={() => setConfirmId(null)}
+              className="rounded-md px-3 py-2 text-sm bg-background ring-1 ring-border hover:bg-muted"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => confirmId && deleteMutation.mutate(confirmId)}
+              className="rounded-md px-3 py-2 text-sm bg-red-600 text-white ring-1 ring-border hover:opacity-90"
+            >
+              Remove
+            </button>
+          </>
+        }
+      >
+        This will unlink your eSewa wallet from GuruBhet. You can add it again later.
+      </Modal>
     </div>
   );
 }

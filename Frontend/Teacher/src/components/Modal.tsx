@@ -7,6 +7,7 @@ type ModalProps = {
   isOpen: boolean;
   title?: React.ReactNode;
   children?: React.ReactNode;
+  description?: React.ReactNode;
   onClose: () => void;
   actions?: React.ReactNode;
   closeOnBackdrop?: boolean;
@@ -18,6 +19,7 @@ export default function Modal({
   isOpen,
   title,
   children,
+  description,
   onClose,
   actions,
   closeOnBackdrop = true,
@@ -84,7 +86,11 @@ export default function Modal({
             {title}
           </h3>
         )}
-        {children && <div className="mt-2 text-sm text-muted-foreground">{children}</div>}
+        {description ? (
+          <p className="text-sm text-muted-foreground mt-1">{description}</p>
+        ) : (
+          children && <div className="mt-1 text-sm text-muted-foreground">{children}</div>
+        )}
         {actions && <div className="mt-4 flex justify-end gap-2">{actions}</div>}
       </div>
     </div>
