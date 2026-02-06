@@ -34,3 +34,19 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## Payment Method (eSewa)
+
+- Configure environment variables in `.env.local`:
+
+```
+NEXT_PUBLIC_API_URL=http://localhost:8000
+NEXT_PUBLIC_ESEWA_MERCHANT_CODE=YOUR_MERCHANT_CODE
+```
+
+- Payment Method page is available at `/payment-method`.
+- "Verify via eSewa" redirects to eSewa with Rs. 1 test payment and returns to:
+	- Success: `/payment-method/verify/success?refId=<refId>&pid=<pid>`
+	- Failed: `/payment-method/verify/failed?pid=<pid>`
+
+Back-end should, upon success, verify the `refId` for `pid` using eSewa status API, create/link the payment method to the user, and mark it as verified.

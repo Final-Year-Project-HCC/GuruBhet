@@ -30,7 +30,7 @@ const FilterBar: React.FC<FilterBarProps> = ({
     <div className="bg-white border border-border rounded-[2.5rem] p-8 shadow-xl mb-12">
       <div className="flex flex-col lg:flex-row items-end gap-6">
         {/* Search Input */}
-        <div className="flex-grow w-full lg:w-auto">
+        <div className="grow w-full lg:w-auto">
           <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-3 px-1">
             Search Name or Subject
           </label>
@@ -46,7 +46,7 @@ const FilterBar: React.FC<FilterBarProps> = ({
         </div>
 
         {/* Academic Level */}
-        <div className="w-full lg:w-[220px]">
+        <div className="w-full lg:w-55">
           <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-3 px-1">
             Academic Level
           </label>
@@ -72,14 +72,14 @@ const FilterBar: React.FC<FilterBarProps> = ({
         </div>
 
         {/* Max Price */}
-        <div className="w-full lg:w-[260px]">
+        <div className="w-full lg:w-65">
           <div className="flex justify-between items-center mb-3 px-1">
             <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
               Max Price (NPR)
             </label>
             <span className="text-xs font-black text-primary">{maxPrice}</span>
           </div>
-          <div className="w-full bg-white border border-border rounded-2xl px-5 h-[58px] flex items-center">
+          <div className="w-full bg-white border border-border rounded-2xl px-5 h-14.5 flex items-center">
             <input
               type="range"
               min="500"
@@ -93,7 +93,7 @@ const FilterBar: React.FC<FilterBarProps> = ({
         </div>
 
         {/* Sort By */}
-        <div className="w-full lg:w-[200px]">
+        <div className="w-full lg:w-50">
           <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-3 px-1">
             Sort By
           </label>

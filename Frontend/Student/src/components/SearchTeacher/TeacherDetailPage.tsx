@@ -120,7 +120,7 @@ const TeacherDetailPage: React.FC<TeacherDetailPageProps> = ({ teacherId, onBack
 
             <section 
             >
-              <h2 className="text-xl font-black tracking-tight mb-6 uppercase tracking-widest text-muted-foreground">Expertise & Levels</h2>
+              <h2 className="text-xl font-black mb-6 uppercase tracking-widest text-muted-foreground">Expertise & Levels</h2>
               <div className="flex flex-wrap gap-3">
                 {teacher.level_expertise.map((level) => (
                   <div key={level} className="bg-white border border-border px-6 py-4 rounded-2xl flex items-center gap-3">
@@ -136,7 +136,7 @@ const TeacherDetailPage: React.FC<TeacherDetailPageProps> = ({ teacherId, onBack
 
             <section 
             >
-              <h2 className="text-xl font-black tracking-tight mb-6 uppercase tracking-widest text-muted-foreground">Recent Reviews</h2>
+              <h2 className="text-xl font-black mb-6 uppercase tracking-widest text-muted-foreground">Recent Reviews</h2>
               <div className="space-y-4">
                 {[
                   { name: "Anish K.", rating: 5, comment: "Excellent explanation of complex topics. Highly recommended!" },

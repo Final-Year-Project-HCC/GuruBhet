@@ -19,7 +19,7 @@ const SearchTeacherCard: React.FC<SearchTeacherCardProps> = ({
       onClick={onClick}
     >
       {/* Top Media Section */}
-      <div className="relative aspect-[16/11] overflow-hidden">
+      <div className="relative aspect-16/11 overflow-hidden">
         <img
           src={teacher.image}
           className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
@@ -54,7 +54,7 @@ const SearchTeacherCard: React.FC<SearchTeacherCardProps> = ({
       </div>
 
       {/* Content Section */}
-      <div className="px-6 py-4 flex-grow flex flex-col">
+      <div className="px-6 py-4 grow flex flex-col">
         <div className="mb-6">
           <h3 className="text-2xl font-black tracking-tight text-primary mb-1 truncate">
             {teacher.name}
