@@ -55,6 +55,45 @@ export const ACTIVE_SESSIONS: Session[] = [
   },
 ];
 
+export const COMPLETED_SESSIONS: Session[] = [
+  {
+    id: 'c1',
+    teacherName: 'James Wilson',
+    subject: 'Quantum Mechanics Basics',
+    subjectLevel: 'Bachelor',
+    status: 'Completed',
+    duration_minutes: 60,
+    completed_sessions: 10,
+    total_sessions: 10,
+    completion_date: 'Oct 12, 2023',
+    rating_given: 5
+  },
+  {
+    id: 'c2',
+    teacherName: 'Sophia Chen',
+    subject: 'Intro to Mandarin',
+    subjectLevel: '10',
+    status: 'Completed',
+    duration_minutes: 45,
+    completed_sessions: 5,
+    total_sessions: 5,
+    completion_date: 'Sept 28, 2023',
+    rating_given: 4
+  },
+  {
+    id: 'c3',
+    teacherName: 'Dr. Arpan Sharma',
+    subject: 'Statistical Physics',
+    subjectLevel: 'Master',
+    status: 'Completed',
+    duration_minutes: 90,
+    completed_sessions: 12,
+    total_sessions: 12,
+    completion_date: 'Aug 15, 2023',
+    rating_given: 5
+  }
+];
+
 
 export const TRENDING_TEACHERS: Teacher[] = [
   { 
