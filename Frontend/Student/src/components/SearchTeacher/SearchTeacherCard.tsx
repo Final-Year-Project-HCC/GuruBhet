@@ -114,7 +114,7 @@ const SearchTeacherCard: React.FC<SearchTeacherCardProps> = ({
             </button>
             <button 
               onClick={onClick}
-              className="bg-primary cursor-pointer text-primary-foreground px-6 py-3.5 rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-lg hover:bg-destructive active:scale-95 transition-all"
+              className="bg-primary cursor-pointer text-primary-foreground px-6 py-3.5 rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-lg hover:bg-primary-hover hover:text-primary-hover-foreground active:scale-95 transition-all"
             >
               Profile
             </button>

@@ -18,7 +18,9 @@
 
   /* Actions */
   --primary: #171717;
+  --primary-hover: #262626;
   --primary-foreground: #ffffff;
+  --primary-hover-foreground: #ffffff;
   --accent: #2563eb;
   --accent-foreground: #ffffff;
 
@@ -42,7 +44,9 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
   --color-primary-foreground: var(--primary-foreground);
+  --color-primary-hover-foreground: var(--primary-hover-foreground);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-success: var(--success);
@@ -73,7 +77,9 @@
     --input: #262626;
 
     --primary: #ededed;
+    --primary-hover: #d4d4d4;
     --primary-foreground: #0a0a0a;
+    --primary-hover-foreground: #0a0a0a;
     --accent: #60a5fa;
     --accent-foreground: #0a0a0a;
 
@@ -89,7 +95,6 @@ body {
   color: var(--foreground);
   font-family: var(--font-poppins), sans-serif;
 }
-
 
 /* Smoother transitions */
 * {

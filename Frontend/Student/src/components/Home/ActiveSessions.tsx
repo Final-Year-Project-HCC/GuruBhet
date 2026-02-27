@@ -19,7 +19,7 @@ const ActiveSessions: React.FC = () => {
           return (
             <div 
               key={session.id} 
-              className="min-w-[320px] sm:min-w-90 bg-surface rounded-2xl border border-border p-6 scroll-snap-align-start transition-all cursor-pointer relative overflow-hidden flex flex-col hover:shadow-lg"
+              className="min-w-[320px] sm:min-w-90 bg-surface rounded-2xl border border-border p-6 scroll-snap-align-start transition-all relative overflow-hidden flex flex-col hover:shadow-lg"
             >
               {/* Status Header */}
               <div className="flex justify-between items-center mb-4">
@@ -74,10 +74,10 @@ const ActiveSessions: React.FC = () => {
 
               {/* Quick Action Button */}
               <button 
-                className={`w-full mt-6 py-3 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98] ${
+                className={`w-full mt-6 py-3 rounded-xl text-sm font-bold cursor-pointer transition-all flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98] ${
                   session.status === 'Live' 
                   ? 'bg-destructive text-destructive-foreground hover:opacity-90 shadow-lg' 
-                  : 'bg-primary text-primary-foreground hover:bg-destructive'
+                  : 'bg-primary text-primary-foreground hover:bg-primary-hover hover:text-primary-hover-foreground'
                 }`}
               >
                 {session.status === 'Live' ? (

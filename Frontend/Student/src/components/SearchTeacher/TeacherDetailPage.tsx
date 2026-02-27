@@ -78,7 +78,7 @@ const TeacherDetailPage: React.FC<TeacherDetailPageProps> = ({ teacherId, onBack
 
                 <div className="space-y-3">
                   <button 
-                    className="w-full bg-primary text-primary-foreground py-4 rounded-2xl font-bold text-lg hover:bg-destructive shadow-lg transition-all hover:scale-[1.02] active:scale-[0.98]"
+                    className="w-full bg-primary text-primary-foreground py-4 rounded-2xl font-bold text-lg hover:bg-primary-hover hover:text-primary-hover-foreground shadow-lg transition-all hover:scale-[1.02] active:scale-[0.98]"
                   >
                     Book a Trial Session
                   </button>

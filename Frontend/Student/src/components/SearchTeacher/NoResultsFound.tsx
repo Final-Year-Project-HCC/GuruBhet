@@ -14,7 +14,7 @@ const NoResultsFound: React.FC<NoResultsFoundProps> = ({ onReset }) => {
       </p>
       <button
         onClick={onReset}
-        className="bg-primary text-primary-foreground px-8 py-4 rounded-2xl font-bold hover:bg-destructive transition-colors"
+        className="bg-primary text-primary-foreground px-8 py-4 rounded-2xl font-bold hover:bg-primary-hover hover:text-primary-hover-foreground transition-colors"
       >
         Clear all filters
       </button>

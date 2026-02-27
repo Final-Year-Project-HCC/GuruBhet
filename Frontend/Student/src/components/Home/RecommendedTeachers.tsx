@@ -17,7 +17,7 @@ const RecommendedTeachers: React.FC = () => {
         {RECOMMENDED_TEACHERS.map((teacher, index) => (
           <div 
             key={teacher.id} 
-            className="min-w-70 sm:min-w-[320px] group relative bg-surface border border-border rounded-3xl overflow-hidden scroll-snap-align-start hover:shadow-xl hover:border-primary/20 transition-all duration-500 cursor-pointer flex flex-col"
+            className="min-w-70 sm:min-w-[320px] group relative bg-surface border border-border rounded-3xl overflow-hidden scroll-snap-align-start hover:shadow-xl hover:border-primary/20 transition-all duration-500 flex flex-col"
           >
             {/* Top Badge Section - Scaled down */}
             {/* <div className="absolute top-3 right-3 z-10 flex flex-col items-end gap-2">
@@ -95,7 +95,7 @@ const RecommendedTeachers: React.FC = () => {
 
               <div className="flex flex-col gap-1.5 items-end">
                 <Link href={`/teacher-detail/${teacher.id}`}>
-                <button  className="bg-primary cursor-pointer text-primary-foreground px-4 py-2 rounded-xl font-bold text-[11px] hover:bg-destructive transition-all shadow-md active:scale-95 flex items-center gap-1.5">
+                <button  className="bg-primary cursor-pointer text-primary-foreground px-4 py-2 rounded-xl font-bold text-[11px] hover:bg-primary-hover hover:text-primary-hover-foreground transition-all shadow-md active:scale-95 flex items-center gap-1.5">
                   <span>View Profile</span>
                   <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />

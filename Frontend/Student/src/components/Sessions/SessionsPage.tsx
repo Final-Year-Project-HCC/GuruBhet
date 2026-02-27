@@ -108,10 +108,10 @@ const SessionsPage: React.FC = () => {
                     </div>
 
                     <button 
-                      className={`w-full py-4 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all shadow-lg active:scale-95 ${
+                      className={`w-full py-4 rounded-2xl text-[11px] font-black uppercase tracking-widest cursor-pointer transition-all shadow-lg active:scale-95 ${
                         session.status === 'Live' 
                         ? 'bg-destructive text-destructive-foreground hover:opacity-90' 
-                        : 'bg-primary text-primary-foreground hover:bg-destructive'
+                        : 'bg-primary text-primary-foreground hover:bg-primary-hover hover:text-primary-hover-foreground'
                       }`}
                     >
                       {session.status === 'Live' ? 'Enter Classroom Now' : 'Manage Course'}
@@ -203,7 +203,7 @@ const SessionsPage: React.FC = () => {
                         </div>
                       </td>
                       <td className="px-8 py-6">
-                        <button className="text-[10px] font-black uppercase tracking-widest text-primary hover:text-destructive transition-colors">
+                        <button className="text-[10px] font-black uppercase tracking-widest text-primary hover:text-destructive transition-colors cursor-pointer">
                           View Details
                         </button>
                       </td>
