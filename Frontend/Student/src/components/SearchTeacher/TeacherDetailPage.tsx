@@ -40,13 +40,13 @@ const TeacherDetailPage: React.FC<TeacherDetailPageProps> = ({ teacherId, onBack
           {/* Left Column: Profile Card */}
           <div className="lg:col-span-1 space-y-8">
             <div 
-              className="bg-white border border-border rounded-[2.5rem] overflow-hidden shadow-xl"
+              className="bg-surface border border-border rounded-[2.5rem] overflow-hidden shadow-xl"
             >
               <div className="aspect-square relative overflow-hidden">
                 <img src={teacher.image} className="w-full h-full object-cover" alt={teacher.name} />
                 <div className="absolute top-6 left-6">
                   {teacher.verification_status === 'APPROVED' && (
-                    <div className="bg-blue-600 text-white p-2 rounded-full shadow-lg border border-white/20">
+                    <div className="bg-accent text-accent-foreground p-2 rounded-full shadow-lg border border-background/20">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                         <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                       </svg>
@@ -123,7 +123,7 @@ const TeacherDetailPage: React.FC<TeacherDetailPageProps> = ({ teacherId, onBack
               <h2 className="text-xl font-black mb-6 uppercase tracking-widest text-muted-foreground">Expertise & Levels</h2>
               <div className="flex flex-wrap gap-3">
                 {teacher.level_expertise.map((level) => (
-                  <div key={level} className="bg-white border border-border px-6 py-4 rounded-2xl flex items-center gap-3">
+                  <div key={level} className="bg-surface border border-border px-6 py-4 rounded-2xl flex items-center gap-3">
                     <div className="w-2 h-2 rounded-full bg-primary"></div>
                     <div>
                       <p className="text-sm font-black leading-none mb-1 uppercase tracking-tighter">{level}</p>
@@ -142,12 +142,12 @@ const TeacherDetailPage: React.FC<TeacherDetailPageProps> = ({ teacherId, onBack
                   { name: "Anish K.", rating: 5, comment: "Excellent explanation of complex topics. Highly recommended!" },
                   { name: "Priya S.", rating: 4, comment: "Very patient and well-prepared for every session." }
                 ].map((review, i) => (
-                  <div key={i} className="bg-white border border-border rounded-3xl p-6">
+                  <div key={i} className="bg-surface border border-border rounded-3xl p-6">
                     <div className="flex justify-between items-start mb-2">
                       <h4 className="font-bold">{review.name}</h4>
                       <div className="flex gap-0.5">
                         {[...Array(review.rating)].map((_, j) => (
-                          <svg key={j} xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 text-yellow-500" viewBox="0 0 20 20" fill="currentColor">
+                          <svg key={j} xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 text-warning" viewBox="0 0 20 20" fill="currentColor">
                             <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                           </svg>
                         ))}

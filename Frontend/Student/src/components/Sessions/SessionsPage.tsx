@@ -16,7 +16,7 @@ const SessionsPage: React.FC = () => {
   };
 
   return (
-    <div className="bg-[#f8fafc] min-h-screen py-12">
+    <div className="bg-surface-muted min-h-screen py-12">
       <div className="max-w-7xl mx-auto px-4">
         {/* Page Title */}
         <div className="mb-12">
@@ -33,16 +33,16 @@ const SessionsPage: React.FC = () => {
             </div>
             {/* Quick Stats Grid */}
             <div className="grid grid-cols-3 gap-4">
-              <div className="bg-white border border-border p-4 rounded-2xl shadow-sm text-center min-w-[100px]">
+              <div className="bg-surface border border-border p-4 rounded-2xl shadow-sm text-center min-w-25">
                 <p className="text-2xl font-black text-primary leading-none">{activeStats.total}</p>
                 <p className="text-[10px] font-black text-muted-foreground uppercase tracking-tighter mt-1">Tracks</p>
               </div>
-              <div className="bg-white border border-border p-4 rounded-2xl shadow-sm text-center min-w-[100px]">
+              <div className="bg-surface border border-border p-4 rounded-2xl shadow-sm text-center min-w-25">
                 <p className="text-2xl font-black text-primary leading-none">{activeStats.remaining}</p>
                 <p className="text-[10px] font-black text-muted-foreground uppercase tracking-tighter mt-1">To Go</p>
               </div>
-              <div className="bg-white border border-border p-4 rounded-2xl shadow-sm text-center min-w-[100px]">
-                <p className="text-2xl font-black text-green-600 leading-none">{activeStats.liveCount}</p>
+              <div className="bg-surface border border-border p-4 rounded-2xl shadow-sm text-center min-w-25">
+                <p className="text-2xl font-black text-success leading-none">{activeStats.liveCount}</p>
                 <p className="text-[10px] font-black text-muted-foreground uppercase tracking-tighter mt-1">Live Now</p>
               </div>
             </div>
@@ -57,12 +57,12 @@ const SessionsPage: React.FC = () => {
               return (
                 <div 
                   key={session.id} 
-                  className="bg-white rounded-[2.5rem] border border-border p-8 shadow-sm hover:shadow-xl transition-all group flex flex-col"
+                  className="bg-surface rounded-[2.5rem] border border-border p-8 shadow-sm hover:shadow-xl transition-all group flex flex-col"
                 >
                   <div className="flex justify-between items-start mb-6">
                     <div className="flex items-center gap-2">
-                      <div className={`w-2 h-2 rounded-full ${session.status === 'Live' ? 'bg-red-500 animate-pulse' : 'bg-blue-500'}`}></div>
-                      <span className={`text-[10px] font-black uppercase tracking-widest ${session.status === 'Live' ? 'text-red-600' : 'text-blue-600'}`}>
+                      <div className={`w-2 h-2 rounded-full ${session.status === 'Live' ? 'bg-destructive animate-pulse' : 'bg-accent'}`}></div>
+                      <span className={`text-[10px] font-black uppercase tracking-widest ${session.status === 'Live' ? 'text-destructive' : 'text-accent'}`}>
                         {session.status === 'Live' ? 'Session In Progress' : session.status}
                       </span>
                     </div>
@@ -97,7 +97,7 @@ const SessionsPage: React.FC = () => {
                       </div>
                       <span className="text-lg font-black text-primary">{progress}%</span>
                     </div>
-                    <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden mb-8">
+                    <div className="w-full bg-subtle rounded-full h-2.5 overflow-hidden mb-8">
                       <div 
                         style={{ width: `${progress}%` }}
                         className="bg-primary h-full rounded-full transition-all duration-1000 ease-out"
@@ -107,8 +107,8 @@ const SessionsPage: React.FC = () => {
                     <button 
                       className={`w-full py-4 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all shadow-lg active:scale-95 ${
                         session.status === 'Live' 
-                        ? 'bg-red-600 text-white hover:bg-red-700' 
-                        : 'bg-primary text-white hover:bg-destructive'
+                        ? 'bg-destructive text-destructive-foreground hover:opacity-90' 
+                        : 'bg-primary text-primary-foreground hover:bg-destructive'
                       }`}
                     >
                       {session.status === 'Live' ? 'Enter Classroom Now' : 'Manage Course'}
@@ -129,25 +129,25 @@ const SessionsPage: React.FC = () => {
             </div>
             {/* Quick Stats Grid */}
             <div className="grid grid-cols-3 gap-4">
-              <div className="bg-white border border-border p-4 rounded-2xl shadow-sm text-center min-w-[100px]">
+              <div className="bg-surface border border-border p-4 rounded-2xl shadow-sm text-center min-w-25">
                 <p className="text-2xl font-black text-primary leading-none">{completedStats.total}</p>
                 <p className="text-[10px] font-black text-muted-foreground uppercase tracking-tighter mt-1">Courses</p>
               </div>
-              <div className="bg-white border border-border p-4 rounded-2xl shadow-sm text-center min-w-[100px]">
+              <div className="bg-surface border border-border p-4 rounded-2xl shadow-sm text-center min-w-25">
                 <p className="text-2xl font-black text-primary leading-none">{completedStats.totalHours.toFixed(0)}</p>
                 <p className="text-[10px] font-black text-muted-foreground uppercase tracking-tighter mt-1">Hours</p>
               </div>
-              <div className="bg-white border border-border p-4 rounded-2xl shadow-sm text-center min-w-[100px]">
-                <p className="text-2xl font-black text-yellow-500 leading-none">{completedStats.avgRating}</p>
+              <div className="bg-surface border border-border p-4 rounded-2xl shadow-sm text-center min-w-25">
+                <p className="text-2xl font-black text-warning leading-none">{completedStats.avgRating}</p>
                 <p className="text-[10px] font-black text-muted-foreground uppercase tracking-tighter mt-1">Avg Rating</p>
               </div>
             </div>
           </div>
 
-          <div className="bg-white border border-border rounded-[2.5rem] overflow-hidden shadow-sm">
+          <div className="bg-surface border border-border rounded-[2.5rem] overflow-hidden shadow-sm">
             <div className="overflow-x-auto">
               <table className="w-full text-left">
-                <thead className="bg-slate-50 border-b border-border">
+                <thead className="bg-subtle border-b border-border">
                   <tr>
                     <th className="px-8 py-5 text-[10px] font-black text-muted-foreground uppercase tracking-widest">Course Subject</th>
                     <th className="px-8 py-5 text-[10px] font-black text-muted-foreground uppercase tracking-widest">Tutor</th>
@@ -157,9 +157,9 @@ const SessionsPage: React.FC = () => {
                     <th className="px-8 py-5 text-[10px] font-black text-muted-foreground uppercase tracking-widest">Action</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-subtle">
                   {COMPLETED_SESSIONS.map((session) => (
-                    <tr key={session.id} className="hover:bg-slate-50/50 transition-colors">
+                    <tr key={session.id} className="hover:bg-subtle/50 transition-colors">
                       <td className="px-8 py-6">
                         <div>
                           <p className="font-black text-primary">{session.subject}</p>
@@ -188,7 +188,7 @@ const SessionsPage: React.FC = () => {
                           {[...Array(5)].map((_, i) => (
                             <svg 
                               key={i} 
-                              className={`w-3.5 h-3.5 ${(session.rating_given || 0) > i ? 'text-yellow-500' : 'text-slate-200'}`} 
+                              className={`w-3.5 h-3.5 ${(session.rating_given || 0) > i ? 'text-warning' : 'text-subtle-foreground/30'}`} 
                               fill="currentColor" 
                               viewBox="0 0 20 20"
                             >

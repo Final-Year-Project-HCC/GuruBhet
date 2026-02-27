@@ -57,7 +57,7 @@ const SearchPage: React.FC<SearchPageProps> = ({ onViewProfile }) => {
   };
 
   return (
-    <div className="bg-[#f0f2f5] min-h-screen">
+    <div className="bg-surface-muted min-h-screen">
       <div className="max-w-7xl mx-auto px-4 pt-12 pb-24">
         <FilterBar
           searchTerm={searchTerm}

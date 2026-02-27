@@ -27,7 +27,7 @@ const FilterBar: React.FC<FilterBarProps> = ({
   onReset,
 }) => {
   return (
-    <div className="bg-white border border-border rounded-[2.5rem] p-8 shadow-xl mb-12">
+    <div className="bg-surface border border-border rounded-[2.5rem] p-8 shadow-xl mb-12">
       <div className="flex flex-col lg:flex-row items-end gap-6">
         {/* Search Input */}
         <div className="grow w-full lg:w-auto">
@@ -40,7 +40,7 @@ const FilterBar: React.FC<FilterBarProps> = ({
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="e.g. Physics, Sarah..."
-              className="w-full bg-white border border-border rounded-2xl px-5 py-4 text-sm font-semibold focus:border-primary outline-none transition-all placeholder:text-muted-foreground/40"
+              className="w-full bg-surface border border-border rounded-2xl px-5 py-4 text-sm font-semibold focus:border-primary outline-none transition-all placeholder:text-muted-foreground/40"
             />
           </div>
         </div>
@@ -54,7 +54,7 @@ const FilterBar: React.FC<FilterBarProps> = ({
             <select
               value={selectedLevel}
               onChange={(e) => setSelectedLevel(e.target.value as SubjectLevel | 'All')}
-              className="w-full bg-white border border-border rounded-2xl pl-5 pr-10 py-4 text-sm font-semibold focus:border-primary outline-none cursor-pointer appearance-none"
+              className="w-full bg-surface border border-border rounded-2xl pl-5 pr-10 py-4 text-sm font-semibold focus:border-primary outline-none cursor-pointer appearance-none"
             >
               <option value="All">All Levels</option>
               {LEVELS.map((level) => (
@@ -79,7 +79,7 @@ const FilterBar: React.FC<FilterBarProps> = ({
             </label>
             <span className="text-xs font-black text-primary">{maxPrice}</span>
           </div>
-          <div className="w-full bg-white border border-border rounded-2xl px-5 h-14.5 flex items-center">
+          <div className="w-full bg-surface border border-border rounded-2xl px-5 h-14.5 flex items-center">
             <input
               type="range"
               min="500"
@@ -101,7 +101,7 @@ const FilterBar: React.FC<FilterBarProps> = ({
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as 'rating' | 'price-low' | 'price-high')}
-              className="w-full bg-white border border-border rounded-2xl pl-5 pr-10 py-4 text-sm font-semibold focus:border-primary outline-none cursor-pointer appearance-none"
+              className="w-full bg-surface border border-border rounded-2xl pl-5 pr-10 py-4 text-sm font-semibold focus:border-primary outline-none cursor-pointer appearance-none"
             >
               <option value="rating">Top Rated</option>
               <option value="price-low">Price: Low to High</option>
