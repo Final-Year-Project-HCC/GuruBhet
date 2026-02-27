@@ -1,5 +1,6 @@
 
 import React from 'react';
+import Image from 'next/image';
 import { ACTIVE_SESSIONS, COMPLETED_SESSIONS } from '../constants';
 
 const SessionsPage: React.FC = () => {
@@ -78,10 +79,12 @@ const SessionsPage: React.FC = () => {
                       {session.subject}
                     </h3>
                     <div className="flex items-center gap-3">
-                      <img 
-                        src={`https://picsum.photos/seed/${session.teacherName}/48/48`} 
-                        className="w-8 h-8 rounded-full grayscale group-hover:grayscale-0 transition-all border border-border shadow-sm" 
-                        alt={session.teacherName} 
+                      <Image
+                        src={`https://picsum.photos/seed/${session.teacherName}/48/48`}
+                        width={48}
+                        height={48}
+                        className="w-8 h-8 rounded-full grayscale group-hover:grayscale-0 transition-all border border-border shadow-sm"
+                        alt={session.teacherName}
                       />
                       <p className="text-sm font-bold text-muted-foreground">Taught by {session.teacherName}</p>
                     </div>
@@ -168,10 +171,12 @@ const SessionsPage: React.FC = () => {
                       </td>
                       <td className="px-8 py-6">
                         <div className="flex items-center gap-2">
-                          <img 
-                            src={`https://picsum.photos/seed/${session.teacherName}/32/32`} 
+                          <Image
+                            src={`https://picsum.photos/seed/${session.teacherName}/32/32`}
+                            width={32}
+                            height={32}
                             className="w-6 h-6 rounded-full border border-border"
-                            alt=""
+                            alt={session.teacherName}
                           />
                           <span className="text-sm font-bold text-muted-foreground">{session.teacherName}</span>
                         </div>

@@ -1,5 +1,4 @@
 "use client";
-/* eslint-disable @next/next/no-img-element */
 
 // import axios from "axios";
 // function buildUrl(path: string) {
@@ -13,6 +12,7 @@
 // }
 
 import { useParams, useRouter } from "next/navigation";
+import Image from "next/image";
 import { toast } from "react-toastify";
 import ImagePreviewModal from "@/components/ImagePreviewModal";
 import { useState } from "react";
@@ -117,9 +117,12 @@ export default function TeacherDetail() {
             {data.panCardUrl && (
               <div className="space-y-2">
                 <p className="text-sm text-muted-foreground">PAN Card</p>
-                <img
+                <Image
                   src={data.panCardUrl}
                   alt="PAN Card"
+                  width={800}
+                  height={320}
+                  unoptimized
                   className="h-40 w-full object-cover rounded-md cursor-zoom-in border border-border"
                   onClick={() => setPreviewSrc(data.panCardUrl!)}
                 />
@@ -128,9 +131,12 @@ export default function TeacherDetail() {
             {data.citizenshipUrl && (
               <div className="space-y-2">
                 <p className="text-sm text-muted-foreground">Citizenship</p>
-                <img
+                <Image
                   src={data.citizenshipUrl}
                   alt="Citizenship"
+                  width={800}
+                  height={320}
+                  unoptimized
                   className="h-40 w-full object-cover rounded-md cursor-zoom-in border border-border"
                   onClick={() => setPreviewSrc(data.citizenshipUrl!)}
                 />
@@ -139,9 +145,12 @@ export default function TeacherDetail() {
             {data.selfieUrl && (
               <div className="space-y-2">
                 <p className="text-sm text-muted-foreground">Selfie</p>
-                <img
+                <Image
                   src={data.selfieUrl}
                   alt="Selfie"
+                  width={800}
+                  height={320}
+                  unoptimized
                   className="h-40 w-full object-cover rounded-md cursor-zoom-in border border-border"
                   onClick={() => setPreviewSrc(data.selfieUrl!)}
                 />
@@ -150,9 +159,12 @@ export default function TeacherDetail() {
             {data.selfieWithCitizenshipUrl && (
               <div className="space-y-2">
                 <p className="text-sm text-muted-foreground">Selfie with Citizenship</p>
-                <img
+                <Image
                   src={data.selfieWithCitizenshipUrl}
                   alt="Selfie with Citizenship"
+                  width={800}
+                  height={320}
+                  unoptimized
                   className="h-40 w-full object-cover rounded-md cursor-zoom-in border border-border"
                   onClick={() => setPreviewSrc(data.selfieWithCitizenshipUrl!)}
                 />

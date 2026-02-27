@@ -65,7 +65,7 @@ export default function EsewaSection() {
             <p className="text-sm text-muted-foreground">Manage your eSewa payment methods.</p>
             <button
               onClick={() => setShowForm(true)}
-              className="rounded-md px-3 py-2 text-sm bg-black text-white ring-1 ring-border hover:opacity-90 dark:bg-white dark:text-black"
+              className="rounded-md px-3 py-2 text-sm bg-primary text-primary-foreground ring-1 ring-border hover:opacity-90"
             >
               Add New
             </button>
@@ -135,7 +135,7 @@ export default function EsewaSection() {
             </button>
             <button
               onClick={() => confirmId && deleteMutation.mutate(confirmId)}
-              className="rounded-md px-3 py-2 text-sm bg-red-600 text-white ring-1 ring-border hover:opacity-90"
+              className="rounded-md px-3 py-2 text-sm bg-destructive text-destructive-foreground ring-1 ring-border hover:opacity-90"
             >
               Remove
             </button>

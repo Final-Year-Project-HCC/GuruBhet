@@ -1,5 +1,6 @@
 "use client";
 import React from 'react';
+import Image from 'next/image';
 import Carousel from './Carousel';
 import { RECOMMENDED_TEACHERS } from '../constants';
 import Link from 'next/link';
@@ -30,8 +31,10 @@ const RecommendedTeachers: React.FC = () => {
               {/* Header: Image & Basic Info - Optimized for smaller width */}
               <div className="flex gap-4 mb-4">
                 <div className="relative shrink-0">
-                  <img 
+                  <Image
                     src={teacher.image} 
+                    width={64}
+                    height={64}
                     className="relative w-16 h-16 rounded-xl object-cover border border-border shadow-sm group-hover:scale-105 transition-transform duration-500"
                     alt={teacher.name}
                   />

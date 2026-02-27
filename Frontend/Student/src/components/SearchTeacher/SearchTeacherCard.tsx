@@ -1,5 +1,6 @@
 
 import React from 'react';
+import Image from 'next/image';
 import { Teacher } from '../types';
 
 interface SearchTeacherCardProps {
@@ -20,8 +21,10 @@ const SearchTeacherCard: React.FC<SearchTeacherCardProps> = ({
     >
       {/* Top Media Section */}
       <div className="relative aspect-16/11 overflow-hidden">
-        <img
+        <Image
           src={teacher.image}
+          fill
+          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
           className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
           alt={teacher.name}
         />

@@ -1,5 +1,6 @@
 
 import React from 'react';
+import Image from 'next/image';
 import Carousel from './Carousel';
 import { ACTIVE_SESSIONS } from '../constants';
 
@@ -41,10 +42,12 @@ const ActiveSessions: React.FC = () => {
                   {session.subject}
                 </h3>
                 <div className="flex items-center gap-2">
-                  <img 
-                    src={`https://picsum.photos/seed/${session.teacherName}/32/32`} 
-                    className="w-6 h-6 rounded-full grayscale hover:grayscale-0 transition-all" 
-                    alt={session.teacherName} 
+                  <Image
+                    src={`https://picsum.photos/seed/${session.teacherName}/32/32`}
+                    width={32}
+                    height={32}
+                    className="w-6 h-6 rounded-full grayscale hover:grayscale-0 transition-all"
+                    alt={session.teacherName}
                   />
                   <p className="text-xs font-semibold text-muted-foreground">with {session.teacherName}</p>
                 </div>
@@ -80,8 +83,8 @@ const ActiveSessions: React.FC = () => {
                 {session.status === 'Live' ? (
                   <>
                     <span className="relative flex h-2 w-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive-foreground opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-destructive-foreground"></span>
                     </span>
                     Enter Classroom
                   </>

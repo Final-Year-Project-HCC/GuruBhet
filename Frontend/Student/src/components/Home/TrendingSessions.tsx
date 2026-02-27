@@ -1,5 +1,6 @@
 "use client";
 import React from 'react';
+import Image from 'next/image';
 import Carousel from './Carousel';
 import { TRENDING_TEACHERS } from '../constants';
 
@@ -16,8 +17,10 @@ const TrendingSessions: React.FC = () => {
         >
           {/* Smaller, landscape-oriented image focus */}
           <div className="relative aspect-16/10 rounded-xl overflow-hidden mb-4 shadow-sm">
-            <img 
+            <Image
               src={teacher.image} 
+              fill
+              sizes="(max-width: 640px) 260px, 280px"
               alt={teacher.name}
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
             />

@@ -24,7 +24,7 @@
 
   /* Feedback */
   --success: #16a34a;
-  --warning: #eab308;
+  --warning: #facc15;
   --destructive: #dc2626;
   --destructive-foreground: #ffffff;
 }
@@ -62,9 +62,9 @@
     --background: #0a0a0a;
     --foreground: #ededed;
     --surface: #171717;
-    --surface-muted: #111827;
-    --subtle: #1f2937;
-    --subtle-foreground: #94a3b8;
+    --surface-muted: #111111;
+    --subtle: #1c1c1c;
+    --subtle-foreground: #a3a3a3;
 
     --muted: #141414;
     --muted-foreground: #a3a3a3;

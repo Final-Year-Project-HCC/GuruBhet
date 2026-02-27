@@ -59,14 +59,14 @@ export default function StudentNavbar() {
             <button
               aria-label="Open profile menu"
               onClick={() => setOpen((v) => !v)}
-              className="relative flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-black text-sm font-medium text-white ring-1 ring-border hover:opacity-90 dark:bg-white dark:text-black"
+              className="relative flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-primary text-sm font-medium text-primary-foreground ring-1 ring-border hover:opacity-90"
             >
               {/* Simple avatar fallback (could be replaced with user image) */}
               <span className="select-none">S</span>
               {/* Chevron indicator overlay (down/up based on open) */}
               <span
                 aria-hidden="true"
-                className="pointer-events-none absolute right-0 bottom-0 flex h-4 w-4 items-center justify-center rounded-full bg-white text-foreground ring-1 ring-border shadow-sm dark:bg-black dark:text-white"
+                className="pointer-events-none absolute right-0 bottom-0 flex h-4 w-4 items-center justify-center rounded-full bg-surface text-foreground ring-1 ring-border shadow-sm"
               >
                 <svg
                   className={`${open ? "rotate-180" : "rotate-0"} transition-transform`}

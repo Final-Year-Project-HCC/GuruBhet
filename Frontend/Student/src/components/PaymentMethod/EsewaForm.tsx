@@ -89,7 +89,7 @@ export default function EsewaForm() {
         <div className="flex items-center gap-2 pt-2">
           <button
             onClick={handleVerify}
-            className="rounded-md bg-emerald-600 px-4 py-2 text-white ring-1 ring-border hover:opacity-90"
+            className="rounded-md bg-success px-4 py-2 text-primary-foreground ring-1 ring-border hover:opacity-90"
           >
             Verify via eSewa
           </button>

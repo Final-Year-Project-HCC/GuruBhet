@@ -21,7 +21,7 @@ export default function EsewaVerifyFailedPage() {
         <p className="text-sm">PID: {pid || "N/A"}</p>
       </div>
       <div className="mt-6">
-        <a href="/payment-method" className="rounded-md bg-black px-4 py-2 text-white ring-1 ring-border dark:bg-white dark:text-black">
+        <a href="/payment-method" className="rounded-md bg-primary px-4 py-2 text-primary-foreground ring-1 ring-border hover:opacity-90">
           Back to Payment Method
         </a>
       </div>

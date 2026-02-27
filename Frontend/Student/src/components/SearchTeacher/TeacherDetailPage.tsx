@@ -1,5 +1,6 @@
 
 import React from 'react';
+import Image from 'next/image';
 import { TRENDING_TEACHERS, RECOMMENDED_TEACHERS } from '../constants';
 
 interface TeacherDetailPageProps {
@@ -43,7 +44,7 @@ const TeacherDetailPage: React.FC<TeacherDetailPageProps> = ({ teacherId, onBack
               className="bg-surface border border-border rounded-[2.5rem] overflow-hidden shadow-xl"
             >
               <div className="aspect-square relative overflow-hidden">
-                <img src={teacher.image} className="w-full h-full object-cover" alt={teacher.name} />
+                <Image src={teacher.image} fill sizes="(max-width: 1024px) 100vw, 33vw" className="w-full h-full object-cover" alt={teacher.name} />
                 <div className="absolute top-6 left-6">
                   {teacher.verification_status === 'APPROVED' && (
                     <div className="bg-accent text-accent-foreground p-2 rounded-full shadow-lg border border-background/20">

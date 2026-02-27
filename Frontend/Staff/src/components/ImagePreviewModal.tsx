@@ -1,5 +1,5 @@
 "use client";
-/* eslint-disable @next/next/no-img-element */
+import Image from "next/image";
 
 import { useEffect } from "react";
 
@@ -41,9 +41,12 @@ export default function ImagePreviewModal({ src, alt, isOpen, onClose }: Props) 
           <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
         </svg>
       </button>
-      <img
+      <Image
         src={src}
         alt={alt || "Image preview"}
+        width={1600}
+        height={1200}
+        unoptimized
         className="max-h-[90vh] max-w-[90vw] object-contain"
         onClick={(e) => e.stopPropagation()}
       />
