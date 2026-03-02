@@ -53,10 +53,28 @@ export default function StudentNavbar() {
 
         <nav className="flex items-center gap-3">
           <Link
+            href="/dashboard"
+            className="rounded-md px-3 py-2 text-base text-foreground hover:bg-muted"
+          >
+            Dashboard
+          </Link>
+          <Link
             href="/sessions"
             className="rounded-md px-3 py-2 text-base text-foreground hover:bg-muted"
           >
             Sessions
+          </Link>
+          <Link
+            href="/earnings"
+            className="rounded-md px-3 py-2 text-base text-foreground hover:bg-muted"
+          >
+            Earnings
+          </Link>
+          <Link
+            href="/messages"
+            className="rounded-md px-3 py-2 text-base text-foreground hover:bg-muted"
+          >
+            Messages
           </Link>
           <div className="relative" ref={menuRef}>
             <button
