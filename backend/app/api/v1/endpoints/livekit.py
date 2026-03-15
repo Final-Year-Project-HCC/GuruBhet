@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Header, HTTPException, Request
-from livekit.api import WebhookReceiver
+from livekit.api import TokenVerifier, WebhookReceiver
 from livekit.api.webhook import WebhookEvent
 from sqlalchemy import select
 
@@ -13,8 +13,10 @@ from app.models.booking import Session
 router = APIRouter()
 
 _receiver = WebhookReceiver(
-    api_key=settings.LIVEKIT_API_KEY,
-    api_secret=settings.LIVEKIT_API_SECRET,
+    TokenVerifier(
+        api_key=settings.LIVEKIT_API_KEY,
+        api_secret=settings.LIVEKIT_API_SECRET,
+    )
 )
 
 
