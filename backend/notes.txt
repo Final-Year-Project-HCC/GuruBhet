@@ -1,0 +1,15 @@
+We will later add booking_service.py into services 
+
+Add more repos in repositories folder.
+
+More tasks like esewa_tasks.py ( for async refund processing) and notification_tasks.py (for no-show detections and email alerts)
+
+
+
+
+
+booking.py file contains both Booking and Session models
+
+rating.py file contains both Transaction and Payout Models too
+
+moderation.py contains both Report and Userban models
