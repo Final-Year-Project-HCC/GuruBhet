@@ -1,5 +1,5 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import FastAPI  # type: ignore
+from fastapi.middleware.cors import CORSMiddleware  # type: ignore
 from contextlib import asynccontextmanager
 
 from app.core.config import settings
@@ -38,3 +38,7 @@ def create_application() -> FastAPI:
 
 
 app = create_application()
+
+@app.get("/hello")
+async def hello():
+    return {"message":"Hello"}

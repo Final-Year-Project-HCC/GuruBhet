@@ -12,7 +12,11 @@ from app.models import Base  # noqa: F401
 from app.core.config import settings
 
 config = context.config
-config.set_main_option("sqlalchemy.url", str(settings.DATABASE_URL))
+
+# Use the SESSION MODE URL for Alembic — not the transaction mode URL.
+# Supavisor session mode (port 5432) supports DDL statements that Alembic
+# needs (CREATE TABLE, ALTER TABLE, etc.) which transaction mode cannot handle.
+config.set_main_option("sqlalchemy.url", str(settings.DATABASE_URL_ALEMBIC))
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
@@ -33,7 +37,12 @@ def run_migrations_offline() -> None:
 
 
 def do_run_migrations(connection: Connection) -> None:
-    context.configure(connection=connection, target_metadata=target_metadata)
+    context.configure(
+        connection=connection,
+        target_metadata=target_metadata,
+        # Compare server defaults so Alembic detects column default changes
+        compare_server_defaults=True,
+    )
     with context.begin_transaction():
         context.run_migrations()
 
@@ -42,6 +51,8 @@ async def run_async_migrations() -> None:
     connectable = async_engine_from_config(
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
+        # NullPool is required for Alembic — it must not reuse connections
+        # across migration steps, especially important with Supavisor
         poolclass=pool.NullPool,
     )
     async with connectable.connect() as connection:

@@ -23,10 +23,18 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
     # ── Database ─────────────────────────────────────────────────────
-    DATABASE_URL: PostgresDsn
     DB_POOL_SIZE: int = 10
     DB_MAX_OVERFLOW: int = 20
     DB_POOL_TIMEOUT: int = 30
+    # Transaction mode — used by the FastAPI app (port 6543 on Supavisor)
+    # Supavisor transaction mode does not support prepared statements,
+    # so we disable them via ?prepared_statement_cache_size=0
+    DATABASE_URL: PostgresDsn
+    # Session mode — used by Alembic only (port 5432 on Supavisor)
+    # Alembic needs a persistent connection to run DDL (CREATE TABLE etc.)
+    # which transaction mode cannot support
+    DATABASE_URL_ALEMBIC: PostgresDsn
+
 
     # ── Redis ─────────────────────────────────────────────────────────
     REDIS_URL: RedisDsn
@@ -67,7 +75,7 @@ class Settings(BaseSettings):
     SMTP_PASSWORD: str = ""
     EMAILS_FROM_EMAIL: str = "noreply@gurubhet.com"
 
-    @field_validator("DATABASE_URL", mode="before")
+    @field_validator("DATABASE_URL", "DATABASE_URL_ALEMBIC", mode="before")
     @classmethod
     def assemble_db_url(cls, v: Any) -> Any:
         return v

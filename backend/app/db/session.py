@@ -4,7 +4,6 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
     AsyncEngine,
 )
-from sqlalchemy.pool import NullPool
 from typing import AsyncGenerator
 from app.core.config import settings
 
@@ -15,12 +14,22 @@ class DatabaseSessionManager:
         self._sessionmaker: async_sessionmaker[AsyncSession] | None = None
 
     async def init(self) -> None:
+        db_url = str(settings.DATABASE_URL)
+
+        # Supavisor transaction mode does not support prepared statements.
+        # asyncpg requires this query parameter to disable them.
+        if "prepared_statement_cache_size" not in db_url:
+            separator = "&" if "?" in db_url else "?"
+            db_url = f"{db_url}{separator}prepared_statement_cache_size=0"
+
         self._engine = create_async_engine(
-            str(settings.DATABASE_URL),
+            db_url,
             pool_size=settings.DB_POOL_SIZE,
             max_overflow=settings.DB_MAX_OVERFLOW,
             pool_timeout=settings.DB_POOL_TIMEOUT,
             pool_pre_ping=True,
+            # Supavisor transaction mode: disable server-side statement cache
+            connect_args={"statement_cache_size": 0},
             echo=settings.ENVIRONMENT == "development",
         )
         self._sessionmaker = async_sessionmaker(
