@@ -28,6 +28,8 @@ class StudentProfile(Base, TimestampMixin):
     )
     reports_made: Mapped[list["Report"]] = relationship(  # noqa: F821
         foreign_keys="Report.reporter_id",
+        primaryjoin="StudentProfile.user_id == Report.reporter_id",
         back_populates="reporter_student",
+        overlaps="reporter_teacher,reports_made",
         lazy="noload",
     )

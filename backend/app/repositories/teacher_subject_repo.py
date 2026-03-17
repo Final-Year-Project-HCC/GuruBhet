@@ -81,8 +81,8 @@ class TeacherSubjectRepository:
         if not ts:
             return
         n = ts.rating_count
-        new_avg = (ts.avg_rating * n + new_score) / (n + 1)
-        ts.avg_rating = round(new_avg, 2)
+        new_avg = (ts.avg_rating * n + Decimal(new_score)) / Decimal(n + 1)
+        ts.avg_rating = new_avg.quantize(Decimal("0.01"))
         ts.rating_count = n + 1
         await self.db.flush()
 

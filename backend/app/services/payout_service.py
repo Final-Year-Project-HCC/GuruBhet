@@ -13,7 +13,7 @@ Algorithm:
   6. Call eSewa transfer API.
   7. Update Payout to COMPLETED + create WEEKLY_PAYOUT Transaction.
 """
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 from uuid import UUID
 
@@ -115,7 +115,7 @@ class PayoutService:
             )
             payout.status = PayoutStatus.COMPLETED
             payout.esewa_ref_id = esewa_resp.get("refId")
-            payout.processed_at = datetime.utcnow()
+            payout.processed_at = datetime.now(timezone.utc)
 
             self.db.add(Transaction(
                 user_id=teacher_id,

@@ -1,15 +1,29 @@
 import uuid
-from decimal import Decimal
 from datetime import datetime
+from decimal import Decimal
+from typing import TYPE_CHECKING
+
 from sqlalchemy import (
-    ForeignKey, Numeric, Text, DateTime, String,
-    Enum as SAEnum, CheckConstraint, Index,
+    CheckConstraint,
+    DateTime,
+    Enum as SAEnum,
+    ForeignKey,
+    Index,
+    Numeric,
+    String,
+    Text,
+    UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db.base import Base, UUIDPrimaryKeyMixin, TimestampMixin
 from app.core.enums import TransactionType, TransactionReason, PayoutStatus, EsewaCallbackStatus
+from app.db.base import Base, UUIDPrimaryKeyMixin, TimestampMixin
+
+if TYPE_CHECKING:
+    from app.models.booking import Booking
+    from app.models.teacher import TeacherProfile
+    from app.models.user import User
 
 
 class Transaction(Base, UUIDPrimaryKeyMixin, TimestampMixin):
@@ -109,7 +123,7 @@ class Payout(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         CheckConstraint("net_amount > 0", name="chk_payout_net_positive"),
         CheckConstraint("period_end > period_start", name="chk_payout_period"),
         # Prevent double-payout for same period
-        __import__("sqlalchemy").UniqueConstraint(
+        UniqueConstraint(
             "teacher_id", "period_start", "period_end", name="uq_payout_teacher_period"
         ),
     )

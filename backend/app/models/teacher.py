@@ -1,10 +1,21 @@
 import uuid
-from sqlalchemy import ForeignKey, Text, Enum as SAEnum
+from datetime import datetime
+from typing import TYPE_CHECKING
+
+from sqlalchemy import DateTime, Enum as SAEnum, ForeignKey, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db.base import Base, TimestampMixin
 from app.core.enums import VerificationStatus
+from app.db.base import Base, TimestampMixin
+
+if TYPE_CHECKING:
+    from app.models.booking import Booking
+    from app.models.moderation import Report, UserBan
+    from app.models.payment import Payout
+    from app.models.teacher_document import TeacherDocument
+    from app.models.teacher_subject import TeacherSubject
+    from app.models.user import User
 
 
 class TeacherProfile(Base, TimestampMixin):
@@ -27,7 +38,7 @@ class TeacherProfile(Base, TimestampMixin):
     reviewed_by_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id"), nullable=True
     )
-    reviewed_at: Mapped[str | None] = mapped_column(nullable=True)  # DateTime stored as str placeholder
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # ── Relationships ─────────────────────────────────────────────────────────
     user: Mapped["User"] = relationship(  # noqa: F821
@@ -50,7 +61,9 @@ class TeacherProfile(Base, TimestampMixin):
     )
     reports_made: Mapped[list["Report"]] = relationship(  # noqa: F821
         foreign_keys="Report.reporter_id",
+        primaryjoin="TeacherProfile.user_id == Report.reporter_id",
         back_populates="reporter_teacher",
+        overlaps="reporter_student,reports_made",
         lazy="noload",
     )
     bans: Mapped[list["UserBan"]] = relationship(  # noqa: F821

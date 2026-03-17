@@ -53,6 +53,11 @@ class TeacherSubject(Base, TimestampMixin):
     teacher: Mapped["TeacherProfile"] = relationship(back_populates="teacher_subjects")  # noqa: F821
     subject: Mapped["Subject"] = relationship(back_populates="teacher_subjects")  # noqa: F821
     ratings: Mapped[list["TeacherRating"]] = relationship(  # noqa: F821
+        primaryjoin=(
+            "and_(TeacherSubject.teacher_id == TeacherRating.teacher_id,"
+            " TeacherSubject.subject_id == TeacherRating.subject_id)"
+        ),
+        foreign_keys="[TeacherRating.teacher_id, TeacherRating.subject_id]",
         back_populates="teacher_subject", lazy="noload"
     )
 

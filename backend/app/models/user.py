@@ -1,10 +1,16 @@
-import uuid
-from sqlalchemy import String, Boolean, Enum as SAEnum
-from sqlalchemy.dialects.postgresql import UUID
+from typing import TYPE_CHECKING
+
+from sqlalchemy import Boolean, Enum as SAEnum, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
 from app.core.enums import UserRole
+from app.db.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
+
+if TYPE_CHECKING:
+    from app.models.moderation import UserBan
+    from app.models.payment_account import PaymentAccount
+    from app.models.student import StudentProfile
+    from app.models.teacher import TeacherProfile
 
 
 class User(Base, UUIDPrimaryKeyMixin, TimestampMixin):
@@ -28,11 +34,17 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         back_populates="user", uselist=False, lazy="noload"
     )
     teacher_profile: Mapped["TeacherProfile"] = relationship(  # noqa: F821
-        back_populates="user", uselist=False, lazy="noload"
+        back_populates="user",
+        uselist=False,
+        lazy="noload",
+        foreign_keys="TeacherProfile.user_id",
     )
     payment_account: Mapped["PaymentAccount"] = relationship(  # noqa: F821
-        back_populates="user", uselist=False, lazy="noload"
+        back_populates="user",
+        uselist=False,
+        lazy="noload",
+        foreign_keys="PaymentAccount.user_id",
     )
     bans: Mapped[list["UserBan"]] = relationship(  # noqa: F821
-        back_populates="user", lazy="noload"
+        back_populates="user", lazy="noload", foreign_keys="UserBan.user_id"
     )
