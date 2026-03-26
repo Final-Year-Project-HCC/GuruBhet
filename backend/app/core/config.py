@@ -68,6 +68,12 @@ class Settings(BaseSettings):
     PAYOUT_DAY_OF_WEEK: int = 0          # Monday
     PLATFORM_FEE_PERCENT: float = 10.0   # GuruBhet takes 10%
 
+    # ── Cloudinary (File uploads) ───────────────────────────────────
+    CLOUDINARY_CLOUD_NAME: str = ""
+    CLOUDINARY_API_KEY: str = ""
+    CLOUDINARY_API_SECRET: str = ""
+    CLOUDINARY_UPLOAD_PRESET: str = ""  # Optional: if using unsigned uploads
+
     # ── Email (optional SMTP) ────────────────────────────────────────
     SMTP_HOST: str = ""
     SMTP_PORT: int = 587

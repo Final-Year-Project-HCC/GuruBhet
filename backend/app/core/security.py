@@ -2,13 +2,12 @@ import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-import bcrypt
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 
 from app.core.config import settings
 
-pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
+pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 
 
 def hash_password(plain: str) -> str:
@@ -16,11 +15,6 @@ def hash_password(plain: str) -> str:
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    if hashed.startswith("$2"):
-        try:
-            return bcrypt.checkpw(plain.encode("utf-8"), hashed.encode("utf-8"))
-        except ValueError:
-            return False
     return pwd_context.verify(plain, hashed)
 
 

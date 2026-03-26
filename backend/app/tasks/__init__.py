@@ -1,0 +1,4 @@
+"""Task initialization and Celery app import."""
+from app.workers.celery_config import celery_app
+
+__all__ = ["celery_app"]

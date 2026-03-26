@@ -1,18 +1,26 @@
 from fastapi import FastAPI  # type: ignore
 from fastapi.middleware.cors import CORSMiddleware  # type: ignore
 from contextlib import asynccontextmanager
+import socketio
+from socketio import ASGIApp
 
 from app.core.config import settings
 from app.core.logging import configure_logging
 from app.db.session import sessionmanager
 from app.api.v1.router import api_router
+from app.utils.livekit import init_livekit, close_livekit
+from app.middleware.cookie_to_header import CookieToHeaderMiddleware
+from app.core.socketio import create_socketio_server, SocketIOManager
+from app.api.v1.socketio_handlers import setup_socketio_handlers
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     configure_logging()
     await sessionmanager.init()
+    await init_livekit()
     yield
+    await close_livekit()
     await sessionmanager.close()
 
 
@@ -32,13 +40,30 @@ def create_application() -> FastAPI:
         allow_headers=["*"],
     )
 
+    # Middleware to copy HttpOnly auth cookies into headers for existing
+    # header-based auth logic.
+    app.add_middleware(CookieToHeaderMiddleware)
+
     app.include_router(api_router, prefix=settings.API_V1_STR)
 
     return app
 
 
-app = create_application()
+# Create Socket.IO server
+sio = create_socketio_server()
+socketio_manager = SocketIOManager(sio)
 
-@app.get("/hello")
-async def hello():
-    return {"message":"Hello"}
+# Setup Socket.IO event handlers
+setup_socketio_handlers(sio, socketio_manager)
+
+# Create FastAPI app
+fastapi_app = create_application()
+
+# Wrap with Socket.IO ASGI app
+app = ASGIApp(sio, fastapi_app)
+
+
+
+
+
+

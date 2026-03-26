@@ -51,14 +51,19 @@ class Booking(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     completed_sessions: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     cancelled_sessions: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
+    session_duration_minutes: Mapped[int] = mapped_column(Integer, nullable=False)  # must be multiple of 15
     rate_per_session: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
     total_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)  # rate * total_sessions
     escrow_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)  # same initially
     refunded_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=Decimal("0.00"), nullable=False)
 
     status: Mapped[BookingStatus] = mapped_column(
-        SAEnum(BookingStatus), default=BookingStatus.PENDING_PAYMENT, nullable=False, index=True
+        SAEnum(BookingStatus), default=BookingStatus.PENDING_APPROVAL, nullable=False, index=True
     )
+
+    # Teacher approval tracking
+    teacher_approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    teacher_approval_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # eSewa transaction reference for the initial payment
     esewa_transaction_uuid: Mapped[str | None] = mapped_column(Text, nullable=True, unique=True)
@@ -113,12 +118,13 @@ class Session(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     )
     session_number: Mapped[int] = mapped_column(Integer, nullable=False)  # 1-based within booking
 
-    scheduled_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    duration_minutes: Mapped[int] = mapped_column(Integer, nullable=False)
-
     status: Mapped[SessionStatus] = mapped_column(
-        SAEnum(SessionStatus), default=SessionStatus.SCHEDULED, nullable=False, index=True
+        SAEnum(SessionStatus), default=SessionStatus.PENDING_STUDENT_ACCEPTANCE, nullable=False, index=True
     )
+
+    # ── Session request tracking ──────────────────────────────────────────────
+    teacher_initiated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    student_accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # ── LiveKit integration ───────────────────────────────────────────────────
     livekit_room_name: Mapped[str | None] = mapped_column(Text, nullable=True, unique=True)
@@ -132,6 +138,7 @@ class Session(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     student_joined_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)  # teacher post-session notes
+    duration_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)  # calculated on completion
 
     # ── Relationships ─────────────────────────────────────────────────────────
     booking: Mapped["Booking"] = relationship(back_populates="sessions")  # noqa: F821
@@ -140,6 +147,6 @@ class Session(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     )
 
     __table_args__ = (
-        CheckConstraint("duration_minutes > 0", name="chk_duration_positive"),
+        CheckConstraint("duration_seconds IS NULL OR duration_seconds > 0", name="chk_duration_seconds_positive"),
         Index("ix_session_booking_number", "booking_id", "session_number"),
     )

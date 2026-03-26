@@ -37,6 +37,7 @@ class StudyLevel(str, Enum):
 
 class BookingStatus(str, Enum):
     """A Booking is the contract (multiple sessions agreed upon)."""
+    PENDING_APPROVAL = "PENDING_APPROVAL"  # awaiting teacher approval after student request
     PENDING_PAYMENT = "PENDING_PAYMENT"   # awaiting escrow capture
     ACTIVE = "ACTIVE"                      # payment captured, sessions ongoing
     COMPLETED = "COMPLETED"                # all sessions done
@@ -47,12 +48,12 @@ class BookingStatus(str, Enum):
 
 class SessionStatus(str, Enum):
     """Individual session within a booking."""
-    SCHEDULED = "SCHEDULED"
+    PENDING_STUDENT_ACCEPTANCE = "PENDING_STUDENT_ACCEPTANCE"  # teacher initiated, awaiting student acceptance
+    SCHEDULED = "SCHEDULED"  # student accepted, ready to join
     IN_PROGRESS = "IN_PROGRESS"
     COMPLETED = "COMPLETED"
-    CANCELLED = "CANCELLED"
-    NO_SHOW_STUDENT = "NO_SHOW_STUDENT"
-    NO_SHOW_TEACHER = "NO_SHOW_TEACHER"
+    CANCELLED_BY_STUDENT = "CANCELLED_BY_STUDENT"
+    CANCELLED_BY_TEACHER = "CANCELLED_BY_TEACHER"
 
 
 # ── Payments ─────────────────────────────────────────────────────────────────

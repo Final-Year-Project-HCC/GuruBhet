@@ -39,3 +39,23 @@ async def cache_delete_pattern(pattern: str) -> None:
     keys = await r.keys(pattern)
     if keys:
         await r.delete(*keys)
+
+
+async def blacklist_jti(jti: str, expires_at: int) -> None:
+    """Mark a token jti as blacklisted in Redis until its expiry timestamp.
+
+    Key format: bl_jti:{jti}
+    """
+    r = await get_redis()
+    from datetime import datetime, timezone
+    now_ts = int(datetime.now(tz=timezone.utc).timestamp())
+    ttl = max(0, int(expires_at) - now_ts)
+    if ttl <= 0:
+        # already expired; no need to store
+        return
+    await r.set(f"bl_jti:{jti}", "1", ex=ttl)
+
+
+async def is_jti_blacklisted(jti: str) -> bool:
+    r = await get_redis()
+    return await r.exists(f"bl_jti:{jti}") == 1

@@ -1,15 +1,15 @@
 from uuid import UUID
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
+from app.core.config import settings
 from app.core.dependencies import DbSession, CurrentUser
-from app.core.enums import SessionStatus, BookingStatus, UserRole
+from app.core.enums import SessionStatus, BookingStatus
 from app.models.booking import Session, Booking
 from app.schemas.booking import SessionRead, LiveKitTokenResponse
-from app.core.config import settings
 from app.utils.livekit import create_room, generate_room_token, end_room
 
 router = APIRouter()
@@ -30,8 +30,6 @@ async def _get_session_with_booking(db: DbSession, session_id: UUID) -> tuple[Se
 @router.get("/{session_id}", response_model=SessionRead)
 async def get_session(session_id: UUID, current_user: CurrentUser, db: DbSession):
     session, booking = await _get_session_with_booking(db, session_id)
-
-    # Only the student or teacher of this booking can view it
     if current_user.id not in (booking.student_id, booking.teacher_id):
         raise HTTPException(status_code=403, detail="Not your session")
     return session
@@ -41,29 +39,23 @@ async def get_session(session_id: UUID, current_user: CurrentUser, db: DbSession
 async def join_session(session_id: UUID, current_user: CurrentUser, db: DbSession):
     """
     Generate a LiveKit JWT for the requesting user.
-
-    - Creates the LiveKit room on first join if it doesn't exist yet.
-    - Records teacher_joined_at / student_joined_at timestamps.
-    - Transitions session to IN_PROGRESS when both parties have tokens issued.
+    Creates the LiveKit room on first join.
     """
     session, booking = await _get_session_with_booking(db, session_id)
 
-    # Access control — only participants of this booking
     if current_user.id not in (booking.student_id, booking.teacher_id):
         raise HTTPException(status_code=403, detail="Not your session")
 
-    # Booking must be active
     if booking.status != BookingStatus.ACTIVE:
         raise HTTPException(status_code=400, detail="Booking is not active")
 
-    # Session must be scheduled or already in progress
     if session.status not in (SessionStatus.SCHEDULED, SessionStatus.IN_PROGRESS):
         raise HTTPException(
             status_code=400,
             detail=f"Session cannot be joined in status '{session.status.value}'",
         )
 
-    # Create the LiveKit room if this is the first join
+    # Create the LiveKit room on first join
     if not session.livekit_room_name:
         room_name = await create_room(str(session_id))
         session.livekit_room_name = room_name
@@ -71,7 +63,7 @@ async def join_session(session_id: UUID, current_user: CurrentUser, db: DbSessio
     else:
         room_name = session.livekit_room_name
 
-    # Record join timestamp
+    # Record join timestamps
     now = datetime.now(tz=timezone.utc)
     is_teacher = current_user.id == booking.teacher_id
     if is_teacher and not session.teacher_joined_at:
@@ -80,12 +72,10 @@ async def join_session(session_id: UUID, current_user: CurrentUser, db: DbSessio
         session.student_joined_at = now
     await db.flush()
 
-    # Generate signed LiveKit token
-    display_name = f"{current_user.first_name} {current_user.last_name}"
     token = generate_room_token(
         user_id=str(current_user.id),
         session_id=str(session_id),
-        display_name=display_name,
+        display_name=f"{current_user.first_name} {current_user.last_name}",
         is_teacher=is_teacher,
     )
 
@@ -98,20 +88,9 @@ async def join_session(session_id: UUID, current_user: CurrentUser, db: DbSessio
 
 @router.post("/{session_id}/complete", response_model=SessionRead)
 async def complete_session(session_id: UUID, current_user: CurrentUser, db: DbSession):
-    """
-    Teacher explicitly marks a session as completed.
-
-    Triggers:
-      - Session status → COMPLETED, actual_end_at recorded.
-      - Booking.completed_sessions incremented.
-      - If all sessions done → Booking status → COMPLETED.
-      - TeacherSubject.total_sessions_completed incremented.
-      - SESSION_RELEASE transaction created (escrow → platform ledger).
-      - LiveKit room torn down.
-    """
+    """Teacher marks a session as completed and tears down the LiveKit room."""
     session, booking = await _get_session_with_booking(db, session_id)
 
-    # Only the teacher can mark a session complete
     if current_user.id != booking.teacher_id:
         raise HTTPException(status_code=403, detail="Only the teacher can complete a session")
 
@@ -124,6 +103,12 @@ async def complete_session(session_id: UUID, current_user: CurrentUser, db: DbSe
     now = datetime.now(tz=timezone.utc)
     session.status = SessionStatus.COMPLETED
     session.actual_end_at = now
+    
+    # Calculate and store duration_seconds if both start and end times exist
+    if session.actual_start_at:
+        duration = (now - session.actual_start_at).total_seconds()
+        session.duration_seconds = int(duration)
+    
     await db.flush()
 
     # Update booking counters
@@ -132,7 +117,7 @@ async def complete_session(session_id: UUID, current_user: CurrentUser, db: DbSe
         booking.status = BookingStatus.COMPLETED
     await db.flush()
 
-    # Increment TeacherSubject experience
+    # Increment teacher experience counter
     from app.repositories.teacher_subject_repo import TeacherSubjectRepository
     ts_repo = TeacherSubjectRepository(db)
     await ts_repo.increment_completed_sessions(
@@ -152,12 +137,40 @@ async def complete_session(session_id: UUID, current_user: CurrentUser, db: DbSe
     ))
     await db.flush()
 
-    # Tear down LiveKit room
+    # Tear down the LiveKit room
     if session.livekit_room_name:
         try:
             await end_room(session.livekit_room_name)
         except Exception:
             pass  # Room may already be closed — not fatal
+
+    # Clean up Redis keys (pending session, room state)
+    from app.utils.livekit import clear_pending_session_key
+    from app.db.redis import cache_delete
+    await clear_pending_session_key(str(booking.id))
+    await cache_delete(f"session_room_state:{session_id}")
+    
+    # Emit Socket.IO event to notify both participants
+    try:
+        from app.core.socketio import sio
+        await sio.emit(
+            "session_completed",
+            {
+                "session_id": str(session_id),
+                "booking_id": str(booking.id),
+                "duration_seconds": session.duration_seconds,
+                "completed_at": now.isoformat(),
+            },
+            room=session.livekit_room_name,  # Broadcast to everyone in room
+        )
+    except Exception:
+        pass  # Socket.IO may not be available in all contexts
+
+    # Trigger Celery tasks for post-session actions
+    from app.tasks.payment_tasks import process_session_billing
+    from app.tasks.notification_tasks import send_session_complete_notification
+    process_session_billing.delay(str(session_id), str(booking.id))
+    send_session_complete_notification.delay(str(session_id), str(booking.id))
 
     return session
 
@@ -166,3 +179,10 @@ async def complete_session(session_id: UUID, current_user: CurrentUser, db: DbSe
 async def reschedule_session(session_id: UUID, current_user: CurrentUser, db: DbSession):
     """Reschedule a SCHEDULED session to a new time (both parties must agree)."""
     ...
+
+
+
+
+
+
+
