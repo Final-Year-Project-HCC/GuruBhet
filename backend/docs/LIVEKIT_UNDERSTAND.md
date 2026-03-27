@@ -357,9 +357,9 @@ if not is_online:
     await create_message(
         type=MessageType.NOTIFICATION_ERROR,
         content="Student is currently offline",
-        sender_id=teacher_id,
-        recipient_id=student_id
-    )
+       ient_id=student_id
+    ) sender_id=teacher_id,
+        recip
     # Return 480 error
     raise HTTPException(
         status_code=480,

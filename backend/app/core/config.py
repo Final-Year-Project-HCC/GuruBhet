@@ -81,9 +81,13 @@ class Settings(BaseSettings):
     SMTP_PASSWORD: str = ""
     EMAILS_FROM_EMAIL: str = "noreply@gurubhet.com"
 
-    @field_validator("DATABASE_URL", "DATABASE_URL_ALEMBIC", mode="before")
+    @field_validator("DATABASE_URL", mode="before")
     @classmethod
     def assemble_db_url(cls, v: Any) -> Any:
+        """Append prepared_statement_cache_size=0 for transaction mode (Supavisor)"""
+        if isinstance(v, str):
+            separator = "&" if "?" in v else "?"
+            return f"{v}{separator}prepared_statement_cache_size=0"
         return v
 
 

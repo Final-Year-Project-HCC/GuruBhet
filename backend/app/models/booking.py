@@ -78,6 +78,9 @@ class Booking(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     sessions: Mapped[list["Session"]] = relationship(  # noqa: F821
         back_populates="booking", lazy="noload", cascade="all, delete-orphan"
     )
+    rating: Mapped["TeacherRating | None"] = relationship(  # noqa: F821
+        back_populates="booking", uselist=False, lazy="noload", cascade="all, delete-orphan"
+    )
     transactions: Mapped[list["Transaction"]] = relationship(  # noqa: F821
         back_populates="booking", lazy="noload"
     )
@@ -138,15 +141,11 @@ class Session(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     student_joined_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)  # teacher post-session notes
-    duration_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)  # calculated on completion
 
     # ── Relationships ─────────────────────────────────────────────────────────
     booking: Mapped["Booking"] = relationship(back_populates="sessions")  # noqa: F821
-    rating: Mapped["TeacherRating | None"] = relationship(  # noqa: F821
-        back_populates="session", uselist=False, lazy="noload"
-    )
 
     __table_args__ = (
-        CheckConstraint("duration_seconds IS NULL OR duration_seconds > 0", name="chk_duration_seconds_positive"),
+        CheckConstraint("duration_minutes > 0", name="chk_duration_positive"),
         Index("ix_session_booking_number", "booking_id", "session_number"),
     )

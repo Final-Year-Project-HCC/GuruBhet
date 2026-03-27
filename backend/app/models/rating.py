@@ -12,23 +12,24 @@ from app.core.enums import RatingScore
 
 class TeacherRating(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     """
-    Rating given by a student to a teacher for a specific completed session.
+    Rating given by a student to a teacher after a booking is complete.
 
-    Design additions:
-      - Tied to both Session AND TeacherSubject so that avg_rating on
+    Design changes:
+      - Tied to Booking (not individual Session) — one rating per booking after all sessions are complete.
+      - Tied to both Booking AND TeacherSubject so that avg_rating on
         TeacherSubject can be updated atomically.
       - `score` is a SmallInteger with a DB CHECK (1-5).
       - `comment` is optional freetext from the student.
-      - UniqueConstraint(session_id) — one rating per session.
+      - UniqueConstraint(booking_id) — one rating per booking.
     """
 
     __tablename__ = "teacher_ratings"
 
-    session_id: Mapped[uuid.UUID] = mapped_column(
+    booking_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("sessions.id", ondelete="CASCADE"),
+        ForeignKey("bookings.id", ondelete="CASCADE"),
         nullable=False,
-        unique=True,   # one rating per session
+        unique=True,   # one rating per booking
     )
     # Denormalised for easy aggregate updates
     teacher_id: Mapped[uuid.UUID] = mapped_column(
@@ -53,7 +54,7 @@ class TeacherRating(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     is_anonymous: Mapped[bool] = mapped_column(default=False, nullable=False)
 
     # ── Relationships ─────────────────────────────────────────────────────────
-    session: Mapped["Session"] = relationship(back_populates="rating")  # noqa: F821
+    booking: Mapped["Booking"] = relationship(back_populates="rating")  # noqa: F821
     student: Mapped["StudentProfile"] = relationship(back_populates="ratings_given")  # noqa: F821
     teacher_subject: Mapped["TeacherSubject"] = relationship(  # noqa: F821
         primaryjoin=(
