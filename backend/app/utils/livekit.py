@@ -81,14 +81,25 @@ def generate_room_token(
  
 # ── Room management ───────────────────────────────────────────────────────────
  
-async def create_room(session_id: str) -> str:
-    """Create a LiveKit room for a session. Returns the room name."""
+async def create_room(session_id: str, session_duration_minutes: int) -> str:
+    """Create a LiveKit room for a session. Returns the room name.
+    
+    Room auto-closes after: session_duration_minutes + leniency buffer
+    Leniency buffer = (session_duration_minutes // 15) * LIVEKIT_ROOM_LENIENCY_MINUTES_PER_15MIN
+    """
     room_name = f"session-{session_id}"
+    
+    # Calculate leniency buffer: 1 minute per 15 minutes of session (configurable)
+    leniency_multiplier = settings.LIVEKIT_ROOM_LENIENCY_MINUTES_PER_15MIN
+    leniency_minutes = (session_duration_minutes // 15) * leniency_multiplier
+    total_timeout_minutes = session_duration_minutes + leniency_minutes
+    empty_timeout_seconds = int(total_timeout_minutes * 60)
+    
     await get_livekit_api().room.create_room(
         api.CreateRoomRequest(
             name=room_name,
-            empty_timeout=300,   # auto-close 5 mins after last participant leaves
-            max_participants=2,  # teacher + student only
+            empty_timeout=empty_timeout_seconds,
+            max_participants=2,
         )
     )
     return room_name
@@ -104,7 +115,7 @@ async def end_room(room_name: str) -> None:
 # ── Redis-backed handshake & sync ─────────────────────────────────────────────
 
 
-async def set_pending_session_key(booking_id: str, session_id: str, ttl: int = 60) -> None:
+async def set_pending_session_key(booking_id: str, ttl: int = 60) -> None:
     """
     Set a Redis key indicating a session is pending student acceptance.
     
@@ -112,7 +123,7 @@ async def set_pending_session_key(booking_id: str, session_id: str, ttl: int = 6
     Key format: pending_session:{booking_id}
     TTL: 60 seconds (expires automatically if not accepted)
     """
-    await cache_set(f"pending_session:{booking_id}", {"session_id": session_id}, ttl=ttl)
+    await cache_set(f"pending_session:{booking_id}", {"status": "pending"}, ttl=ttl)
 
 
 async def get_pending_session_key(booking_id: str) -> dict | None:
@@ -127,38 +138,3 @@ async def get_pending_session_key(booking_id: str) -> dict | None:
 async def clear_pending_session_key(booking_id: str) -> None:
     """Clear the pending session key after student accepts."""
     await cache_delete(f"pending_session:{booking_id}")
-
-
-async def get_session_room_state(session_id: str) -> dict | None:
-    """
-    Get cached room state for a session.
-    
-    Used during sync operations to provide current room state.
-    Key format: session_room_state:{session_id}
-    """
-    return await cache_get(f"session_room_state:{session_id}")
-
-
-async def set_session_room_state(
-    session_id: str, 
-    room_name: str, 
-    teacher_joined: bool = False, 
-    student_joined: bool = False,
-    ttl: int = 3600,
-) -> None:
-    """
-    Cache the room state for a session.
-    
-    Provides quick access to room info during sync operations without DB query.
-    Key format: session_room_state:{session_id}
-    TTL: 1 hour (session should be complete by then)
-    """
-    await cache_set(
-        f"session_room_state:{session_id}",
-        {
-            "room_name": room_name,
-            "teacher_joined": teacher_joined,
-            "student_joined": student_joined,
-        },
-        ttl=ttl,
-    )

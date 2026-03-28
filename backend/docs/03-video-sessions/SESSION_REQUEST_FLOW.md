@@ -7,7 +7,7 @@ Changed from **on-demand session creation** to a **teacher-initiated, student-ac
 **Key Change:**
 
 - **Before:** Either party could create a session; it immediately went to SCHEDULED status
-- **Now:** Only teachers can initiate; students must accept; session stays PENDING_STUDENT_ACCEPTANCE until acceptance
+- **Now:** Only teachers can initiate; students must accept; session stays READY until webhook transitions to IN_PROGRESS
 
 ---
 
@@ -65,7 +65,7 @@ Changed from **on-demand session creation** to a **teacher-initiated, student-ac
 **Endpoint:** `POST /api/v1/bookings/{booking_id}/sessions/{session_id}/accept`
 
 **Who:** Only **STUDENT** can call
-**Precondition:** Session status = `PENDING_STUDENT_ACCEPTANCE`
+**Precondition:** Session status = `READY` (waiting for webhook to transition to IN_PROGRESS)
 **Precondition:** User is the booking's student
 
 **Request Body:** Empty (no body needed)
@@ -95,7 +95,7 @@ Changed from **on-demand session creation** to a **teacher-initiated, student-ac
 **What happens:**
 
 1. ✅ Verify Redis key exists (60s window not expired)
-2. ✅ Session status changes: `PENDING_STUDENT_ACCEPTANCE` → `SCHEDULED`
+2. ✅ Session status set to: `READY` (webhook will transition to `IN_PROGRESS` when room created)
 3. ✅ `student_accepted_at` set to current timestamp
 4. ✅ Create MESSAGE record with type `NOTIFICATION_ACCEPTED` ⭐ NEW
 5. ✅ Emit Socket.IO event to teacher: "Student accepted!"
@@ -211,13 +211,12 @@ When session time ends:
 
 ## Session Statuses Explained
 
-| Status                       | Set By            | When              | Next        | Duration Field         |
-| ---------------------------- | ----------------- | ----------------- | ----------- | ---------------------- |
-| `PENDING_STUDENT_ACCEPTANCE` | Teacher (step 4a) | Teacher initiates | SCHEDULED   | Not used yet           |
-| `SCHEDULED`                  | Student (step 4b) | Student accepts   | IN_PROGRESS | Inherited from booking |
-| `IN_PROGRESS`                | System            | First join        | COMPLETED   | Active for duration    |
-| `COMPLETED`                  | System            | Time ends         | (terminal)  | Recorded as actual     |
-| `CANCELLED_BY_*`             | Either party      | Before completion | (terminal)  | N/A                    |
+| Status                       | Set By            | When                    | Next                   | Duration Field         |
+| ---------------------------- | ----------------- | ----------------------- | ---------------------- | ---------------------- |
+| `READY`                      | Student (step 4b) | Student accepts         | IN_PROGRESS via webhook | Inherited from booking |
+| `IN_PROGRESS`                | Webhook           | Room created (webhook)  | COMPLETED              | Active for duration    |
+| `COMPLETED`                  | System            | Time ends               | (terminal)             | Recorded as actual     |
+| `CANCELLED_BY_*`             | Either party      | Before completion       | (terminal)             | N/A                    |
 
 ---
 
@@ -228,20 +227,21 @@ When session time ends:
 - ✅ Only **TEACHER** can call
 - ✅ Booking must be **ACTIVE**
 - ✅ Session count < `booking.total_sessions`
-- ✅ Session created with `PENDING_STUDENT_ACCEPTANCE` status
+- ✅ Session NOT created yet (will be created when student accepts)
 
 ### Accept Session Request (Student Accepts)
 
 - ✅ Only **STUDENT** can call
-- ✅ Session status must be `PENDING_STUDENT_ACCEPTANCE`
-- ✅ Session status changes to `SCHEDULED`
+- ✅ Redis key must still exist (within 60-second window)
+- ✅ Session created with `READY` status
+- ✅ LiveKit room created immediately
+- ✅ Webhook will transition `READY` → `IN_PROGRESS`
 
 ### Cannot Accept If:
 
-- ❌ Session already accepted (`student_accepted_at` is not null)
-- ❌ Session already started (`actual_start_at` is not null)
-- ❌ Session cancelled
-- ❌ User is not the booking's student
+- ❌ 60-second window expired (Redis key deleted)
+- ❌ Student is not part of the booking
+- ❌ Booking is not ACTIVE
 
 ---
 

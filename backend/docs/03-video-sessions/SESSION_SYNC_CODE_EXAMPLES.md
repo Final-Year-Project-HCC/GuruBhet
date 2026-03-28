@@ -169,9 +169,9 @@ async def test_accept_session_within_window(
     assert "room_name" in data
     assert "livekit_url" in data
 
-    # Session should be SCHEDULED
+    # Session should be READY (webhook will later transition to IN_PROGRESS)
     await db.refresh(test_session)
-    assert test_session.status == SessionStatus.SCHEDULED
+    assert test_session.status == SessionStatus.READY
 
     # Redis key should be cleared
     pending = await get_pending_session_key(str(booking_id))
@@ -591,10 +591,10 @@ from sqlalchemy import select
 from app.models.booking import Session
 from app.core.enums import SessionStatus
 
-# All sessions awaiting student acceptance (within 1-min window)
+# All sessions awaiting webhook transition (window where READY, not yet IN_PROGRESS)
 pending_sessions = await db.execute(
     select(Session).where(
-        Session.status == SessionStatus.PENDING_STUDENT_ACCEPTANCE
+        Session.status == SessionStatus.READY
     )
 )
 
@@ -678,13 +678,13 @@ except RedisError:
 
 ```python
 # Problem: Student clicks accept button twice
-# Solution: Check for idempotency (session already SCHEDULED)
-if session.status == SessionStatus.SCHEDULED:
+# Solution: Check for idempotency (session already READY or later)
+if session.status in (SessionStatus.READY, SessionStatus.IN_PROGRESS, SessionStatus.COMPLETED):
     # Already accepted, return existing data
     return existing_response
 
-# Only process if PENDING_STUDENT_ACCEPTANCE
-if session.status != SessionStatus.PENDING_STUDENT_ACCEPTANCE:
+# Only process if session doesn't exist or can be created
+if session and session.status not in (None,):
     raise HTTPException(400, "Cannot accept in this status")
 ```
 

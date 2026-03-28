@@ -122,7 +122,7 @@ class Session(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     session_number: Mapped[int] = mapped_column(Integer, nullable=False)  # 1-based within booking
 
     status: Mapped[SessionStatus] = mapped_column(
-        SAEnum(SessionStatus), default=SessionStatus.PENDING_STUDENT_ACCEPTANCE, nullable=False, index=True
+        SAEnum(SessionStatus), default=SessionStatus.READY, nullable=False, index=True
     )
 
     # ── Session request tracking ──────────────────────────────────────────────

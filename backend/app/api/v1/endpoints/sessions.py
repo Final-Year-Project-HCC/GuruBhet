@@ -49,7 +49,7 @@ async def join_session(session_id: UUID, current_user: CurrentUser, db: DbSessio
     if booking.status != BookingStatus.ACTIVE:
         raise HTTPException(status_code=400, detail="Booking is not active")
 
-    if session.status not in (SessionStatus.SCHEDULED, SessionStatus.IN_PROGRESS):
+    if session.status not in (SessionStatus.IN_PROGRESS,):
         raise HTTPException(
             status_code=400,
             detail=f"Session cannot be joined in status '{session.status.value}'",
@@ -57,7 +57,7 @@ async def join_session(session_id: UUID, current_user: CurrentUser, db: DbSessio
 
     # Create the LiveKit room on first join
     if not session.livekit_room_name:
-        room_name = await create_room(str(session_id))
+        room_name = await create_room(str(session_id), booking.session_duration_minutes)
         session.livekit_room_name = room_name
         await db.flush()
     else:

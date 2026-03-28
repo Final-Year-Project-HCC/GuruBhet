@@ -52,6 +52,7 @@ class Settings(BaseSettings):
     LIVEKIT_API_KEY: str
     LIVEKIT_API_SECRET: str
     LIVEKIT_URL: str
+    LIVEKIT_ROOM_LENIENCY_MINUTES_PER_15MIN: int  # minutes of leniency per 15-minute session block
 
     # ── S3 / Object Storage ──────────────────────────────────────────
     S3_ENDPOINT_URL: str

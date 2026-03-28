@@ -15,9 +15,14 @@ class MessageType(str, Enum):
     TEXT = "TEXT"
     FILE = "FILE"
     SESSION_REQUEST = "SESSION_REQUEST"  # Teacher initiated a session request
-    NOTIFICATION_ERROR = "NOTIFICATION_ERROR"  # Student offline error
-    NOTIFICATION_TIMEOUT = "NOTIFICATION_TIMEOUT"  # Session request expired
-    NOTIFICATION_ACCEPTED = "NOTIFICATION_ACCEPTED"  # Student accepted session
+
+class MessageStatus(str, Enum):
+    """Status of session request messages (SESSION_REQUEST type only)."""
+    PENDING_OFFLINE = "PENDING_OFFLINE"    # Case 1: Student offline when teacher initiated request
+    ONGOING = "ONGOING"                    # Case 2-4: Initial state after session request created
+    ACCEPTED = "ACCEPTED"                  # Case 2: Student accepted within 60s window
+    REJECTED = "REJECTED"                  # Case 3: Student explicitly rejected within 60s window
+    MISSED = "MISSED"                      # Case 4: Student missed (timeout at 60s with no action)
 
 
 class Message(Base, TimestampMixin):
@@ -42,6 +47,10 @@ class Message(Base, TimestampMixin):
     # Read status
     is_read: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     read_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    
+    # Session request status (for SESSION_REQUEST message_type)
+    # Tracks the four cases: PENDING_OFFLINE (offline), ONGOING (initial), ACCEPTED, REJECTED, MISSED (timeout)
+    status: Mapped[MessageStatus | None] = mapped_column(nullable=True)
 
     __table_args__ = (
         Index("ix_message_sender_receiver", "sender_id", "receiver_id"),

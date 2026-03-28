@@ -48,9 +48,8 @@ class BookingStatus(str, Enum):
 
 class SessionStatus(str, Enum):
     """Individual session within a booking."""
-    PENDING_STUDENT_ACCEPTANCE = "PENDING_STUDENT_ACCEPTANCE"  # teacher initiated, awaiting student acceptance
-    SCHEDULED = "SCHEDULED"  # student accepted, ready to join
-    IN_PROGRESS = "IN_PROGRESS"
+    READY = "READY"  # room created, waiting for webhook to transition to IN_PROGRESS
+    IN_PROGRESS = "IN_PROGRESS"  # room started, webhook fired, actual_start_at set
     COMPLETED = "COMPLETED"
     CANCELLED_BY_STUDENT = "CANCELLED_BY_STUDENT"
     CANCELLED_BY_TEACHER = "CANCELLED_BY_TEACHER"

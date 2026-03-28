@@ -150,44 +150,38 @@ Errors:
 ### 8. Student Accepts Session ⭐ NEW
 
 ```
-POST /api/v1/bookings/{booking_id}/sessions/{session_id}/accept
+POST /api/v1/bookings/{booking_id}/accept-session
 Authorization: Bearer <student_token>
 
 No body
 
-Response 200: SessionRead
+Response 200: LiveKitTokenResponse
 {
-  "id": "session-uuid",
-  "booking_id": "booking-uuid",
-  "session_number": 1,
-  "status": "SCHEDULED",
-  "teacher_initiated_at": "2026-03-24T10:45:00.000Z",
-  "student_accepted_at": "2026-03-24T10:47:30.000Z",
-  "livekit_room_name": "session-<uuid>",
-  "actual_start_at": null,
-  "actual_end_at": null
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "room_name": "session-<uuid>",
+  "livekit_url": "https://livekit.example.com"
 }
 
 Errors:
 - 403 "Only students can accept sessions"
-- 400 "Session cannot be accepted in status X"
-- 400 "Session acceptance window expired. Must accept within 1 minute..."
-- 404 "Session not found"
+- 410 "Session acceptance window expired. Teacher must request again."
 - 404 "Booking not found"
+- 404 "Session not found"
 
 Key Features:
 ✅ Must call within 60 seconds of teacher initiating
-✅ Creates LiveKit SFU room
-✅ Sets student_accepted_at timestamp
-✅ Transitions to SCHEDULED status
+✅ Creates LiveKit SFU room immediately
+✅ Sets session to READY status
+✅ Webhook will transition READY → IN_PROGRESS
+✅ Returns LiveKit token for immediate access
 ```
 
 ---
 
-### 9. Get LiveKit Access Token ⭐ NEW
+### 9. Sync Session (Get Fresh Token) ⭐ NEW
 
 ```
-GET /api/v1/bookings/{booking_id}/sessions/{session_id}/livekit-token
+GET /api/v1/bookings/{booking_id}/sync
 Authorization: Bearer <access_token>
 
 No body
@@ -200,21 +194,21 @@ Response 200: LiveKitTokenResponse
 }
 
 Errors:
-- 403 "Not your session"
-- 400 "Session must be SCHEDULED or IN_PROGRESS to join..."
-- 400 "Booking must be ACTIVE to join sessions..."
-- 500 "LiveKit room not initialized"
-- 404 "Session not found"
+- 403 "Not your booking"
+- 403 "Session window expired. Window closed at..."
+- 410 "Booking is no longer active"
+- 410 "No active session found"
 - 404 "Booking not found"
 
 Key Features:
 ✅ Both teacher and student can call (same endpoint)
-✅ Returns JWT token for LiveKit API
-✅ On first call: transitions SCHEDULED → IN_PROGRESS
+✅ For reconnection/page refresh recovery
+✅ Validates session is IN_PROGRESS (via webhook)
+✅ Checks leniency window (configurable per 15 minutes)
 ✅ Records join timestamps:
    - teacher_joined_at (if teacher calls)
    - student_joined_at (if student calls)
-✅ Sets actual_start_at on first join
+✅ Returns fresh JWT token
 ```
 
 ---
@@ -275,37 +269,43 @@ curl -X POST http://localhost:8000/api/v1/bookings/$BOOKING_ID/initiate-payment 
 # [Frontend redirects, payment happens, callback triggers]
 # Booking status now: ACTIVE
 
-# 4. Teacher initiates session
-curl -X POST http://localhost:8000/api/v1/bookings/$BOOKING_ID/start-session \
+# 4. Teacher requests session
+curl -X POST http://localhost:8000/api/v1/bookings/$BOOKING_ID/request-session \
   -H "Authorization: Bearer $TEACHER_TOKEN"
-# Response: Session {
-#   status: "PENDING_STUDENT_ACCEPTANCE",
-#   teacher_initiated_at: "2026-03-24T10:45:00Z",
+# Response: {
+#   status: "ready",
+#   completed_sessions: 0,
+#   total_sessions: 5,
+#   remaining_sessions: 5,
+#   online_status: "online",
 #   ...
 # }
 
 # 5. Student accepts (within 60 seconds)
-curl -X POST http://localhost:8000/api/v1/bookings/$BOOKING_ID/sessions/$SESSION_ID/accept \
+curl -X POST http://localhost:8000/api/v1/bookings/$BOOKING_ID/accept-session \
   -H "Authorization: Bearer $STUDENT_TOKEN"
-# Response: Session {
-#   status: "SCHEDULED",
-#   student_accepted_at: "2026-03-24T10:47:30Z",
-#   livekit_room_name: "session-uuid",
-#   ...
+# Response: LiveKitTokenResponse {
+#   token: "eyJhbGc...",
+#   room_name: "session-uuid",
+#   livekit_url: "https://livekit.example.com"
 # }
+# Side effect: Session created with status READY
 
-# 6. Teacher gets LiveKit token
-curl -X GET http://localhost:8000/api/v1/bookings/$BOOKING_ID/sessions/$SESSION_ID/livekit-token \
+# [Webhook fires: LiveKit room_started event triggers]
+# [Session status: READY → IN_PROGRESS, actual_start_at set]
+
+# 6. Teacher syncs to get fresh token
+curl -X GET http://localhost:8000/api/v1/bookings/$BOOKING_ID/sync \
   -H "Authorization: Bearer $TEACHER_TOKEN"
 # Response: {
 #   token: "eyJhbGc...",
 #   room_name: "session-uuid",
 #   livekit_url: "https://livekit.example.com"
 # }
-# Side effect: Session transitions to IN_PROGRESS
+# Side effect: teacher_joined_at recorded
 
-# 7. Student gets LiveKit token
-curl -X GET http://localhost:8000/api/v1/bookings/$BOOKING_ID/sessions/$SESSION_ID/livekit-token \
+# 7. Student syncs to get fresh token
+curl -X GET http://localhost:8000/api/v1/bookings/$BOOKING_ID/sync \
   -H "Authorization: Bearer $STUDENT_TOKEN"
 # Response: {
 #   token: "eyJhbGc...",
@@ -329,14 +329,14 @@ curl -X POST http://localhost:8000/api/v1/sessions/$SESSION_ID/complete \
 
 ## Response Models
 
-### SessionRead (Response for accept, initiate endpoints)
+### SessionRead (Response for request-session, reject-session endpoints)
 
 ```json
 {
   "id": "uuid",
   "booking_id": "uuid",
   "session_number": 1,
-  "status": "PENDING_STUDENT_ACCEPTANCE | SCHEDULED | IN_PROGRESS | COMPLETED | CANCELLED_BY_*",
+  "status": "READY | IN_PROGRESS | COMPLETED | CANCELLED_BY_*",
   "livekit_room_name": "session-uuid or null",
   "teacher_initiated_at": "ISO 8601 timestamp or null",
   "student_accepted_at": "ISO 8601 timestamp or null",
@@ -345,7 +345,7 @@ curl -X POST http://localhost:8000/api/v1/sessions/$SESSION_ID/complete \
 }
 ```
 
-### LiveKitTokenResponse (Response for livekit-token endpoint)
+### LiveKitTokenResponse (Response for accept-session and sync endpoints)
 
 ```json
 {

@@ -71,7 +71,8 @@ async def livekit_webhook(
     # ── room_started ──────────────────────────────────────────────────────────
     if event.event == "room_started" and event.room:
         session, _ = await _get_session_and_booking(db, event.room.name)
-        if session and session.status == SessionStatus.SCHEDULED:
+        # Transition from READY to IN_PROGRESS when room starts
+        if session and session.status == SessionStatus.READY:
             session.status = SessionStatus.IN_PROGRESS
             session.actual_start_at = now
             await db.flush()

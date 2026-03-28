@@ -191,7 +191,7 @@ LiveKit is an open-source Selective Forwarding Unit (SFU) that handles real-time
 │ ✅ If VALID → Continue:                                      │
 │    - Create LiveKit room                                    │
 │    - Store room_name in session                             │
-│    - Update session status: SCHEDULED                       │
+│    - Update session status: READY                           │
 │    - Set student_accepted_at: now                           │
 │    - Create MESSAGE: type = NOTIFICATION_ACCEPTED          │
 │    - Clear Redis key                                        │
@@ -209,12 +209,10 @@ LiveKit is an open-source Selective Forwarding Unit (SFU) that handles real-time
 │ 4️⃣ Teacher/Student: "I want to join"                        │
 │                                                              │
 │ 5️⃣ Backend:                                                  │
-│    - Verify session is SCHEDULED or IN_PROGRESS             │
+│    - Verify session is IN_PROGRESS (webhook already set)    │
 │    - Generate JWT token (signed by LiveKit private key)     │
 │    - Record join timestamp (teacher_joined_at/etc)          │
-│    - If first join: SCHEDULED → IN_PROGRESS                │
-│    - Set actual_start_at = now                              │
-│    - Return: {token, room_name, livekit_url}               │
+│    - Return fresh token: {token, room_name, livekit_url}   │
 │                                                              │
 │ 6️⃣ Frontend:                                                 │
 │    - Initialize LiveKit client with token                   │
@@ -261,13 +259,12 @@ LiveKit is an open-source Selective Forwarding Unit (SFU) that handles real-time
 
 ### 1. **Session Status States**
 
-| Status                       | When               | What Can Happen                       | Next                 |
-| ---------------------------- | ------------------ | ------------------------------------- | -------------------- |
-| `PENDING_STUDENT_ACCEPTANCE` | Teacher initiates  | Waiting for student to accept         | SCHEDULED or TIMEOUT |
-| `SCHEDULED`                  | Student accepts    | Ready to join, waiting for first join | IN_PROGRESS          |
-| `IN_PROGRESS`                | First person joins | Active session, recording if enabled  | COMPLETED            |
-| `COMPLETED`                  | Teacher ends       | Session finished, cleanup done        | (terminal)           |
-| `CANCELLED_BY_*`             | Either party       | Session was cancelled                 | (terminal)           |
+| Status                       | When                        | What Can Happen                       | Next                 |
+| ---------------------------- | --------------------------- | ------------------------------------- | -------------------- |
+| `READY`                      | Student accepts session     | Ready to join, waiting for webhook    | IN_PROGRESS via webhook |
+| `IN_PROGRESS`                | Webhook: room created       | Active session, recording if enabled  | COMPLETED            |
+| `COMPLETED`                  | Teacher ends session        | Session finished, cleanup done        | (terminal)           |
+| `CANCELLED_BY_*`             | Either party cancels        | Session was cancelled                 | (terminal)           |
 
 ### 2. **Message Types**
 
@@ -501,23 +498,16 @@ Response 400/403 (Other errors):
 ### 2. Accept Session (Student)
 
 ```
-POST /api/v1/bookings/{booking_id}/sessions/{session_id}/accept
+POST /api/v1/bookings/{booking_id}/accept-session
 
 Headers:
   Authorization: Bearer {student_token}
 
 Response 200 (Success):
 {
-  "id": "session-uuid",
-  "booking_id": "booking-uuid",
-  "session_number": 1,
-  "status": "SCHEDULED",
-  "teacher_initiated_at": "2026-03-26T10:45:00Z",
-  "student_accepted_at": "2026-03-26T10:46:30Z",
-  "livekit_room_name": "session-uuid",
   "token": "eyJhbGc...",
-  "livekit_url": "https://livekit.example.com",
-  "actual_start_at": null
+  "room_name": "session-uuid",
+  "livekit_url": "https://livekit.example.com"
 }
 
 Response 410 (Window Expired):
@@ -526,10 +516,10 @@ Response 410 (Window Expired):
 }
 ```
 
-### 3. Get LiveKit Token
+### 3. Sync Session (Get Fresh Token)
 
 ```
-GET /api/v1/bookings/{booking_id}/sessions/{session_id}/livekit-token
+GET /api/v1/bookings/{booking_id}/sync
 
 Headers:
   Authorization: Bearer {teacher_or_student_token}
@@ -541,9 +531,9 @@ Response 200:
   "livekit_url": "https://livekit.example.com"
 }
 
-Response 400 (Wrong state):
+Response 403 (Session expired):
 {
-  "detail": "Session must be SCHEDULED or IN_PROGRESS"
+  "detail": "Session window expired. Window closed at ..."
 }
 ```
 
@@ -711,15 +701,8 @@ async def request_session(
             "Student is currently offline. Please try again."
         )
 
-    # Create session
-    session = Session(
-        booking_id=booking_id,
-        session_number=get_next_session_number(booking_id, db),
-        status=SessionStatus.PENDING_STUDENT_ACCEPTANCE,
-        teacher_initiated_at=datetime.now(tz=timezone.utc)
-    )
-    db.add(session)
-    db.commit()
+    # Note: Session is NOT created yet here.
+    # It will be created when student accepts (accept_session endpoint)
 
     # Set Redis key
     await redis_client.setex(
@@ -839,10 +822,12 @@ async def accept_session(
     # await create_room(room_name)  # Implementation in livekit.py
 
     # Update session
-    session.status = SessionStatus.SCHEDULED
+    session.status = SessionStatus.READY
     session.student_accepted_at = datetime.now(tz=timezone.utc)
     session.livekit_room_name = room_name
     db.commit()
+    
+    # Webhook from LiveKit will transition status: READY → IN_PROGRESS when room is created
 
     # Clear Redis key
     await redis_client.delete(redis_key)
