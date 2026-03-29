@@ -372,42 +372,63 @@ Session status already SCHEDULED
 # POST /bookings/{booking_id}/start-session
 
 @router.post("/{booking_id}/start-session", response_model=BookingRead)
-async def initiate_session_request(booking_id: UUID, current_user: CurrentUser, db: DbSession):
+async def request_session(booking_id: UUID, current_user: CurrentUser, db: DbSession):
     if current_user.role != UserRole.TEACHER:
         raise HTTPException(status_code=403, detail="Only teachers can initiate sessions")
 
     # Validation...
-    session = Session(
-        booking_id=booking_id,
-        session_number=len(sessions) + 1,
-        status=SessionStatus.PENDING_STUDENT_ACCEPTANCE,
-        teacher_initiated_at=datetime.now(tz=timezone.utc),
+    # Note: Session is NOT created here. It will be created when student accepts.
+    
+    # Set Redis key for 60-second handshake window
+    await set_pending_session_key(str(booking_id))
+    
+    # Emit Socket.IO event to student
+    await sio_manager.emit_to_user(
+        user_id=booking.student_id,
+        event="session_request",
+        data={"booking_id": str(booking_id), ...}
     )
-    db.add(session)
-    await db.flush()
-    return booking
+    return {"status": "ready", "online_status": "online"}
 ```
 
 ### Accept Session Request (Student)
 
 ```python
-# POST /bookings/{booking_id}/sessions/{session_id}/accept
+# POST /bookings/{booking_id}/accept-session
 
-@router.post("/{booking_id}/sessions/{session_id}/accept", response_model=BookingRead)
-async def accept_session_request(booking_id: UUID, session_id: UUID, current_user: CurrentUser, db: DbSession):
+@router.post("/{booking_id}/accept-session", response_model=LiveKitTokenResponse)
+async def accept_session_request(booking_id: UUID, current_user: CurrentUser, db: DbSession):
     if current_user.role != UserRole.STUDENT:
         raise HTTPException(status_code=403, detail="Only students can accept sessions")
 
-    if session.status != SessionStatus.PENDING_STUDENT_ACCEPTANCE:
-        raise HTTPException(status_code=400, detail=f"Session cannot be accepted in status {session.status.value}")
+    # Check Redis key exists (within 60-second window)
+    pending = await get_pending_session_key(str(booking_id))
+    if not pending:
+        raise HTTPException(status_code=410, detail="Session acceptance window expired")
 
-    session.status = SessionStatus.SCHEDULED
-    session.student_accepted_at = datetime.now(tz=timezone.utc)
+    # CREATE Session NOW (on acceptance)
+    session = Session(
+        booking_id=booking_id,
+        session_number=len(sessions) + 1,
+        status=SessionStatus.READY,
+        teacher_initiated_at=...,
+        student_accepted_at=datetime.now(tz=timezone.utc),
+    )
+    db.add(session)
     await db.flush()
-    return booking
+    
+    # Create LiveKit room immediately
+    room_name = await create_room(str(session.id), booking.session_duration_minutes)
+    session.livekit_room_name = room_name
+    await db.flush()
+    
+    # Webhook will transition READY → IN_PROGRESS when room created
+    return LiveKitTokenResponse(
+        token=generate_room_token(...),
+        room_name=room_name,
+        livekit_url=settings.LIVEKIT_URL
+    )
 ```
-
----
 
 ## Next Steps
 

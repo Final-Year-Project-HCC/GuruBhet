@@ -70,8 +70,8 @@
 - Teacher clicks "POST /start-session"
 + Teacher clicks "POST /request-session"
 - • Creates Session (PENDING_STUDENT_ACCEPTANCE)
++ • Does NOT create session (deferred until student accepts)
 - • Sets Redis: pending_session:{booking_id}
-+ • Does NOT create session yet
 + • Sets Redis: pending_session:{booking_id}
 ```
 

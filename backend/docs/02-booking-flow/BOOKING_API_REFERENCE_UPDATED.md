@@ -121,10 +121,10 @@ Response 200:
       "id": "session-1-uuid",
       "booking_id": "booking-uuid",
       "session_number": 1,
-      "status": "PENDING_STUDENT_ACCEPTANCE",  // ← Waiting for student
+      "status": "READY",  // ← Student accepted, awaiting webhook to transition to IN_PROGRESS
       "teacher_initiated_at": "2026-03-24T10:45:00Z",
-      "student_accepted_at": null,
-      "livekit_room_name": null,
+      "student_accepted_at": "2026-03-24T10:47:30Z",
+      "livekit_room_name": "session-uuid",
       "actual_start_at": null,
       "actual_end_at": null
     }

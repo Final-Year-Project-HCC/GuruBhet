@@ -193,58 +193,66 @@ async def initiate_session_request(booking_id: UUID, current_user: CurrentUser, 
 
 - ✅ Only teacher can call
 - ✅ Booking must be ACTIVE
-- ✅ Creates Session with status `PENDING_STUDENT_ACCEPTANCE`
+- ✅ **NOTE:** Session is NOT created here (created when student accepts)
 - ✅ **NEW:** Sets Redis key (60-second TTL)
-- ✅ **NEW:** Socket.IO notification (future: implement)
+- ✅ **NEW:** Socket.IO notification to student
 
 ---
 
-### 3. Endpoint: POST `/accept`
+### 3. Endpoint: POST `/accept-session`
 
 **File:** `app/api/v1/endpoints/bookings.py`
 
-**Response Model:** `SessionReadWithToken`
+**Response Model:** `LiveKitTokenResponse`
 
 ```python
-@router.post("/{booking_id}/sessions/{session_id}/accept", response_model=SessionReadWithToken)
-async def accept_session_request(booking_id: UUID, session_id: UUID, current_user: CurrentUser, db: DbSession):
-    # NEW: Check Redis key (60-second window validation)
+@router.post("/{booking_id}/accept-session", response_model=LiveKitTokenResponse)
+async def accept_session_request(booking_id: UUID, current_user: CurrentUser, db: DbSession):
+    # Check Redis key (60-second window validation)
     pending = await get_pending_session_key(str(booking_id))
     if not pending:
         raise HTTPException(410, "Session acceptance window expired")
 
-    # Create LiveKit room
-    room_name = await create_room(str(session_id))
+    # CREATE Session NOW (on acceptance)
+    session = Session(
+        booking_id=booking_id,
+        session_number=...,
+        status=SessionStatus.READY,
+        student_accepted_at=datetime.now(tz=timezone.utc),
+    )
+    db.add(session)
+    await db.flush()
 
-    # NEW: Cache room state
-    await set_session_room_state(str(session_id), room_name, ...)
+    # Create LiveKit room immediately
+    room_name = await create_room(str(session.id), booking.session_duration_minutes)
+    session.livekit_room_name = room_name
+    await db.flush()
 
-    # Move to SCHEDULED
-    session.status = SessionStatus.SCHEDULED
-
-    # NEW: Clear Redis key
+    # Clear Redis key
     await clear_pending_session_key(str(booking_id))
 
-    # NEW: Emit Socket.IO event to teacher
+    # Emit Socket.IO event to teacher with their token
+    teacher_token = generate_room_token(...)
     await sio_manager.emit_to_user(
         user_id=booking.teacher_id,
         event="session_ready",
-        data={...token...}
+        data={"token": teacher_token, "room_name": room_name, ...}
     )
 
+    # Webhook will transition: READY → IN_PROGRESS when room created
     # Return student's token in response
-    return {
-        id, booking_id, session_number, status, room,
-        token, livekit_url  # NEW FIELDS
-    }
+    return LiveKitTokenResponse(
+        token=generate_room_token(...),
+        room_name=room_name,
+        livekit_url=settings.LIVEKIT_URL
+    )
 ```
 
 **Preconditions:**
 
 - ✅ Current user: STUDENT
-- ✅ Session: PENDING_STUDENT_ACCEPTANCE
-- ✅ **NEW:** Redis key exists (window not expired)
-- ✅ Booking: student belongs to this booking
+- ✅ **NEW:** Redis key exists (window not expired, within 60 seconds)
+- ✅ Student belongs to this booking
 
 **Returns:**
 
@@ -272,12 +280,16 @@ async def sync_session(booking_id: UUID, current_user: CurrentUser, db: DbSessio
     Returns fresh LiveKit token.
     """
 
-    # Find active session (IN_PROGRESS or SCHEDULED)
-    session = await db.get(Session).filter(...).first()
+    # Find the IN_PROGRESS session
+    # NOTE: Webhook guarantees session is IN_PROGRESS (transitioned from READY)
+    session = await db.get(Session).filter(
+        Session.status == SessionStatus.IN_PROGRESS
+    ).first()
 
     # ── LENIENCY BUFFER CALCULATION ──
     session_duration_minutes = booking.session_duration_minutes
-    leniency_minutes = session_duration_minutes // 15
+    leniency_multiplier = settings.LIVEKIT_ROOM_LENIENCY_MINUTES_PER_15MIN
+    leniency_minutes = (session_duration_minutes // 15) * leniency_multiplier
 
     allowed_end_time = session.actual_start_at + timedelta(minutes=session_duration_minutes + leniency_minutes)
 
@@ -286,10 +298,7 @@ async def sync_session(booking_id: UUID, current_user: CurrentUser, db: DbSessio
 
     # Record join timestamp
     session.teacher_joined_at = now  # or student_joined_at
-
-    # Transition SCHEDULED → IN_PROGRESS
-    if session.status == SessionStatus.SCHEDULED:
-        session.status = SessionStatus.IN_PROGRESS
+    await db.flush()
         session.actual_start_at = now
 
     # Generate fresh token

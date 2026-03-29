@@ -77,27 +77,28 @@ Integrated LiveKit SFU (Selective Forwarding Unit) with the teacher-initiated, s
 │ STEP 2a: Student Accepts Session (1-Minute Window)               │
 ├──────────────────────────────────────────────────────────────────┤
 │                                                                  │
-│ Student: POST /bookings/{id}/sessions/{sid}/accept               │
+│ Student: POST /bookings/{id}/accept-session                    │
 │                                                                  │
 │ ✅ Check: Redis key exists (within 60s window)                  │
 │ ✅ Check: Time elapsed < 1 minute from request-session          │
 │                                                                  │
+│ ✅ CREATE Session NOW (deferred creation)                       │
 │ ✅ Create LiveKit Room                                           │
 │    room_name = await create_room(str(session_id))               │
 │    session.livekit_room_name = room_name                        │
 │                                                                  │
-│ ✅ Status: PENDING_STUDENT_ACCEPTANCE → SCHEDULED               │
+│ ✅ Status: Set to READY                                          │
+│    (Webhook will later transition READY → IN_PROGRESS)          │
 │ ✅ student_accepted_at: current timestamp                       │
 │ ✅ Create MESSAGE: type = NOTIFICATION_ACCEPTED ⭐ NEW          │
 │ ✅ Clear Redis key                                              │
-│ ✅ Emit Socket.IO: "student_accepted" to teacher                │
+│ ✅ Emit Socket.IO: "session_ready" to teacher                   │
 │                                                                  │
-│ Response: SessionRead with token ⭐ NEW                          │
+│ Response: LiveKitTokenResponse ⭐ SIMPLIFIED                    │
 │ {                                                                │
-│   "id": "session-uuid",                                          │
-│   "booking_id": "booking-uuid",                                  │
-│   "session_number": 1,                                           │
-│   "status": "SCHEDULED",  ← Ready to join!                       │
+│   "token": "eyJhbGc...",                                         │
+│   "room_name": "session-uuid",                                   │
+│   "livekit_url": "https://livekit.example.com"                  │
 │   "teacher_initiated_at": "2026-03-24T10:45:00Z",               │
 │   "student_accepted_at": "2026-03-24T10:47:30Z",  ← Set now     │
 │   "livekit_room_name": "session-<uuid>",  ← Created now!        │

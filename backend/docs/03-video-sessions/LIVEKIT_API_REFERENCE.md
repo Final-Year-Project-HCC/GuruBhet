@@ -118,31 +118,30 @@ Response 200:
 
 ## NEW Endpoints with LiveKit
 
-### 7. Teacher Initiates Session ⭐
+### 7. Teacher Requests Session ⭐
 
 ```
-POST /api/v1/bookings/{booking_id}/start-session
+POST /api/v1/bookings/{booking_id}/request-session
 Authorization: Bearer <teacher_token>
 
 No body
 
-Response 200: SessionRead
+Response 200:
 {
-  "id": "session-uuid",
-  "booking_id": "booking-uuid",
-  "session_number": 1,
-  "status": "PENDING_STUDENT_ACCEPTANCE",
-  "teacher_initiated_at": "2026-03-24T10:45:00.000Z",
-  "student_accepted_at": null,
-  "livekit_room_name": null,
-  "actual_start_at": null,
-  "actual_end_at": null
+  "status": "ready",
+  "online_status": "online",
+  "completed_sessions": 0,
+  "total_sessions": 5,
+  "remaining_sessions": 5,
+  "expiration_seconds": 60,
+  "message": "Session request sent. Student has 60 seconds to accept."
 }
 
 Errors:
-- 403 "Only teachers can initiate sessions"
-- 400 "Booking must be ACTIVE to start sessions"
-- 400 "All N sessions have already been created"
+- 403 "Only teachers can request sessions"
+- 400 "Booking must be ACTIVE to request sessions"
+- 400 "All N sessions have already been completed"
+- 480 "Student is currently offline"
 ```
 
 ---
@@ -384,11 +383,9 @@ curl -X POST http://localhost:8000/api/v1/sessions/$SESSION_ID/complete \
 
 ```
 Session Lifecycle:
-PENDING_STUDENT_ACCEPTANCE
-    ↓ (student accepts within 1 min)
-SCHEDULED
-    ↓ (first person gets token)
-IN_PROGRESS
+READY (student accepted)
+    ↓ (webhook fires: room created)
+IN_PROGRESS (LiveKit room started)
     ↓ (teacher completes)
 COMPLETED
 
