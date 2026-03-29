@@ -84,21 +84,30 @@ def generate_room_token(
 async def create_room(session_id: str, session_duration_minutes: int) -> str:
     """Create a LiveKit room for a session. Returns the room name.
     
-    Room auto-closes after: session_duration_minutes + leniency buffer
-    Leniency buffer = (session_duration_minutes // 15) * LIVEKIT_ROOM_LENIENCY_MINUTES_PER_15MIN
+    Lifecycle:
+    1. Room is created with empty_timeout = 24 hours (fallback only)
+    2. Celery cleanup task is scheduled to run at (duration + leniency) minutes
+    3. Task calls end_room() which deletes the room and emits "room_finished"
+    4. If Celery fails, room auto-closes after 24 hours as safety net
+    
+    The empty_timeout does NOT compete with the scheduled task - it only
+    activates if the room becomes empty AND Celery hasn't cleaned it up yet.
+    
+    Args:
+        session_id: UUID of the session
+        session_duration_minutes: Duration of the session in minutes
+    
+    Returns:
+        The room name (format: session-{session_id})
     """
     room_name = f"session-{session_id}"
     
-    # Calculate leniency buffer: 1 minute per 15 minutes of session (configurable)
-    leniency_multiplier = settings.LIVEKIT_ROOM_LENIENCY_MINUTES_PER_15MIN
-    leniency_minutes = (session_duration_minutes // 15) * leniency_multiplier
-    total_timeout_minutes = session_duration_minutes + leniency_minutes
-    empty_timeout_seconds = int(total_timeout_minutes * 60)
-    
+    # Use 24-hour empty_timeout as fallback
+    # Celery scheduled task is the primary controller of room lifecycle
     await get_livekit_api().room.create_room(
         api.CreateRoomRequest(
             name=room_name,
-            empty_timeout=empty_timeout_seconds,
+            empty_timeout=settings.LIVEKIT_EMPTY_TIMEOUT_SECONDS,
             max_participants=2,
         )
     )
@@ -106,10 +115,30 @@ async def create_room(session_id: str, session_duration_minutes: int) -> str:
  
  
 async def end_room(room_name: str) -> None:
-    """Delete a LiveKit room, disconnecting all participants."""
-    await get_livekit_api().room.delete_room(
-        api.DeleteRoomRequest(room=room_name)
-    )
+    """Delete a LiveKit room, disconnecting all participants.
+    
+    This is idempotent - if the room doesn't exist, it's a no-op.
+    Handles cases where:
+    - Room was already deleted by another process
+    - Room name is invalid or empty
+    - LiveKit API is unreachable (non-fatal)
+    """
+    if not room_name:
+        return
+    
+    try:
+        await get_livekit_api().room.delete_room(
+            api.DeleteRoomRequest(room=room_name)
+        )
+    except Exception as exc:
+        # Log but don't raise - room deletion is best-effort
+        # Rooms auto-expire after empty_timeout anyway
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning(
+            f"Failed to delete LiveKit room '{room_name}': {exc}",
+            extra={"room_name": room_name},
+        )
 
 
 # ── Redis-backed handshake & sync ─────────────────────────────────────────────

@@ -7,6 +7,7 @@ celery_app = Celery(
     backend=settings.CELERY_RESULT_BACKEND,
     include=[
         "app.tasks.session_request_tasks",
+        "app.tasks.livekit_tasks",
         "app.workers.payout_tasks",
         "app.workers.esewa_tasks",
         "app.workers.notification_tasks",
@@ -27,6 +28,10 @@ celery_app.conf.update(
         "check-no-shows": {
             "task": "app.workers.notification_tasks.check_no_shows",
             "schedule": 300,      # every 5 minutes
+        },
+        "monitor-orphaned-rooms": {
+            "task": "app.tasks.livekit_tasks.monitor_orphaned_rooms",
+            "schedule": 3600,     # every hour (in seconds)
         },
     },
 )

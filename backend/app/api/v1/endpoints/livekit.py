@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timezone
 from uuid import UUID
 
@@ -11,14 +12,9 @@ from app.core.dependencies import DbSession
 from app.core.enums import SessionStatus, BookingStatus
 from app.models.booking import Session, Booking
 
-router = APIRouter()
+logger = logging.getLogger(__name__)
 
-_receiver = WebhookReceiver(
-    TokenVerifier(
-        api_key=settings.LIVEKIT_API_KEY,
-        api_secret=settings.LIVEKIT_API_SECRET,
-    )
-)
+router = APIRouter()
 
 
 def _session_id_from_room(room_name: str) -> str | None:
@@ -42,6 +38,16 @@ async def _get_session_and_booking(
     if not session:
         return None, None
     return session, session.booking
+
+
+
+
+_receiver = WebhookReceiver(
+    TokenVerifier(
+        api_key=settings.LIVEKIT_API_KEY,
+        api_secret=settings.LIVEKIT_API_SECRET,
+    )
+)
 
 
 @router.post("/webhook")
@@ -80,22 +86,118 @@ async def livekit_webhook(
     # ── room_finished ─────────────────────────────────────────────────────────
     elif event.event == "room_finished" and event.room:
         session, booking = await _get_session_and_booking(db, event.room.name)
-        if session and booking and session.status == SessionStatus.IN_PROGRESS:
-            session.status = SessionStatus.COMPLETED
-            session.actual_end_at = now
-            await db.flush()
-
+        
+        # Only process if session and booking exist
+        if not session or not booking:
+            return {"status": "ok"}
+        
+        try:
+            # ── Common completion logic (happens regardless of session status) ──
+            # The session status was already set by the route or Celery task that deleted the room.
+            # This webhook only handles the common post-completion tasks.
+            
+            # Record actual end time if not already set
+            if not session.actual_end_at:
+                session.actual_end_at = now
+                await db.flush()
+            
+            # ── Create transaction for session completion ──
+            # Credit the teacher if:
+            # 1. Session was COMPLETED (teacher did the work)
+            # 2. Session was CANCELLED_BY_STUDENT (teacher's time was reserved)
+            # Do NOT credit if CANCELLED_BY_TEACHER (teacher's own cancellation)
+            if session.status in (SessionStatus.COMPLETED, SessionStatus.CANCELLED_BY_STUDENT):
+                # Credit the teacher for this session
+                from app.models.payment import Transaction
+                from app.core.enums import TransactionType, TransactionReason
+                db.add(Transaction(
+                    user_id=booking.teacher_id,
+                    amount=booking.rate_per_session,
+                    type=TransactionType.CREDIT,
+                    reason=TransactionReason.SESSION_RELEASE,
+                    booking_id=booking.id,
+                ))
+                await db.flush()
+            
+            # ── Update booking counters for all completed sessions ──
+            # Treat all sessions (COMPLETED, CANCELLED_BY_STUDENT, CANCELLED_BY_TEACHER) as "completed"
+            # The difference is only in whether transaction is created
             booking.completed_sessions += 1
             if booking.completed_sessions >= booking.total_sessions:
                 booking.status = BookingStatus.COMPLETED
             await db.flush()
-
+            
+            # Increment teacher experience (for all session statuses)
             from app.repositories.teacher_subject_repo import TeacherSubjectRepository
             ts_repo = TeacherSubjectRepository(db)
             await ts_repo.increment_completed_sessions(
                 teacher_id=booking.teacher_id,
                 subject_id=booking.subject_id,
             )
+            await db.flush()
+            
+            # ── Emit "session_finished" event to both participants ──
+            # Always emit, with the status that was set by the route/task
+            from app.core.socketio import get_socketio_manager
+            sio_manager = get_socketio_manager()
+            if sio_manager:
+                try:
+                    await sio_manager.emit_to_user(
+                        user_id=booking.student_id,
+                        event="session_finished",
+                        data={
+                            "session_id": str(session.id),
+                            "status": session.status.value,
+                            "actual_end_at": session.actual_end_at.isoformat() if session.actual_end_at else None,
+                        }
+                    )
+                    await sio_manager.emit_to_user(
+                        user_id=booking.teacher_id,
+                        event="session_finished",
+                        data={
+                            "session_id": str(session.id),
+                            "status": session.status.value,
+                            "actual_end_at": session.actual_end_at.isoformat() if session.actual_end_at else None,
+                        }
+                    )
+                except Exception as exc:
+                    logger.warning(f"Failed to emit session_finished event: {exc}")
+            
+
+            #TO-BE-REVIEWED
+            # ── Trigger post-session Celery tasks (only if completed, not cancelled) ──
+            if session.status == SessionStatus.COMPLETED:
+                try:
+                    from app.tasks.payment_tasks import process_session_billing
+                    from app.tasks.notification_tasks import send_session_complete_notification
+                    
+                    process_session_billing.delay(str(session.id), str(booking.id))
+                    send_session_complete_notification.delay(str(session.id), str(booking.id))
+                except Exception as exc:
+                    logger.warning(f"Failed to schedule post-session tasks: {exc}")
+            
+            await db.commit()
+            
+            logger.info(
+                f"✅ Room finished for session {session.id} (status: {session.status.value})",
+                extra={
+                    "session_id": str(session.id),
+                    "booking_id": str(booking.id),
+                    "teacher_id": str(booking.teacher_id),
+                    "student_id": str(booking.student_id),
+                    "status": session.status.value,
+                }
+            )
+            
+        except Exception as exc:
+            await db.rollback()
+            logger.error(
+                f"Error processing room_finished event for session {session.id}: {exc}",
+                exc_info=True,
+                extra={"session_id": str(session.id) if session else None}
+            )
+            # Continue anyway - don't fail the webhook
+
 
     # ── participant_joined ────────────────────────────────────────────────────
     elif event.event == "participant_joined" and event.room and event.participant:

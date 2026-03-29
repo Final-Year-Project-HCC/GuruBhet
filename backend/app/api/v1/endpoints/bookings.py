@@ -28,9 +28,11 @@ from app.tasks.session_request_tasks import (
     create_session_request_message, create_offline_notification_message,
     handle_session_request_timeout_task,
 )
+from app.tasks.livekit_tasks import cleanup_expired_livekit_room
 from app.core.socketio import get_socketio_manager
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 @router.post("/request", response_model=BookingRead, status_code=201)
@@ -392,6 +394,32 @@ async def accept_session_request(booking_id: UUID, current_user: CurrentUser, db
     room_name = await create_room(str(actual_session_id), booking.session_duration_minutes)
     session.livekit_room_name = room_name
     await db.flush()
+    
+    # ── Schedule cleanup task for when session expires ──
+    # Room will be deleted after: session_duration_minutes + leniency buffer
+    # This ensures room_finished event fires at the expected time regardless of participant presence
+    from app.core.config import settings
+    leniency_multiplier = settings.LIVEKIT_ROOM_LENIENCY_MINUTES_PER_15MIN
+    leniency_minutes = (booking.session_duration_minutes // 15) * leniency_multiplier
+    total_timeout_minutes = booking.session_duration_minutes + leniency_minutes
+    total_timeout_seconds = int(total_timeout_minutes * 60)
+    
+    cleanup_task = cleanup_expired_livekit_room.apply_async(
+        args=[str(actual_session_id)],
+        countdown=total_timeout_seconds,
+    )
+    
+    logger.info(
+        f"Scheduled LiveKit room cleanup for session {actual_session_id} "
+        f"in {total_timeout_minutes} minutes ({total_timeout_seconds}s)",
+        extra={
+            "session_id": str(actual_session_id),
+            "booking_id": str(booking_id),
+            "timeout_minutes": total_timeout_minutes,
+            "timeout_seconds": total_timeout_seconds,
+            "task_id": cleanup_task.id,
+        }
+    )
     
     # ── Update message status to ACCEPTED (Case 2) ──
     # Fetch the current ONGOING session request for this booking and participants

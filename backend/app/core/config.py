@@ -53,6 +53,7 @@ class Settings(BaseSettings):
     LIVEKIT_API_SECRET: str
     LIVEKIT_URL: str
     LIVEKIT_ROOM_LENIENCY_MINUTES_PER_15MIN: int  # minutes of leniency per 15-minute session block
+    LIVEKIT_EMPTY_TIMEOUT_SECONDS: int = 86400  # 24 hours fallback (Celery task is primary controller)
 
     # ── S3 / Object Storage ──────────────────────────────────────────
     S3_ENDPOINT_URL: str
