@@ -30,6 +30,93 @@ async def _get_session_with_booking(db: DbSession, session_id: UUID) -> tuple[Se
     return session, session.booking
 
 
+async def _complete_session(
+    session: Session,
+    booking: Booking,
+    db: DbSession,
+    session_id: UUID,
+    now: datetime,
+):
+    """
+    Complete a session and perform all associated actions.
+    
+    This helper is reused by both auto-completion and accept-session-completion flows.
+    """
+    # Complete the session
+    session.status = SessionStatus.COMPLETED
+    session.actual_end_at = now
+    
+    await db.flush()
+
+    # Update booking counters
+    booking.completed_sessions += 1
+    if booking.completed_sessions >= booking.total_sessions:
+        booking.status = BookingStatus.COMPLETED
+    await db.flush()
+
+    # Increment teacher experience counter
+    from app.repositories.teacher_subject_repo import TeacherSubjectRepository
+    ts_repo = TeacherSubjectRepository(db)
+    await ts_repo.increment_completed_sessions(
+        teacher_id=booking.teacher_id,
+        subject_id=booking.subject_id,
+    )
+
+    # Create SESSION_RELEASE ledger entry
+    from app.models.payment import Transaction
+    from app.core.enums import TransactionType, TransactionReason
+    db.add(Transaction(
+        user_id=booking.teacher_id,
+        amount=booking.rate_per_session,
+        type=TransactionType.CREDIT,
+        reason=TransactionReason.SESSION_RELEASE,
+        booking_id=booking.id,
+    ))
+    await db.flush()
+
+    # Tear down the LiveKit room
+    if session.livekit_room_name:
+        try:
+            await end_room(session.livekit_room_name)
+        except Exception:
+            pass  # Room may already be closed — not fatal
+
+    duration_seconds = int((now - session.actual_start_at).total_seconds())
+
+
+    # Emit Socket.IO event to both teacher and student
+    try:
+        from app.core.socketio import sio
+        event_data = {
+            "session_id": str(session_id),
+            "booking_id": str(booking.id),
+            "duration_seconds": duration_seconds,
+            "completed_at": now.isoformat(),
+        }
+        # Send to teacher
+        await sio.emit(
+            "session-ended",
+            event_data,
+            room=f"user:{booking.teacher_id}",
+        )
+        # Send to student
+        await sio.emit(
+            "session-ended",
+            event_data,
+            room=f"user:{booking.student_id}",
+        )
+    except Exception:
+        pass  # Socket.IO may not be available in all contexts
+
+    # TODO: Trigger Celery tasks for post-session actions
+    # from app.tasks.payment_tasks import process_session_billing
+    # from app.tasks.notification_tasks import send_session_complete_notification
+    # process_session_billing.delay(str(session_id), str(booking.id))
+    # send_session_complete_notification.delay(str(session_id), str(booking.id))
+
+    await db.commit()
+
+
 @router.get("/{session_id}", response_model=SessionRead)
 async def get_session(session_id: UUID, current_user: CurrentUser, db: DbSession):
     session, booking = await _get_session_with_booking(db, session_id)
@@ -47,12 +134,9 @@ async def request_session_completion(session_id: UUID, current_user: CurrentUser
     Teacher requests to complete a session prematurely or at the end of duration.
     
     Flow:
-    1. If session duration has been reached + leniency time: Delete room
-    2. If session duration not reached: Set Redis key and notify student
-    3. Common completion logic handled by webhook when room_finished arrives
-    
-    Note: All session completion logic (marking COMPLETED, updating booking, etc.)
-    is handled by the room_finished webhook handler.
+    1. If session duration has been reached: Session is completed immediately
+    2. If session duration not reached: Redis key is set, socket event sent to student for approval
+    3. If Redis key already exists: Request fails with 409
     """
     session, booking = await _get_session_with_booking(db, session_id)
 
@@ -68,28 +152,13 @@ async def request_session_completion(session_id: UUID, current_user: CurrentUser
     now = datetime.now(tz=timezone.utc)
     elapsed_seconds = (now - session.actual_start_at).total_seconds()
     
-    # Calculate leniency in seconds
-    session_duration_minutes = booking.session_duration_minutes
-    leniency_minutes_per_15min = settings.LIVEKIT_ROOM_LENIENCY_MINUTES_PER_15MIN
-    total_leniency_minutes = (session_duration_minutes / 15) * leniency_minutes_per_15min
-    total_leniency_seconds = total_leniency_minutes * 60
-    
     # Required duration in seconds
-    required_duration_seconds = session_duration_minutes * 60
+    required_duration_seconds = booking.session_duration_minutes * 60
     
-    # Check if session duration + leniency has been reached
-    if elapsed_seconds >= (required_duration_seconds + total_leniency_seconds):
-        # Auto-complete: Mark session COMPLETED, then delete room
-        # Webhook will handle common completion logic when room_finished arrives
-        session.status = SessionStatus.COMPLETED
-        session.actual_end_at = now
-        await db.flush()
-        
-        if session.livekit_room_name:
-            # end_room is idempotent - handles errors internally
-            await end_room(session.livekit_room_name)
-        
-        await db.commit()
+    # Check if session duration has been reached
+    if elapsed_seconds >= required_duration_seconds:
+        # Auto-complete: Session duration has been reached
+        await _complete_session(session, booking, db, session_id, now)
         return session
     
     # Premature completion: Check if a request already exists
@@ -164,20 +233,12 @@ async def accept_premature_session_completion(session_id: UUID, current_user: Cu
 
     now = datetime.now(tz=timezone.utc)
     
-    # Mark session COMPLETED, then delete the room
-    # Webhook will handle common completion logic when room_finished arrives
-    session.status = SessionStatus.COMPLETED
-    session.actual_end_at = now
-    await db.flush()
+    # Clean up Redis keys
+    await cache_delete(redis_key)  # Remove the premature completion request key
     
-    if session.livekit_room_name:
-        # end_room is idempotent - handles errors internally
-        await end_room(session.livekit_room_name)
+    # Complete the session using the helper function
+    await _complete_session(session, booking, db, session_id, now)
     
-    # Clean up Redis key
-    await cache_delete(redis_key)
-    
-    await db.commit()
     return session
 
 
@@ -240,12 +301,7 @@ async def reject_premature_session_completion(session_id: UUID, current_user: Cu
 async def cancel_session(session_id: UUID, current_user: CurrentUser, db: DbSession):
     """
     Cancel a session.
-    
-    Flow:
-    1. Set session status (CANCELLED_BY_TEACHER or CANCELLED_BY_STUDENT)
-    2. Delete the room if it exists
-    3. Webhook will handle common logic (Socket.IO event, etc.)
-    
+    We will implement Cancel with dispute and without dispute later
     Refund Logic:
     - If TEACHER cancels: TODO - Student gets refunded for this session
     - If STUDENT cancels: No refund, teacher keeps all fees
@@ -255,7 +311,7 @@ async def cancel_session(session_id: UUID, current_user: CurrentUser, db: DbSess
     if current_user.id not in (booking.student_id, booking.teacher_id):
         raise HTTPException(status_code=403, detail="Not your session")
 
-    if session.status not in (SessionStatus.READY, SessionStatus.IN_PROGRESS):
+    if session.status != SessionStatus.IN_PROGRESS:
         raise HTTPException(
             status_code=400,
             detail=f"Session cannot be cancelled in status {session.status.value}",
@@ -280,8 +336,34 @@ async def cancel_session(session_id: UUID, current_user: CurrentUser, db: DbSess
     # Delete the LiveKit room if it exists
     # Webhook will handle common logic (Socket.IO event, but NO transaction)
     if session.livekit_room_name:
-        # end_room is idempotent - handles errors internally
-        await end_room(session.livekit_room_name)
+        try:
+            await end_room(session.livekit_room_name)
+        except Exception:
+            pass  # Room may already be closed — not fatal
+
+    # Emit Socket.IO event to notify both participants
+    try:
+        from app.core.socketio import sio
+        event_data = {
+            "session_id": str(session_id),
+            "booking_id": str(booking.id),
+            "cancelled_by": "teacher" if is_teacher_cancelling else "student",
+            "cancelled_at": now.isoformat(),
+        }
+        # Send to teacher
+        await sio.emit(
+            "session_cancelled",
+            event_data,
+            room=f"user:{booking.teacher_id}",
+        )
+        # Send to student
+        await sio.emit(
+            "session_cancelled",
+            event_data,
+            room=f"user:{booking.student_id}",
+        )
+    except Exception:
+        pass  # Socket.IO may not be available in all contexts
 
     await db.commit()
     return session
