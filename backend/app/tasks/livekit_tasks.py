@@ -11,7 +11,7 @@ from app.core.config import settings
 from app.db.session import AsyncSessionLocal
 from app.models.booking import Session
 from app.core.enums import SessionStatus
-from app.utils.livekit import end_room, get_livekit_api
+from app.utils.livekit import handle_session_completion, get_livekit_api
 from app.workers.celery_app import celery_app
 
 logger = logging.getLogger(__name__)
@@ -76,79 +76,54 @@ async def _async_cleanup_expired_livekit_room(session_id: str) -> None:
     
     Flow:
     1. Fetch the session from database
-    2. If session is still IN_PROGRESS, mark it COMPLETED
-    3. Delete the room via end_room()
-    4. Let the room_finished webhook handle common completion logic
-    
-    This task is responsible for:
-    - Setting the session status (COMPLETED for normal expiration)
-    - Deleting the LiveKit room
-    
-    The webhook is responsible for:
-    - Creating transactions
-    - Emitting Socket.IO events
-    - Scheduling post-session tasks
+    2. If session is still IN_PROGRESS, complete it using handle_session_completion
+    3. This handles: status, counters, transactions, room deletion, notifications
     
     Idempotent: Safe to call even if room is already deleted or session is completed.
     """
     async with AsyncSessionLocal() as db:
         try:
-            # Fetch the session
+            # Fetch the session with booking
+            from sqlalchemy.orm import joinedload
             result = await db.execute(
-                select(Session).where(Session.id == UUID(session_id))
+                select(Session)
+                .where(Session.id == UUID(session_id))
+                .options(joinedload(Session.booking))
             )
-            session = result.scalar_one_or_none()
+            session = result.unique().scalar_one_or_none()
             
-            if not session:
+            if not session or not session.livekit_room_name:
                 logger.warning(
-                    f"Session {session_id} not found during cleanup",
+                    f"Session {session_id} not found or has no room during cleanup",
                     extra={"session_id": session_id}
                 )
                 return
             
-            # If room doesn't exist, nothing to clean
-            if not session.livekit_room_name:
-                logger.info(
-                    f"Session {session_id} has no LiveKit room",
-                    extra={"session_id": session_id}
-                )
-                return
-            
-            # If session is already completed or cancelled, room should already be deleted
+            # If session is already completed or cancelled, skip completion logic
             if session.status != SessionStatus.IN_PROGRESS:
                 logger.info(
-                    f"Session {session_id} not IN_PROGRESS, skipping cleanup",
+                    f"Session {session_id} already completed (status: {session.status.value}), skipping completion",
                     extra={"session_id": session_id, "status": session.status.value}
                 )
                 return
             
-            # Mark session as COMPLETED before deleting room
-            # When room_finished webhook fires, it will find COMPLETED status and skip creating duplicate transaction
-            now = datetime.now(tz=timezone.utc)
-            session.status = SessionStatus.COMPLETED
-            session.actual_end_at = now
-            await db.flush()
-            
-            # Delete the room from LiveKit
-            # This will trigger a room_finished webhook that handles common completion logic
-            # end_room is idempotent - handles errors internally and won't raise
+            # Session is IN_PROGRESS - complete it now using the common handler
             logger.info(
-                f"Deleting LiveKit room {session.livekit_room_name} for session {session_id}",
-                extra={
-                    "session_id": session_id,
-                    "room_name": session.livekit_room_name,
-                }
-            )
-            await end_room(session.livekit_room_name)
-            logger.info(
-                f"✅ LiveKit room {session.livekit_room_name} deleted, webhook will handle common logic",
-                extra={
-                    "session_id": session_id,
-                    "room_name": session.livekit_room_name,
-                }
+                f"Completing expired session {session_id}",
+                extra={"session_id": session_id, "room_name": session.livekit_room_name}
             )
             
-            await db.commit()
+            await handle_session_completion(
+                session=session,
+                booking=session.booking,
+                db=db,
+                completion_status=SessionStatus.COMPLETED,
+            )
+            
+            logger.info(
+                f"✅ Expired session {session_id} completed successfully",
+                extra={"session_id": session_id}
+            )
             
         except Exception as exc:
             await db.rollback()

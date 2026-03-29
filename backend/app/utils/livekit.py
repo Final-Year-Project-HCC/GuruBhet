@@ -141,6 +141,201 @@ async def end_room(room_name: str) -> None:
         )
 
 
+# ── Session completion handler ────────────────────────────────────────────────
+
+async def handle_session_completion(
+    session,
+    booking,
+    db,
+    completion_status,
+) -> None:
+    """
+    Handle all common session completion logic.
+    
+    This is the single source of truth for what happens when a session ends.
+    Called by:
+    - Routes: request_session_completion, accept_session_completion, cancel_session
+    - Celery: cleanup_expired_livekit_room
+    - Webhook: room_finished (safety net only)
+    
+    Business Logic:
+    1. Mark session with completion_status (COMPLETED, CANCELLED_BY_TEACHER, CANCELLED_BY_STUDENT)
+    2. Record actual_end_at timestamp
+    3. Create transaction (only for COMPLETED and CANCELLED_BY_STUDENT)
+    4. Update booking counters (for all statuses)
+    5. Increment teacher experience (for all statuses)
+    6. Emit Socket.IO events
+    7. Schedule post-session Celery tasks (only for COMPLETED)
+    8. Delete the LiveKit room
+    
+    Args:
+        session: The Session object to complete
+        booking: The associated Booking object
+        db: Database session for persistence
+        completion_status: Why the session ended (COMPLETED, CANCELLED_BY_*)
+    """
+    import logging
+    from datetime import datetime, timezone
+    from uuid import UUID
+    
+    from app.core.enums import SessionStatus, TransactionType, TransactionReason, BookingStatus
+    from app.models.payment import Transaction
+    from app.repositories.teacher_subject_repo import TeacherSubjectRepository
+    from app.core.socketio import get_socketio_manager
+    
+    logger = logging.getLogger(__name__)
+    now = datetime.now(tz=timezone.utc)
+    
+    try:
+        # ── 1. Set session status and actual end time ──
+        session.status = completion_status
+        if not session.actual_end_at:
+            session.actual_end_at = now
+        await db.flush()
+        
+        # ── 2. Create transaction (if applicable) ──
+        # Credit teacher for:
+        # - COMPLETED: They did the work
+        # - CANCELLED_BY_STUDENT: They reserved their time (student penalty)
+        # Do NOT credit for:
+        # - CANCELLED_BY_TEACHER: Teacher cancelled (their penalty)
+        if completion_status in (SessionStatus.COMPLETED, SessionStatus.CANCELLED_BY_STUDENT):
+            db.add(Transaction(
+                user_id=booking.teacher_id,
+                amount=booking.rate_per_session,
+                type=TransactionType.CREDIT,
+                reason=TransactionReason.SESSION_RELEASE,
+                booking_id=booking.id,
+            ))
+            await db.flush()
+            logger.info(
+                f"Transaction created for session {session.id}",
+                extra={
+                    "session_id": str(session.id),
+                    "teacher_id": str(booking.teacher_id),
+                    "amount": booking.rate_per_session,
+                    "status": completion_status.value,
+                }
+            )
+        
+        # ── 3. Update booking counters (for all completion types) ──
+        booking.completed_sessions += 1
+        if booking.completed_sessions >= booking.total_sessions:
+            booking.status = BookingStatus.COMPLETED
+        await db.flush()
+        
+        # ── 4. Increment teacher experience (for all completion types) ──
+        ts_repo = TeacherSubjectRepository(db)
+        await ts_repo.increment_completed_sessions(
+            teacher_id=booking.teacher_id,
+            subject_id=booking.subject_id,
+        )
+        logger.info(
+            f"Teacher experience incremented for session {session.id}",
+            extra={
+                "session_id": str(session.id),
+                "teacher_id": str(booking.teacher_id),
+            }
+        )
+        
+        # ── 5. Commit all database changes BEFORE async operations ──
+        await db.commit()
+        logger.info(
+            f"Session completion committed to database",
+            extra={
+                "session_id": str(session.id),
+                "status": completion_status.value,
+            }
+        )
+        
+        # ── 6. Emit Socket.IO events (safe to fail) ──
+        try:
+            sio_manager = get_socketio_manager()
+            if sio_manager:
+                event_data = {
+                    "session_id": str(session.id),
+                    "status": completion_status.value,
+                }
+                
+                await sio_manager.emit_to_user(
+                    user_id=str(booking.student_id),
+                    event="session_finished",
+                    data=event_data,
+                )
+                await sio_manager.emit_to_user(
+                    user_id=str(booking.teacher_id),
+                    event="session_finished",
+                    data=event_data,
+                )
+                logger.debug(
+                    f"Socket.IO events emitted for session {session.id}",
+                    extra={"session_id": str(session.id)}
+                )
+        except Exception as exc:
+            logger.warning(
+                f"Failed to emit Socket.IO events for session {session.id}: {exc}",
+                extra={"session_id": str(session.id)},
+                exc_info=True,
+            )
+            # Don't raise - Socket.IO failure shouldn't affect session completion
+        
+        # ── 7. Schedule post-session tasks (only for COMPLETED) ──
+        if completion_status == SessionStatus.COMPLETED:
+            try:
+                from app.tasks.payment_tasks import process_session_billing
+                from app.tasks.notification_tasks import send_session_complete_notification
+                
+                process_session_billing.delay(str(session.id), str(booking.id))
+                send_session_complete_notification.delay(str(session.id), str(booking.id))
+                logger.debug(
+                    f"Post-session tasks scheduled for session {session.id}",
+                    extra={"session_id": str(session.id)}
+                )
+            except Exception as exc:
+                logger.warning(
+                    f"Failed to schedule post-session tasks for session {session.id}: {exc}",
+                    extra={"session_id": str(session.id)},
+                    exc_info=True,
+                )
+                # Don't raise - Celery failure shouldn't affect session completion
+        
+        # ── 8. Delete the LiveKit room ──
+        if session.livekit_room_name:
+            try:
+                await end_room(session.livekit_room_name)
+                logger.debug(
+                    f"LiveKit room deleted for session {session.id}",
+                    extra={
+                        "session_id": str(session.id),
+                        "room_name": session.livekit_room_name,
+                    }
+                )
+            except Exception as exc:
+                logger.warning(
+                    f"Failed to delete LiveKit room for session {session.id}: {exc}",
+                    extra={"session_id": str(session.id)},
+                    exc_info=True,
+                )
+                # Don't raise - room deletion is best-effort, room will auto-expire
+        
+        logger.info(
+            f"✅ Session completion handler completed successfully",
+            extra={
+                "session_id": str(session.id),
+                "status": completion_status.value,
+            }
+        )
+        
+    except Exception as exc:
+        await db.rollback()
+        logger.error(
+            f"❌ Error in session completion handler: {exc}",
+            extra={"session_id": str(session.id)},
+            exc_info=True,
+        )
+        raise
+
+
 # ── Redis-backed handshake & sync ─────────────────────────────────────────────
 
 
