@@ -152,17 +152,21 @@ async def request_session(booking_id: UUID, current_user: CurrentUser, db: DbSes
     ✓ PRESENCE CHECK: Verifies student is online before proceeding
     ✓ MESSAGING: Creates notification messages for all outcomes
     ✓ EXPIRATION: Sets up unified 60-second expiration handling via Redis TTL
+    ✓ IN_PROGRESS CHECK: Rejects request if session already in progress (use /sync instead)
     
     Flow:
     1. Verify booking exists and is ACTIVE
-    2. Check student is ONLINE (presence check)
+    2. Check if a session is already IN_PROGRESS
+       - If yes: Return 409 Conflict, direct to use /sync endpoint
+       - If no: Proceed to step 3
+    3. Check student is ONLINE (presence check)
        - If offline: Create error message, return 480 Subscriber Offline
-       - If online: Proceed to step 3
-    3. Set Redis key with 60-second TTL for handshake window
-    4. Create session request message
-    5. Set up expiration handler via Redis TTL + background task
-    6. Emit Socket.IO event to student
-    7. Return success with session counts
+       - If online: Proceed to step 4
+    4. Set Redis key with 60-second TTL for handshake window
+    5. Create session request message
+    6. Set up expiration handler via Redis TTL + background task
+    7. Emit Socket.IO event to student
+    8. Return success with session counts
     
     Args:
         booking_id: UUID of the booking
@@ -183,6 +187,7 @@ async def request_session(booking_id: UUID, current_user: CurrentUser, db: DbSes
         403: Only teachers can request sessions
         403: Not your booking
         400: Booking not ACTIVE
+        409: Session already in progress (use /sync to reconnect)
         400: All sessions completed
         480: Student is offline (SUBSCRIBER_OFFLINE)
     """
@@ -202,6 +207,20 @@ async def request_session(booking_id: UUID, current_user: CurrentUser, db: DbSes
         raise HTTPException(
             status_code=400, detail=f"Booking must be ACTIVE to request sessions (current: {booking.status.value})"
         )
+    
+    # ── Check if a session is already in progress ──
+    in_progress_session = await db.execute(
+        select(Session).where(
+            (Session.booking_id == booking_id) &
+            (Session.status == SessionStatus.IN_PROGRESS)
+        )
+    )
+    if in_progress_session.scalar_one_or_none():
+        raise HTTPException(
+            status_code=409,
+            detail="A session is already in progress for this booking. Use /sync to reconnect."
+        )
+    
     # ── Step 2: Check completed sessions ──
     sessions_result = await db.execute(
         select(Session).where(Session.booking_id == booking.id)
@@ -576,15 +595,17 @@ async def sync_session(booking_id: UUID, current_user: CurrentUser, db: DbSessio
     
     Flow:
       1. Verify booking is ACTIVE
-      2. Find IN_PROGRESS session (webhook guarantees actual_start_at is set)
-      3. Verify current time is within session window + leniency
-      4. Record join timestamp if needed
-      5. Return fresh LiveKit token
+      2. Find the most recent session for this booking
+      3. Check SessionStatus - if COMPLETED or CANCELLED_BY_*, deny access
+      4. Verify session is IN_PROGRESS
+      5. Verify current time is within session window + leniency
+      6. Record join timestamp if needed
+      7. Return fresh LiveKit token
     
     Returns:
       - 200 OK with fresh LiveKit token if valid
       - 403 Forbidden if session window + leniency has expired
-      - 410 Gone if session not found or invalid state
+      - 410 Gone if session not found, completed, cancelled, or not in progress
     
     Side effects:
       - Records join timestamp if not already recorded
@@ -608,20 +629,37 @@ async def sync_session(booking_id: UUID, current_user: CurrentUser, db: DbSessio
             detail=f"Booking is no longer active. Status: {booking.status.value}"
         )
     
-    # Find the IN_PROGRESS session
-    # Note: webhook guarantees actual_start_at is set and status is IN_PROGRESS
+    # Find the current session for this booking
+    # Note: webhook guarantees actual_start_at is set when status is IN_PROGRESS
     session_result = await db.execute(
-        select(Session).where(
-            (Session.booking_id == booking_id) &
-            (Session.status == SessionStatus.IN_PROGRESS)
-        )
+        select(Session).where(Session.booking_id == booking_id)
+        .order_by(Session.created_at.desc())
+        .limit(1)
     )
     session = session_result.scalar_one_or_none()
     
     if not session:
-        raise HTTPException(status_code=410, detail="No active session found")
+        raise HTTPException(status_code=410, detail="No session found")
     
-    # Calculate leniency buffer and allowed end time
+    # Check if session is still active (IN_PROGRESS)
+    # If session is COMPLETED or CANCELLED_BY_*, deny access
+    if session.status == SessionStatus.COMPLETED:
+        raise HTTPException(
+            status_code=410,
+            detail="Session has been completed"
+        )
+    elif session.status in (SessionStatus.CANCELLED_BY_TEACHER, SessionStatus.CANCELLED_BY_STUDENT):
+        raise HTTPException(
+            status_code=410,
+            detail=f"Session was cancelled by {session.status.value.split('_')[2]}"
+        )
+    elif session.status != SessionStatus.IN_PROGRESS:
+        raise HTTPException(
+            status_code=410,
+            detail=f"Session is not in progress. Current status: {session.status.value}"
+        )
+    
+    # Session is IN_PROGRESS - calculate leniency buffer for time-based access control
     session_duration_minutes = booking.session_duration_minutes
     leniency_multiplier = settings.LIVEKIT_ROOM_LENIENCY_MINUTES_PER_15MIN
     leniency_minutes = (session_duration_minutes // 15) * leniency_multiplier
@@ -630,7 +668,7 @@ async def sync_session(booking_id: UUID, current_user: CurrentUser, db: DbSessio
     session_end = session.actual_start_at + timedelta(minutes=session_duration_minutes)
     allowed_end_time = session_end + timedelta(minutes=leniency_minutes)
     
-    # Check if current time is within window
+    # Check if current time is within window + leniency
     now = datetime.now(tz=timezone.utc)
     if now > allowed_end_time:
         raise HTTPException(
