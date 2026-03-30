@@ -148,9 +148,16 @@ async def list_my_subjects(current_user: CurrentUser, db: DbSession):
     if current_user.role != UserRole.TEACHER:
         raise HTTPException(status_code=403, detail="Only teachers can access this")
 
-    repo = TeacherSubjectRepository(db)
-    subjects = await repo.list_by_teacher(current_user.id)
-    return subjects
+    from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
+    from app.models.teacher_subject import TeacherSubject
+    
+    result = await db.execute(
+        select(TeacherSubject)
+        .where(TeacherSubject.teacher_id == current_user.id)
+        .options(selectinload(TeacherSubject.subject))
+    )
+    return list(result.scalars().all())
 
 
 @router.post("/me/subjects", response_model=TeacherSubjectRead, status_code=201)
@@ -169,6 +176,8 @@ async def add_subject(
         raise HTTPException(status_code=409, detail="Subject already registered")
 
     from app.models.teacher_subject import TeacherSubject
+    from sqlalchemy.orm import selectinload
+    
     ts = TeacherSubject(
         teacher_id=current_user.id,
         subject_id=body.subject_id,
@@ -177,7 +186,17 @@ async def add_subject(
     )
     db.add(ts)
     await db.flush()
-    await db.refresh(ts)
+    
+    # Explicitly load the subject relationship before returning
+    from sqlalchemy import select
+    result = await db.execute(
+        select(TeacherSubject)
+        .where((TeacherSubject.teacher_id == current_user.id) & (TeacherSubject.subject_id == body.subject_id))
+        .options(selectinload(TeacherSubject.subject))
+    )
+    ts = result.scalar_one()
+    await db.commit()
+    return ts
     return ts
 
 

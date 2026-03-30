@@ -30,8 +30,8 @@ class Message(Base, TimestampMixin):
     __tablename__ = "messages"
 
     id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
-    sender_id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), ForeignKey("user.id"), nullable=False, index=True)
-    receiver_id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), ForeignKey("user.id"), nullable=False, index=True)
+    sender_id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True)
+    receiver_id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True)
     
     content: Mapped[str] = mapped_column(Text, nullable=False)
     message_type: Mapped[MessageType] = mapped_column(default=MessageType.TEXT, nullable=False)
@@ -41,8 +41,8 @@ class Message(Base, TimestampMixin):
     file_key: Mapped[str | None] = mapped_column(nullable=True)  # S3 object key for deletion
     
     # Related entities (optional)
-    booking_id: Mapped[UUID | None] = mapped_column(PG_UUID(as_uuid=True), ForeignKey("booking.id"), nullable=True)
-    session_id: Mapped[UUID | None] = mapped_column(PG_UUID(as_uuid=True), ForeignKey("session.id"), nullable=True)
+    booking_id: Mapped[UUID | None] = mapped_column(PG_UUID(as_uuid=True), ForeignKey("bookings.id"), nullable=True)
+    session_id: Mapped[UUID | None] = mapped_column(PG_UUID(as_uuid=True), ForeignKey("sessions.id"), nullable=True)
     
     # Read status
     is_read: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
@@ -80,16 +80,16 @@ class Notification(Base, TimestampMixin):
     __tablename__ = "notifications"
 
     id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
-    user_id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), ForeignKey("user.id"), nullable=False, index=True)
+    user_id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True)
     
     notification_type: Mapped[NotificationType] = mapped_column(nullable=False, index=True)
     title: Mapped[str] = mapped_column(nullable=False)
     message: Mapped[str] = mapped_column(Text, nullable=False)
     
     # Related entities for context
-    booking_id: Mapped[UUID | None] = mapped_column(PG_UUID(as_uuid=True), ForeignKey("booking.id"), nullable=True)
-    session_id: Mapped[UUID | None] = mapped_column(PG_UUID(as_uuid=True), ForeignKey("session.id"), nullable=True)
-    sender_id: Mapped[UUID | None] = mapped_column(PG_UUID(as_uuid=True), ForeignKey("user.id"), nullable=True)
+    booking_id: Mapped[UUID | None] = mapped_column(PG_UUID(as_uuid=True), ForeignKey("bookings.id"), nullable=True)
+    session_id: Mapped[UUID | None] = mapped_column(PG_UUID(as_uuid=True), ForeignKey("sessions.id"), nullable=True)
+    sender_id: Mapped[UUID | None] = mapped_column(PG_UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     
     # JSON payload for flexible data storage
     payload: Mapped[dict] = mapped_column(JSON, nullable=True)

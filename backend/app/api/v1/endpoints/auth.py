@@ -78,7 +78,7 @@ async def login(body: LoginRequest, db: DbSession, response: Response):
         samesite="lax",
         secure=(settings.ENVIRONMENT == "production"),
         max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
-        path="/auth",
+        path="/api/v1/auth",
     )
     return {"message":"Logged in succesfully"}
 
@@ -132,7 +132,7 @@ async def refresh(db: DbSession, response: Response, x_refresh_token: str = Head
         samesite="lax",
         secure=(settings.ENVIRONMENT == "production"),
         max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
-        path="/auth",
+        path="/api/v1/auth",
     )
     return {"message": "tokens rotated"}
 
@@ -159,7 +159,7 @@ async def logout(db: DbSession, response: Response, x_refresh_token: str = Heade
         await blacklist_jti(jti, int(exp))
 
     response.delete_cookie("access_token", path="/")
-    response.delete_cookie("refresh_token", path="/auth/refresh")
+    response.delete_cookie("refresh_token", path="/api/v1/auth")
     return {"message": "logged out"}
 
 

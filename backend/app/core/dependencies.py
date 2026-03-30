@@ -1,8 +1,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi import Depends, HTTPException, status, Header
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.enums import UserRole
@@ -11,18 +10,22 @@ from app.db.session import get_db
 from app.models.user import User
 from app.repositories.user_repo import UserRepository
 
-bearer_scheme = HTTPBearer()
-
 DbSession = Annotated[AsyncSession, Depends(get_db)]
 
 
 async def get_current_user(
-    credentials: Annotated[HTTPAuthorizationCredentials, Depends(bearer_scheme)],
     db: DbSession,
+    x_access_token: str | None = Header(None, alias="x-access-token"),
 ) -> User:
-    print(credentials)
-    payload = decode_token(credentials.credentials)
-    print(payload)
+    """Extract user from x-access-token header (converted from HttpOnly cookies by middleware)."""
+    if not x_access_token:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Access token missing")
+    
+    try:
+        payload = decode_token(x_access_token)
+    except (ValueError, Exception):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid access token")
+    
     if payload.get("type") != "access":
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not an access token")
 
