@@ -1,4 +1,4 @@
-from fastapi import FastAPI  # type: ignore
+from fastapi import FastAPI, HTTPException  # type: ignore
 from fastapi.middleware.cors import CORSMiddleware  # type: ignore
 from contextlib import asynccontextmanager
 import socketio
@@ -8,11 +8,37 @@ from app.core.config import settings
 from app.core.logging import configure_logging
 from app.db.session import sessionmanager
 from app.api.v1.router import api_router
-from app.utils.livekit import init_livekit, close_livekit
+from app.utils.livekit import init_livekit, close_livekit, get_livekit_api
 from app.utils.s3 import s3_manager
 from app.middleware.cookie_to_header import CookieToHeaderMiddleware
 from app.core.socketio import create_socketio_server, SocketIOManager
 from app.api.v1.socketio_handlers import setup_socketio_handlers
+
+
+async def _count_livekit_rooms() -> dict:
+    """Count active LiveKit rooms using the LiveKit API client"""
+    try:
+        # Get the initialized LiveKit API client
+        livekit_api = get_livekit_api()
+        
+        # Use room service to list rooms
+        from livekit import api as livekit_api_module
+        list_request = livekit_api_module.ListRoomsRequest()
+        rooms_response = await livekit_api.room.list_rooms(list_request)
+        
+        return {
+            "count": len(rooms_response.rooms),
+            "rooms": [
+                {
+                    "name": room.name,
+                    "participants": room.num_participants,
+                    "max_participants": room.max_participants,
+                }
+                for room in rooms_response.rooms
+            ]
+        }
+    except Exception as e:
+        return {"error": f"Failed to fetch rooms: {str(e)}", "count": 0}
 
 
 @asynccontextmanager
@@ -47,6 +73,17 @@ def create_application() -> FastAPI:
     app.add_middleware(CookieToHeaderMiddleware)
 
     app.include_router(api_router, prefix=settings.API_V1_STR)
+    
+    # ── Debug route to count active LiveKit rooms ──
+    @app.get("/debug/count-rooms")
+    async def count_active_rooms():
+        """
+        Debug endpoint to check active LiveKit rooms.
+        Returns count and details of all active rooms in LiveKit SFU.
+        TODO: Remove this endpoint in production.
+        """
+        result = await _count_livekit_rooms()
+        return result
 
     return app
 

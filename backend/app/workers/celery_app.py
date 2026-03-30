@@ -1,4 +1,5 @@
 from celery import Celery
+from celery.signals import worker_process_init
 from app.core.config import settings
 
 celery_app = Celery(
@@ -35,3 +36,12 @@ celery_app.conf.update(
         },
     },
 )
+
+
+@worker_process_init.connect
+def init_db_connection(**kwargs):
+    """Initialize the database connection when a worker process starts."""
+    import asyncio
+    from app.db.session import sessionmanager
+    
+    asyncio.run(sessionmanager.init())

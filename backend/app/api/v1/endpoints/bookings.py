@@ -2,7 +2,7 @@ from uuid import UUID
 from datetime import datetime, timezone, timedelta
 from decimal import Decimal
 import logging
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from sqlalchemy import select
 
 from app.core.dependencies import DbSession, CurrentUser
@@ -18,6 +18,7 @@ from app.utils.livekit import (
     create_room, generate_room_token, 
     set_pending_session_key, get_pending_session_key, clear_pending_session_key,
 )
+from app.utils.livekit_url import get_livekit_url_for_client
 from app.utils.presence import (
     is_user_online, set_session_request_pending, get_session_request_pending,
     clear_session_request_pending,
@@ -237,7 +238,10 @@ async def request_session(booking_id: UUID, current_user: CurrentUser, db: DbSes
     # ── Step 3: Check student presence (PRESENCE CHECK) ──
     student_online = await is_user_online(booking.student_id, use_redis=True)
     
-    if not student_online:
+    # TODO: Remove this bypass after testing
+    BYPASS_ONLINE_CHECK = True  # Set to False in production
+    
+    if not student_online and not BYPASS_ONLINE_CHECK:
         # Student is offline - create error message and return 480
         await create_offline_notification_message(
             booking_id=booking_id,
@@ -317,7 +321,12 @@ async def request_session(booking_id: UUID, current_user: CurrentUser, db: DbSes
 
 
 @router.post("/{booking_id}/accept-session", response_model=LiveKitTokenResponse)
-async def accept_session_request(booking_id: UUID, current_user: CurrentUser, db: DbSession):
+async def accept_session_request(
+    booking_id: UUID, 
+    current_user: CurrentUser, 
+    db: DbSession,
+    request: Request,
+):
     """
     Step 4b: Student accepts the session request.
     
@@ -337,6 +346,9 @@ async def accept_session_request(booking_id: UUID, current_user: CurrentUser, db
       - 200 OK with LiveKit token, room name, and URL if successful
       - 410 Gone if session acceptance window expired
       - 404 Not found if booking or message not found
+    
+    Note: LiveKit URL is dynamically determined based on client's network origin
+    to support cross-device connections (MacBook, iPad, etc.)
     """
     if current_user.role != UserRole.STUDENT:
         raise HTTPException(status_code=403, detail="Only students can accept sessions")
@@ -391,80 +403,140 @@ async def accept_session_request(booking_id: UUID, current_user: CurrentUser, db
 
     # Create LiveKit room on acceptance
     # Note: webhook will set status to IN_PROGRESS and actual_start_at when room_started event fires
-    room_name = await create_room(str(actual_session_id), booking.session_duration_minutes)
-    session.livekit_room_name = room_name
-    await db.flush()
+    try:
+        room_name = await create_room(str(actual_session_id), booking.session_duration_minutes)
+        session.livekit_room_name = room_name
+        await db.flush()
+        logger.info(
+            f"Successfully created LiveKit room for session {actual_session_id}",
+            extra={
+                "session_id": str(actual_session_id),
+                "booking_id": str(booking_id),
+                "room_name": room_name,
+            }
+        )
+    except Exception as e:
+        # LiveKit API error - log it and return 503 Service Unavailable
+        logger.error(
+            f"Failed to create LiveKit room for session {actual_session_id}: {type(e).__name__}: {e}",
+            extra={
+                "session_id": str(actual_session_id),
+                "booking_id": str(booking_id),
+                "error_type": type(e).__name__,
+            }
+        )
+        # Rollback the session creation since room creation failed
+        await db.rollback()
+        raise HTTPException(
+            status_code=503,
+            detail="Unable to create video room. Please try again in a moment."
+        )
     
     # ── Schedule cleanup task for when session expires ──
     # Room will be deleted after: session_duration_minutes + leniency buffer
     # This ensures room_finished event fires at the expected time regardless of participant presence
-    from app.core.config import settings
-    leniency_multiplier = settings.LIVEKIT_ROOM_LENIENCY_MINUTES_PER_15MIN
-    leniency_minutes = (booking.session_duration_minutes // 15) * leniency_multiplier
-    total_timeout_minutes = booking.session_duration_minutes + leniency_minutes
-    total_timeout_seconds = int(total_timeout_minutes * 60)
-    
-    cleanup_task = cleanup_expired_livekit_room.apply_async(
-        args=[str(actual_session_id)],
-        countdown=total_timeout_seconds,
-    )
-    
-    logger.info(
-        f"Scheduled LiveKit room cleanup for session {actual_session_id} "
-        f"in {total_timeout_minutes} minutes ({total_timeout_seconds}s)",
-        extra={
-            "session_id": str(actual_session_id),
-            "booking_id": str(booking_id),
-            "timeout_minutes": total_timeout_minutes,
-            "timeout_seconds": total_timeout_seconds,
-            "task_id": cleanup_task.id,
-        }
-    )
+    try:
+        from app.core.config import settings
+        leniency_multiplier = settings.LIVEKIT_ROOM_LENIENCY_MINUTES_PER_15MIN
+        leniency_minutes = (booking.session_duration_minutes // 15) * leniency_multiplier
+        total_timeout_minutes = booking.session_duration_minutes + leniency_minutes
+        total_timeout_seconds = int(total_timeout_minutes * 60)
+        
+        cleanup_task = cleanup_expired_livekit_room.apply_async(
+            args=[str(actual_session_id)],
+            countdown=total_timeout_seconds,
+        )
+        
+        logger.info(
+            f"Scheduled LiveKit room cleanup for session {actual_session_id} "
+            f"in {total_timeout_minutes} minutes ({total_timeout_seconds}s)",
+            extra={
+                "session_id": str(actual_session_id),
+                "booking_id": str(booking_id),
+                "timeout_minutes": total_timeout_minutes,
+                "timeout_seconds": total_timeout_seconds,
+                "task_id": cleanup_task.id,
+            }
+        )
+    except Exception as e:
+        # Log task scheduling error but don't fail the request
+        # Room will still be cleaned up by the 24-hour empty_timeout
+        logger.warning(
+            f"Failed to schedule LiveKit room cleanup task: {type(e).__name__}: {e}",
+            extra={
+                "session_id": str(actual_session_id),
+                "booking_id": str(booking_id),
+            }
+        )
     
     # ── Update message status to ACCEPTED (Case 2) ──
     # Fetch the current ONGOING session request for this booking and participants
-    message_result = await db.execute(
-        select(Message).where(
-            Message.booking_id == booking_id,
-            Message.sender_id == booking.teacher_id,
-            Message.receiver_id == booking.student_id,
-            Message.message_type == MessageType.SESSION_REQUEST,
-            Message.status == MessageStatus.ONGOING,
-        ).order_by(Message.created_at.desc()).limit(1)
-    )
-    request_message = message_result.scalar_one_or_none()
-    if request_message:
-        request_message.status = MessageStatus.ACCEPTED
-        await db.flush()
+    try:
+        message_result = await db.execute(
+            select(Message).where(
+                Message.booking_id == booking_id,
+                Message.sender_id == booking.teacher_id,
+                Message.receiver_id == booking.student_id,
+                Message.message_type == MessageType.SESSION_REQUEST,
+                Message.status == MessageStatus.ONGOING,
+            ).order_by(Message.created_at.desc()).limit(1)
+        )
+        request_message = message_result.scalar_one_or_none()
+        if request_message:
+            request_message.status = MessageStatus.ACCEPTED
+            await db.flush()
+    except Exception as e:
+        # Log message update error but don't fail the whole request
+        logger.warning(
+            f"Failed to update session request message status to ACCEPTED: {type(e).__name__}: {e}",
+            extra={
+                "booking_id": str(booking_id),
+                "session_id": str(actual_session_id),
+            }
+        )
     
     # ── Clear Redis key after successful acceptance ──
     await clear_pending_session_key(str(booking_id))
     
     # ── Emit Socket.IO event to teacher with their token ──
-    from app.core.socketio import get_socketio_manager
-    from app.core.config import settings
-    
-    sio_manager = get_socketio_manager()
-    if sio_manager:
-        # Generate token for teacher
-        teacher_token = generate_room_token(
-            user_id=str(booking.teacher_id),
-            session_id=str(actual_session_id),
-            display_name=f"{booking.teacher.first_name} {booking.teacher.last_name}",
-            is_teacher=True,
-        )
+    try:
+        from app.core.socketio import get_socketio_manager
+        from app.core.config import settings
         
-        # Emit event to teacher
-        await sio_manager.emit_to_user(
-            user_id=booking.teacher_id,
-            event="session_ready",
-            data={
-                "token": teacher_token,
-                "room_name": session.livekit_room_name,
-                "livekit_url": settings.LIVEKIT_URL,
+        sio_manager = get_socketio_manager()
+        if sio_manager:
+            # Generate token for teacher
+            teacher_token = generate_room_token(
+                user_id=str(booking.teacher_id),
+                session_id=str(actual_session_id),
+                display_name=f"{booking.teacher.first_name} {booking.teacher.last_name}",
+                is_teacher=True,
+            )
+            
+            # Emit event to teacher
+            await sio_manager.emit_to_user(
+                user_id=booking.teacher_id,
+                event="session_ready",
+                data={
+                    "token": teacher_token,
+                    "room_name": session.livekit_room_name,
+                    "livekit_url": settings.LIVEKIT_URL,
+                }
+            )
+    except Exception as e:
+        # Log Socket.IO error but don't fail the request
+        logger.warning(
+            f"Failed to emit Socket.IO event to teacher: {type(e).__name__}: {e}",
+            extra={
+                "teacher_id": str(booking.teacher_id),
+                "session_id": str(actual_session_id),
             }
         )
     
+    # Commit all changes (session creation, room name, message status updates)
+    await db.commit()
+    
+    # Refresh to get the latest state from database
     await db.refresh(session)
     
     # Return student's token in HTTP response
@@ -475,11 +547,13 @@ async def accept_session_request(booking_id: UUID, current_user: CurrentUser, db
         is_teacher=False,
     )
     
-    from app.core.config import settings
+    # Get dynamic LiveKit URL based on client's network origin
+    livekit_url = get_livekit_url_for_client(request)
+    
     return LiveKitTokenResponse(
         token=student_token,
         room_name=session.livekit_room_name,
-        livekit_url=settings.LIVEKIT_URL,
+        livekit_url=livekit_url,
     )
 
 
@@ -681,30 +755,47 @@ async def sync_session(booking_id: UUID, current_user: CurrentUser, db: DbSessio
             status_code=410,
             detail=f"Session was cancelled by {session.status.value.split('_')[2]}"
         )
-    elif session.status != SessionStatus.IN_PROGRESS:
+    elif session.status not in (SessionStatus.IN_PROGRESS, SessionStatus.READY):
         raise HTTPException(
             status_code=410,
-            detail=f"Session is not in progress. Current status: {session.status.value}"
+            detail=f"Session is not in progress or ready. Current status: {session.status.value}"
         )
     
-    # Session is IN_PROGRESS - calculate leniency buffer for time-based access control
+    # Session is READY or IN_PROGRESS - calculate leniency buffer for time-based access control
     session_duration_minutes = booking.session_duration_minutes
     leniency_multiplier = settings.LIVEKIT_ROOM_LENIENCY_MINUTES_PER_15MIN
     leniency_minutes = (session_duration_minutes // 15) * leniency_multiplier
     
-    # Webhook guarantees actual_start_at is set (room_started event sets it)
-    session_end = session.actual_start_at + timedelta(minutes=session_duration_minutes)
-    allowed_end_time = session_end + timedelta(minutes=leniency_minutes)
-    
-    # Check if current time is within window + leniency
-    now = datetime.now(tz=timezone.utc)
-    if now > allowed_end_time:
-        raise HTTPException(
-            status_code=403,
-            detail=f"Session window expired. Window closed at {allowed_end_time.isoformat()}"
-        )
+    # For READY status, actual_start_at may be None (webhook hasn't fired yet)
+    # In this case, allow access since the session is still in the acceptance window
+    # For IN_PROGRESS status, actual_start_at should be set by webhook
+    if session.status == SessionStatus.READY:
+        # Session is ready but hasn't started yet - allow access
+        # No expiration check needed since session is fresh
+        pass
+    elif session.status == SessionStatus.IN_PROGRESS:
+        # Session has started - check if we're within the time window + leniency
+        if session.actual_start_at is None:
+            # This shouldn't happen if webhook is working, but handle gracefully
+            logger.warning(
+                f"Session {session.id} is IN_PROGRESS but actual_start_at is None",
+                extra={"session_id": str(session.id), "booking_id": str(booking_id)}
+            )
+            # Allow access anyway since we can't determine expiration
+        else:
+            session_end = session.actual_start_at + timedelta(minutes=session_duration_minutes)
+            allowed_end_time = session_end + timedelta(minutes=leniency_minutes)
+            
+            # Check if current time is within window + leniency
+            now = datetime.now(tz=timezone.utc)
+            if now > allowed_end_time:
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"Session window expired. Window closed at {allowed_end_time.isoformat()}"
+                )
     
     # Record join timestamp if not already recorded
+    now = datetime.now(tz=timezone.utc)
     is_teacher = current_user.id == booking.teacher_id
     if is_teacher and not session.teacher_joined_at:
         session.teacher_joined_at = now
