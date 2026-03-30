@@ -16,11 +16,11 @@ class CookieToHeaderMiddleware(BaseHTTPMiddleware):
         refresh = request.cookies.get("refresh_token")
         if access and "x-access-token" not in request.headers:
             # Starlette's request.headers is immutable; set in scope for downstream
-            request._scope.setdefault("headers", [])
-            request._scope["headers"].append((b"x-access-token", access.encode()))
+            request.scope.setdefault("headers", [])
+            request.scope["headers"].append((b"x-access-token", access.encode()))
         if refresh and "x-refresh-token" not in request.headers:
-            request._scope.setdefault("headers", [])
-            request._scope["headers"].append((b"x-refresh-token", refresh.encode()))
+            request.scope.setdefault("headers", [])
+            request.scope["headers"].append((b"x-refresh-token", refresh.encode()))
 
         response = await call_next(request)
         return response
