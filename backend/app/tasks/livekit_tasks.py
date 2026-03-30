@@ -8,7 +8,7 @@ from sqlalchemy import select
 from livekit import api
 
 from app.core.config import settings
-from app.db.session import AsyncSessionLocal
+from app.db.session import get_db_session
 from app.models.booking import Session
 from app.core.enums import SessionStatus
 from app.utils.livekit import handle_session_completion, get_livekit_api
@@ -81,58 +81,58 @@ async def _async_cleanup_expired_livekit_room(session_id: str) -> None:
     
     Idempotent: Safe to call even if room is already deleted or session is completed.
     """
-    async with AsyncSessionLocal() as db:
-        try:
-            # Fetch the session with booking
-            from sqlalchemy.orm import joinedload
-            result = await db.execute(
-                select(Session)
-                .where(Session.id == UUID(session_id))
-                .options(joinedload(Session.booking))
-            )
-            session = result.unique().scalar_one_or_none()
-            
-            if not session or not session.livekit_room_name:
-                logger.warning(
-                    f"Session {session_id} not found or has no room during cleanup",
-                    extra={"session_id": session_id}
-                )
-                return
-            
-            # If session is already completed or cancelled, skip completion logic
-            if session.status != SessionStatus.IN_PROGRESS:
-                logger.info(
-                    f"Session {session_id} already completed (status: {session.status.value}), skipping completion",
-                    extra={"session_id": session_id, "status": session.status.value}
-                )
-                return
-            
-            # Session is IN_PROGRESS - complete it now using the common handler
-            logger.info(
-                f"Completing expired session {session_id}",
-                extra={"session_id": session_id, "room_name": session.livekit_room_name}
-            )
-            
-            await handle_session_completion(
-                session=session,
-                booking=session.booking,
-                db=db,
-                completion_status=SessionStatus.COMPLETED,
-            )
-            
-            logger.info(
-                f"✅ Expired session {session_id} completed successfully",
+    db = get_db_session()
+    try:
+        # Fetch the session with booking
+        from sqlalchemy.orm import joinedload
+        result = await db.execute(
+            select(Session)
+            .where(Session.id == UUID(session_id))
+            .options(joinedload(Session.booking))
+        )
+        session = result.unique().scalar_one_or_none()
+        
+        if not session or not session.livekit_room_name:
+            logger.warning(
+                f"Session {session_id} not found or has no room during cleanup",
                 extra={"session_id": session_id}
             )
-            
-        except Exception as exc:
-            await db.rollback()
-            logger.error(
-                f"Error cleaning up room for session {session_id}: {exc}",
-                exc_info=True,
-                extra={"session_id": session_id}
+            return
+        
+        # If session is already completed or cancelled, skip completion logic
+        if session.status != SessionStatus.IN_PROGRESS:
+            logger.info(
+                f"Session {session_id} already completed (status: {session.status.value}), skipping completion",
+                extra={"session_id": session_id, "status": session.status.value}
             )
-            raise
+            return
+        
+        # Session is IN_PROGRESS - complete it now using the common handler
+        logger.info(
+            f"Completing expired session {session_id}",
+            extra={"session_id": session_id, "room_name": session.livekit_room_name}
+        )
+        
+        await handle_session_completion(
+            session=session,
+            booking=session.booking,
+            db=db,
+            completion_status=SessionStatus.COMPLETED,
+        )
+        
+        logger.info(
+            f"✅ Expired session {session_id} completed successfully",
+            extra={"session_id": session_id}
+        )
+        
+    except Exception as exc:
+        await db.rollback()
+        logger.error(
+            f"Error cleaning up room for session {session_id}: {exc}",
+            exc_info=True,
+            extra={"session_id": session_id}
+        )
+        raise
 
 
 @celery_app.task(bind=True, max_retries=3)

@@ -96,7 +96,7 @@ async def send_message(
             content=message_create.content,
             message_type=message_create.message_type or "TEXT",
             file_url=message_create.file_url,
-            file_public_id=message_create.file_public_id,
+            file_key=message_create.file_key,
             booking_id=message_create.booking_id,
             session_id=message_create.session_id,
             socketio_manager=socketio_manager,

@@ -12,6 +12,8 @@ class MessageCreate(BaseModel):
     booking_id: UUID | None = None
     session_id: UUID | None = None
     message_type: str = "TEXT"
+    file_url: str | None = None
+    file_key: str | None = None
 
 
 class MessageRead(BaseModel):
@@ -22,7 +24,7 @@ class MessageRead(BaseModel):
     content: str
     message_type: str
     file_url: str | None = None
-    file_public_id: str | None = None
+    file_key: str | None = None
     booking_id: UUID | None = None
     session_id: UUID | None = None
     is_read: bool
@@ -61,9 +63,7 @@ class ConversationRead(BaseModel):
 
 
 class UploadSignatureResponse(BaseModel):
-    """Cloudinary upload signature response."""
-    signature: str
-    timestamp: int
-    cloud_name: str
-    api_key: str
-    upload_preset: str | None = None
+    """S3 upload response."""
+    upload_url: str  # Pre-signed URL for upload
+    file_key: str    # S3 object key
+    bucket_name: str

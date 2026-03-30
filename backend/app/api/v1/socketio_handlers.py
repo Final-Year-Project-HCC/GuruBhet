@@ -16,8 +16,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import decode_token
 from app.core.socketio_middleware import extract_token_from_cookies, verify_jwt_from_handshake
-from app.db.session import async_session_maker
-from app.services.communication import CommunicationService, NotificationService
+from app.db.session import sessionmanager
+from app.services.communication import CommunicationService
 
 logger = logging.getLogger(__name__)
 
@@ -199,7 +199,7 @@ def setup_socketio_handlers(sio: socketio.AsyncServer, manager) -> None:
                 await sio.emit("error", {"message": "Content cannot be empty"}, to=sid)
                 return
             
-            async with async_session_maker() as db:
+            async with sessionmanager._sessionmaker() as db:
                 message = await CommunicationService.save_and_send_message(
                     db,
                     sender_id=sender_id,
@@ -207,7 +207,7 @@ def setup_socketio_handlers(sio: socketio.AsyncServer, manager) -> None:
                     content=content,
                     message_type=data.get("message_type", "TEXT"),
                     file_url=data.get("file_url"),
-                    file_public_id=data.get("file_public_id"),
+                    file_key=data.get("file_key"),
                     booking_id=data.get("booking_id"),
                     session_id=data.get("session_id"),
                     socketio_manager=socketio_manager,
@@ -291,7 +291,7 @@ def setup_socketio_handlers(sio: socketio.AsyncServer, manager) -> None:
             if not message_ids and "message_id" in data:
                 message_ids = [data["message_id"]]
             
-            async with async_session_maker() as db:
+            async with sessionmanager._sessionmaker() as db:
                 for message_id_str in message_ids:
                     message_id = UUID(message_id_str)
                     await CommunicationService.mark_message_as_read(db, message_id)

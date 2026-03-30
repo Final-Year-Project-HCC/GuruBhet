@@ -37,10 +37,16 @@ class Settings(BaseSettings):
 
 
     # ── Redis ─────────────────────────────────────────────────────────
+    REDIS_BASE_URL : RedisDsn
     REDIS_URL: RedisDsn
 
     # ── CORS ─────────────────────────────────────────────────────────
-    ALLOWED_ORIGINS: list[str] = ["http://localhost:3000"]
+    ALLOWED_ORIGINS: list[str] = [
+        "http://localhost:3000",  # Frontend (React/Vue)
+        "http://localhost:8000",  # Swagger UI (for development/testing)
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:8000",
+    ]
 
     # ── eSewa ────────────────────────────────────────────────────────
     ESEWA_MERCHANT_CODE: str
@@ -59,6 +65,7 @@ class Settings(BaseSettings):
     S3_ENDPOINT_URL: str
     S3_ACCESS_KEY: str
     S3_SECRET_KEY: str
+    AWS_REGION: str 
     S3_BUCKET_DOCUMENTS: str = "gurubhet-documents"
     S3_BUCKET_RECORDINGS: str = "gurubhet-recordings"
 
@@ -69,12 +76,6 @@ class Settings(BaseSettings):
     # ── Payout schedule ──────────────────────────────────────────────
     PAYOUT_DAY_OF_WEEK: int = 0          # Monday
     PLATFORM_FEE_PERCENT: float = 10.0   # GuruBhet takes 10%
-
-    # ── Cloudinary (File uploads) ───────────────────────────────────
-    CLOUDINARY_CLOUD_NAME: str = ""
-    CLOUDINARY_API_KEY: str = ""
-    CLOUDINARY_API_SECRET: str = ""
-    CLOUDINARY_UPLOAD_PRESET: str = ""  # Optional: if using unsigned uploads
 
     # ── Email (optional SMTP) ────────────────────────────────────────
     SMTP_HOST: str = ""

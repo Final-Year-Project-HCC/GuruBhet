@@ -31,7 +31,7 @@ class CommunicationService:
         content: str,
         message_type: str = "TEXT",
         file_url: str | None = None,
-        file_public_id: str | None = None,
+        file_key: str | None = None,
         booking_id: UUID | None = None,
         session_id: UUID | None = None,
         socketio_manager=None,
@@ -54,7 +54,7 @@ class CommunicationService:
             content: Message content
             message_type: Type of message (TEXT, FILE)
             file_url: URL of attached file (if any)
-            file_public_id: Cloudinary public_id for file deletion
+            file_key: S3 object key for file deletion
             booking_id: Associated booking ID (context)
             session_id: Associated session ID (context)
             socketio_manager: SocketIO manager instance for real-time emission
@@ -79,7 +79,7 @@ class CommunicationService:
                 content=content.strip(),
                 message_type=message_type,
                 file_url=file_url,
-                file_public_id=file_public_id,
+                file_key=file_key,
                 booking_id=booking_id,
                 session_id=session_id,
                 is_read=False,

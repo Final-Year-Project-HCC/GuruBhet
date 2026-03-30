@@ -9,6 +9,7 @@ from app.core.logging import configure_logging
 from app.db.session import sessionmanager
 from app.api.v1.router import api_router
 from app.utils.livekit import init_livekit, close_livekit
+from app.utils.s3 import s3_manager
 from app.middleware.cookie_to_header import CookieToHeaderMiddleware
 from app.core.socketio import create_socketio_server, SocketIOManager
 from app.api.v1.socketio_handlers import setup_socketio_handlers
@@ -19,6 +20,7 @@ async def lifespan(app: FastAPI):
     configure_logging()
     await sessionmanager.init()
     await init_livekit()
+    s3_manager.create_buckets()  # Create S3 buckets if they don't exist
     yield
     await close_livekit()
     await sessionmanager.close()

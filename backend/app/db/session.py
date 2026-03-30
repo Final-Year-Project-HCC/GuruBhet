@@ -61,3 +61,22 @@ sessionmanager = DatabaseSessionManager()
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     async for session in sessionmanager.session():
         yield session
+
+
+def get_db_session() -> AsyncSession:
+    """
+    Get a synchronous-style database session for Celery tasks.
+    
+    Note: Even though this returns an AsyncSession, it can be used in async contexts.
+    For Celery tasks, use this to get a session for the current task.
+    
+    Returns:
+        AsyncSession: A database session
+    
+    Example:
+        session = get_db_session()
+        # Use session in async context
+    """
+    if not sessionmanager._sessionmaker:
+        raise RuntimeError("DatabaseSessionManager not initialised")
+    return sessionmanager._sessionmaker()
