@@ -12,7 +12,7 @@ from app.models.communication import Message, MessageType, MessageStatus
 from app.core.enums import BookingStatus, SessionStatus
 from app.utils.presence import get_session_request_pending, clear_session_request_pending
 from app.db.session import get_db_session
-from app.workers.celery_app import celery_app
+from app.celery import celery_app
 
 logger = logging.getLogger(__name__)
 

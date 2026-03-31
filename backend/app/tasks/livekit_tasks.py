@@ -12,7 +12,7 @@ from app.db.session import get_db_session
 from app.models.booking import Session
 from app.core.enums import SessionStatus
 from app.utils.livekit import handle_session_completion, get_livekit_api
-from app.workers.celery_app import celery_app
+from app.celery import celery_app
 
 logger = logging.getLogger(__name__)
 

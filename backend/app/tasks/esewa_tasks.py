@@ -11,7 +11,7 @@ TODO: Implement eSewa integration when ready.
 """
 
 import logging
-from app.workers.celery_app import celery_app
+from app.celery import celery_app
 
 logger = logging.getLogger(__name__)
 

@@ -1,5 +1,6 @@
-"""Celery configuration and setup."""
+"""Celery configuration and application instance."""
 from celery import Celery
+from celery.signals import worker_process_init
 from app.core.config import settings
 
 # Create Celery app instance
@@ -77,6 +78,13 @@ celery_app.conf.update(
             "schedule": 3600,  # Every hour
             "options": {"expires": 3500},
         },
+        
+        # LiveKit monitoring
+        "monitor-orphaned-rooms": {
+            "task": "app.tasks.livekit_tasks.monitor_orphaned_rooms",
+            "schedule": 3600,  # Every hour
+            "options": {"expires": 3500},
+        },
     },
 )
 
@@ -85,7 +93,16 @@ celery_app.conf.update(
 celery_app.autodiscover_tasks(["app.tasks"])
 
 
-# ── Signal Handlers (Optional) ───────────────────────────────────────────────
+# ── Signal Handlers ──────────────────────────────────────────────────────────
+@worker_process_init.connect
+def init_db_connection(**kwargs):
+    """Initialize the database connection when a worker process starts."""
+    import asyncio
+    from app.db.session import sessionmanager
+    
+    asyncio.run(sessionmanager.init())
+
+
 @celery_app.task(bind=True)
 def debug_task(self):
     """Debug task for testing Celery setup."""

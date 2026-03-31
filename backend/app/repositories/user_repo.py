@@ -22,3 +22,6 @@ class UserRepository(BaseRepository[User]):
 
     async def email_exists(self, email: str) -> bool:
         return await self.get_by_email(email) is not None
+
+    async def phone_exists(self, phone: str) -> bool:
+        return await self.get_by_phone(phone) is not None

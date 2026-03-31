@@ -5,7 +5,6 @@ rtc:
   tcp_port: 7881
   udp_port: 7882
   use_external_ip: false
-  node_ip: "192.168.1.68"
 
 keys:
   devkey: "secretveryverylongoneshitdevkeysecretkey1234567890abcdef"
@@ -14,4 +13,4 @@ keys:
 webhook:
   api_key: devkey
   urls:
-    - "http://host.docker.internal:8000/api/v1/webhook"
+    - "http://host.docker.internal:8000/api/v1/livekit/webhook"

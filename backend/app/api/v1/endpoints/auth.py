@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException, status
 from fastapi import Response, Header
+from sqlalchemy.exc import IntegrityError
 
 from app.core.dependencies import DbSession, CurrentUser
 from app.core.security import (
@@ -26,6 +27,9 @@ async def register(body: RegisterRequest, db: DbSession):
     repo = UserRepository(db)
     if await repo.email_exists(body.email):
         raise HTTPException(status_code=400, detail="Email already registered")
+    
+    if await repo.phone_exists(body.phone):
+        raise HTTPException(status_code=400, detail="Phone number already registered")
 
     user = User(
         first_name=body.first_name,
@@ -37,7 +41,12 @@ async def register(body: RegisterRequest, db: DbSession):
         role=UserRole(body.role),
     )
     db.add(user)
-    await db.flush()
+    
+    try:
+        await db.flush()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(status_code=409, detail="A user with this email or phone already exists")
 
     if user.role == UserRole.STUDENT:
         db.add(StudentProfile(user_id=user.id))

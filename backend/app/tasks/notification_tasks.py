@@ -4,8 +4,7 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.workers.celery_config import celery_app
-from app.db.session import get_async_db
+from app.celery import celery_app
 from app.models.user import User
 from app.models.booking import Booking
 from app.models.communication import Notification

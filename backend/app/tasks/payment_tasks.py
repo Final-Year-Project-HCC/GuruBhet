@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 from uuid import UUID
 
-from app.workers.celery_config import celery_app
+from app.celery import celery_app
 
 logger = logging.getLogger(__name__)
 

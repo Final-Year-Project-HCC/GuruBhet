@@ -12,11 +12,11 @@ Weekly payout flow:
 import asyncio
 from datetime import datetime, timedelta, timezone
 
-from app.workers.celery_app import celery_app
+from app.celery import celery_app
 from app.core.config import settings
 
 
-@celery_app.task(name="app.workers.payout_tasks.process_weekly_payouts", bind=True, max_retries=3)
+@celery_app.task(name="app.tasks.payout_tasks.process_weekly_payouts", bind=True, max_retries=3)
 def process_weekly_payouts(self):
     """Entry point — bridges sync Celery into async SQLAlchemy."""
     asyncio.run(_run_payouts())
