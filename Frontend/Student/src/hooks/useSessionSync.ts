@@ -8,7 +8,6 @@
 import { useEffect, useCallback, useRef } from "react";
 import { useSocket } from "@/contexts/SocketContext";
 import { useBooking } from "@/contexts/BookingContext"; // Adjust based on your context
-import { useLiveKit } from "@/hooks/useLiveKit";
 import { useToast } from "@/hooks/useToast";
 import { useRouter } from "next/router";
 
@@ -30,7 +29,6 @@ export function useSessionSync(options: SyncOptions = {}) {
 
   const { socket, isConnected } = useSocket();
   const { currentBookingId } = useBooking();
-  const { initializeLiveKit } = useLiveKit();
   const { showToast } = useToast();
   const router = useRouter();
   const syncInProgressRef = useRef(false);
@@ -94,11 +92,11 @@ export function useSessionSync(options: SyncOptions = {}) {
       });
 
       // Re-initialize LiveKit component with fresh token
-      initializeLiveKit({
-        token: data.token,
-        url: data.livekit_url,
-        roomName: data.room_name,
-      });
+      // Note: Placeholder implementation - LiveKit not yet integrated
+      console.debug(
+        "[useSessionSync] Token refreshed for room:",
+        data.room_name,
+      );
 
       onSuccess?.(data);
     } catch (error) {
@@ -109,15 +107,7 @@ export function useSessionSync(options: SyncOptions = {}) {
     } finally {
       syncInProgressRef.current = false;
     }
-  }, [
-    currentBookingId,
-    initializeLiveKit,
-    onSuccess,
-    onExpired,
-    onError,
-    showToast,
-    router,
-  ]);
+  }, [currentBookingId, onSuccess, onExpired, onError, showToast, router]);
 
   /**
    * Auto-sync on socket reconnection
