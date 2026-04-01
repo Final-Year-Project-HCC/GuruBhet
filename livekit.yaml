@@ -1,0 +1,22 @@
+port: 7880
+bind_addresses:
+  - ""
+rtc:
+  tcp_port: 7881
+  port_range_start: 50000
+  port_range_end: 60000
+  use_external_ip: true
+  # You can leave this as a placeholder or put your actual VPS IP
+  # since an IP address isn't a "secret," but a placeholder is cleaner.
+  external_ip: "${EXTERNAL_IP}"
+
+# We leave the keys dictionary empty here.
+# Docker will inject the API_KEY and SECRET directly into the environment.
+keys: {}
+
+webhook:
+  # This tells LiveKit to look for the key in its own environment variables
+  api_key: "${LIVEKIT_API_KEY}"
+  urls:
+    # 'api' refers to the service name in your docker-compose.yml
+    - "http://api:8000/api/v1/livekit/webhook"

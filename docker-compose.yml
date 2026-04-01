@@ -1,0 +1,46 @@
+services:
+  # --- CACHE & TASK BROKER ---
+  redis:
+    image: redis:7-alpine
+    restart: always
+
+  # --- BACKEND CLUSTER ---
+  api:
+    build: ./backend
+    env_file: .env
+    depends_on: [redis]
+
+  worker:
+    build: ./backend
+    env_file: .env
+    depends_on: [redis]
+
+  beat:
+    build: ./backend
+    env_file: .env
+    depends_on: [redis]
+
+  flower:
+    build: ./backend
+    env_file: .env
+    depends_on: [redis]
+
+  # --- LIVEKIT SFU ---
+  livekit:
+    image: livekit/livekit-server:latest
+    command: --config /etc/livekit.yaml
+    volumes:
+      - ./livekit.yaml:/etc/livekit.yaml
+    environment:
+      - LIVEKIT_KEYS=${LIVEKIT_API_KEY}:${LIVEKIT_API_SECRET}
+      - EXTERNAL_IP=${AZURE_PUBLIC_IP}
+
+  # --- FRONTEND CLUSTER ---
+  student-app:
+    build: ./Frontend/Student
+
+  teacher-app:
+    build: ./Frontend/Teacher
+
+  staff-app:
+    build: ./Frontend/Staff

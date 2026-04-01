@@ -1,20 +1,23 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import PostgresDsn, RedisDsn, field_validator
-from typing import Any
+from typing import Any, List
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
+        # 1. Look for .env file (Mac Dev) 
+        # 2. If not found, use OS Env variables (Docker Prod)
         env_file=".env",
         env_file_encoding="utf-8",
         case_sensitive=True,
+        extra="ignore"  # Won't crash if .env has AZURE_PUBLIC_IP etc.
     )
 
     # ── Project ──────────────────────────────────────────────────────
     PROJECT_NAME: str = "GuruBhet"
     VERSION: str = "0.1.0"
     API_V1_STR: str = "/api/v1"
-    ENVIRONMENT: str = "development"  # development | staging | production
+    ENVIRONMENT: str = "development"
 
     # ── Security ─────────────────────────────────────────────────────
     SECRET_KEY: str
@@ -26,44 +29,47 @@ class Settings(BaseSettings):
     DB_POOL_SIZE: int = 10
     DB_MAX_OVERFLOW: int = 20
     DB_POOL_TIMEOUT: int = 30
-    # Transaction mode — used by the FastAPI app (port 6543 on Supavisor)
-    # Supavisor transaction mode does not support prepared statements,
-    # so we disable them via ?prepared_statement_cache_size=0
+    # Transaction mode (Supavisor 6543)
     DATABASE_URL: PostgresDsn
-    # Session mode — used by Alembic only (port 5432 on Supavisor)
-    # Alembic needs a persistent connection to run DDL (CREATE TABLE etc.)
-    # which transaction mode cannot support
+    # Session mode (Alembic 5432)
     DATABASE_URL_ALEMBIC: PostgresDsn
 
-
     # ── Redis ─────────────────────────────────────────────────────────
-    REDIS_BASE_URL : RedisDsn
     REDIS_URL: RedisDsn
 
     # ── CORS ─────────────────────────────────────────────────────────
-    ALLOWED_ORIGINS: list[str] = [
-        "http://localhost:3000",  # Frontend (React/Vue)
-        "http://localhost:8000",  # Swagger UI (for development/testing)
+    # This list allows your Local Mac Frontend to talk to your Azure VPS Backend
+    ALLOWED_ORIGINS: List[str] = [
+        # --- LOCAL DEVELOPMENT (MacBook M4) ---
+        "http://localhost:3000",      # Student Local
+        "http://localhost:3001",      # Teacher Local
+        "http://localhost:3002",      # Staff Local
         "http://127.0.0.1:3000",
-        "http://127.0.0.1:8000",
+        "http://127.0.0.1:3001",
+        "http://127.0.0.1:3002",
+
+        # --- PRODUCTION (Azure VPS) ---
+        "https://gurubhet.tech",
+        "https://api.gurubhet.tech",
+        "https://teacher.gurubhet.tech",
+        "https://staff.gurubhet.tech",
+        "https://tasks.gurubhet.tech",
     ]
 
     # ── eSewa ────────────────────────────────────────────────────────
     ESEWA_MERCHANT_CODE: str
     ESEWA_SECRET_KEY: str
-    ESEWA_BASE_URL: str = "https://rc-epay.esewa.com.np"  # staging default
-    ESEWA_PLATFORM_ACCOUNT: str  # GuruBhet's own eSewa phone number
+    ESEWA_BASE_URL: str = "https://rc-epay.esewa.com.np"
+    ESEWA_PLATFORM_ACCOUNT: str 
 
     # ── LiveKit ──────────────────────────────────────────────────────
     LIVEKIT_API_KEY: str
     LIVEKIT_API_SECRET: str
     LIVEKIT_URL: str
-    LIVEKIT_ROOM_LENIENCY_MINUTES_PER_15MIN: int  # minutes of leniency per 15-minute session block
-    LIVEKIT_EMPTY_TIMEOUT_SECONDS: int = 86400  # 24 hours fallback (Celery task is primary controller)
+    LIVEKIT_ROOM_LENIENCY_MINUTES_PER_15MIN: int = 5
+    LIVEKIT_EMPTY_TIMEOUT_SECONDS: int = 86400
 
     # ── Media Storage (Cloudinary) ──────────────────────────────────
-    # All media storage is handled by Cloudinary.
-    # Credentials are optional - if not provided, placeholder implementations will be used.
     CLOUDINARY_CLOUD_NAME: str = ""
     CLOUDINARY_API_KEY: str = ""
     CLOUDINARY_API_SECRET: str = ""
@@ -73,10 +79,10 @@ class Settings(BaseSettings):
     CELERY_RESULT_BACKEND: str
 
     # ── Payout schedule ──────────────────────────────────────────────
-    PAYOUT_DAY_OF_WEEK: int = 0          # Monday
-    PLATFORM_FEE_PERCENT: float = 10.0   # GuruBhet takes 10%
+    PAYOUT_DAY_OF_WEEK: int = 0          
+    PLATFORM_FEE_PERCENT: float = 10.0   
 
-    # ── Email (optional SMTP) ────────────────────────────────────────
+    # ── Email ────────────────────────────────────────────────────────
     SMTP_HOST: str = ""
     SMTP_PORT: int = 587
     SMTP_USER: str = ""
@@ -86,11 +92,10 @@ class Settings(BaseSettings):
     @field_validator("DATABASE_URL", mode="before")
     @classmethod
     def assemble_db_url(cls, v: Any) -> Any:
-        """Append prepared_statement_cache_size=0 for transaction mode (Supavisor)"""
-        if isinstance(v, str):
+        """Append statement cache size for Supavisor compatibility"""
+        if isinstance(v, str) and "prepared_statement_cache_size" not in v:
             separator = "&" if "?" in v else "?"
             return f"{v}{separator}prepared_statement_cache_size=0"
         return v
 
-
-settings = Settings()  # type: ignore[call-arg]
+settings = Settings()
