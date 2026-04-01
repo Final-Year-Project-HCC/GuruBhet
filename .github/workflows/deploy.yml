@@ -2,7 +2,7 @@ name: Build and Push GuruBhet
 
 on:
   push:
-    branches: ["main"] # Trigger whenever you push to main
+    branches: ["main"]
 
 jobs:
   build-and-push:
@@ -26,6 +26,7 @@ jobs:
         id: lowercase
         run: echo "owner=$(echo ${{ github.repository_owner }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
 
+      # ─── 1. BACKEND ───
       - name: Build and Push API
         uses: docker/build-push-action@v5
         with:
@@ -33,9 +34,26 @@ jobs:
           push: true
           tags: ghcr.io/${{ steps.lowercase.outputs.owner }}/gurubhet-api:latest
 
+      # ─── 2. STUDENT FRONTEND ───
       - name: Build and Push Student App
         uses: docker/build-push-action@v5
         with:
           context: ./Frontend/Student
           push: true
           tags: ghcr.io/${{ steps.lowercase.outputs.owner }}/gurubhet-student:latest
+
+      # ─── 3. TEACHER FRONTEND ───
+      - name: Build and Push Teacher App
+        uses: docker/build-push-action@v5
+        with:
+          context: ./Frontend/Teacher
+          push: true
+          tags: ghcr.io/${{ steps.lowercase.outputs.owner }}/gurubhet-teacher:latest
+
+      # ─── 4. STAFF FRONTEND ───
+      - name: Build and Push Staff App
+        uses: docker/build-push-action@v5
+        with:
+          context: ./Frontend/Staff
+          push: true
+          tags: ghcr.io/${{ steps.lowercase.outputs.owner }}/gurubhet-staff:latest
