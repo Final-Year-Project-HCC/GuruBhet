@@ -1,17 +1,20 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "react-toastify";
 import axios from "axios";
 import { FiEye, FiEyeOff } from "react-icons/fi";
 import { validateEmail } from "@/lib/utils";
+import apiClient from "@/lib/api";
 
 type SignupInput = {
   firstName: string;
   middleName?: string;
   lastName: string;
   email: string;
+  phone?: string;
   password: string;
   confirmPassword: string;
 };
@@ -19,18 +22,18 @@ type SignupInput = {
 function passwordValidationMessages(password: string): string[] {
   const messages: string[] = [];
   if (!/[A-Z]/.test(password)) messages.push("uppercase letter");
-  if (!/[a-z]/.test(password)) messages.push("lowercase letter");
   if (!/\d/.test(password)) messages.push("digit");
-  if (!/[!@#$%^&*(),.?\":{}|<>_\-\[\];'\\/`~+=]/.test(password)) messages.push("special character");
   return messages;
 }
 
 export default function SignupPage() {
+  const router = useRouter();
   const [form, setForm] = useState<SignupInput>({
     firstName: "",
     middleName: "",
     lastName: "",
     email: "",
+    phone: "",
     password: "",
     confirmPassword: "",
   });
@@ -39,6 +42,7 @@ export default function SignupPage() {
     middleName: false,
     lastName: false,
     email: false,
+    phone: false,
     password: false,
     confirmPassword: false,
   });
@@ -73,16 +77,23 @@ export default function SignupPage() {
 
   const mutation = useMutation({
     mutationFn: async (payload: Omit<SignupInput, "confirmPassword">) => {
-      const { data } = await axios.post("/api/teachers/signup", payload, {
-        headers: { "Content-Type": "application/json" },
-      });
+      const registrationPayload = {
+        first_name: payload.firstName,
+        middle_name: payload.middleName || null,
+        last_name: payload.lastName,
+        email: payload.email,
+        phone: payload.phone || null,
+        password: payload.password,
+        role: "TEACHER",
+      };
+      const { data } = await apiClient.post("/auth/register", registrationPayload);
       return data;
     },
     onError: (err: unknown) => {
       let message = "Signup failed";
       if (axios.isAxiosError(err)) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        message = (err.response?.data as any)?.message || err.message || message;
+        message = (err.response?.data as any)?.detail || (err.response?.data as any)?.message || err.message || message;
       } else if (err instanceof Error) {
         message = err.message;
       }
@@ -90,6 +101,7 @@ export default function SignupPage() {
     },
     onSuccess: () => {
       toast.success("Signed up successfully");
+      router.push("/login");
     },
   });
 
@@ -105,7 +117,7 @@ export default function SignupPage() {
 
   const handleSubmit = (e: React.SubmitEvent) => {
     e.preventDefault();
-    setTouched({ firstName: true, middleName: true, lastName: true, email: true, password: true, confirmPassword: true });
+    setTouched({ firstName: true, middleName: true, lastName: true, email: true, phone: true, password: true, confirmPassword: true });
     const hasErrors = Object.keys(errors).length > 0;
     if (!hasErrors) {
       const { confirmPassword, ...payload } = form;
@@ -178,6 +190,20 @@ export default function SignupPage() {
             placeholder="you@example.com"
           />
           {errors.email && <p className="mt-1 text-sm text-red-600">{errors.email}</p>}
+        </div>
+
+        <div>
+          <label className="block text-sm mb-1" htmlFor="phone">Phone Number</label>
+          <input
+            id="phone"
+            name="phone"
+            type="tel"
+            value={form.phone}
+            onChange={onChange}
+            onBlur={onBlur}
+            className="w-full rounded-md border border-input bg-transparent px-3 py-2 outline-none focus:border-primary"
+            placeholder="+1 (555) 000-0000"
+          />
         </div>
 
         <div>

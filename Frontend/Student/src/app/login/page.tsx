@@ -1,11 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "react-toastify";
 import axios from "axios";
 import { FiEye, FiEyeOff } from "react-icons/fi";
 import { validateEmail } from "@/lib/utils";
+import apiClient from "@/lib/api";
 
 type LoginInput = {
   email: string;
@@ -13,10 +15,11 @@ type LoginInput = {
 };
 
 export default function LoginPage() {
+  const router = useRouter()
+  
   const [form, setForm] = useState<LoginInput>({ email: "", password: "" });
   const [touched, setTouched] = useState<Record<keyof LoginInput, boolean>>({ email: false, password: false });
   const [showPassword, setShowPassword] = useState(false);
-
   const errors: Partial<Record<keyof LoginInput, string>> = {};
   if ((touched.email || form.email.length > 0) && !validateEmail(form.email)) {
     errors.email = "Enter a valid email address";
@@ -27,8 +30,8 @@ export default function LoginPage() {
 
   const mutation = useMutation({
     mutationFn: async (payload: LoginInput) => {
-      const { data } = await axios.post("/api/students/login", payload, {
-        headers: { "Content-Type": "application/json" },
+      const { data } = await apiClient.post("/auth/login", payload, {
+        withCredentials: true,
       });
       return data;
     },
@@ -36,7 +39,7 @@ export default function LoginPage() {
       let message = "Login failed";
       if (axios.isAxiosError(err)) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        message = (err.response?.data as any)?.message || err.message || message;
+        message = (err.response?.data as any)?.detail || (err.response?.data as any)?.message || err.message || message;
       } else if (err instanceof Error) {
         message = err.message;
       }
@@ -44,6 +47,7 @@ export default function LoginPage() {
     },
     onSuccess: () => {
       toast.success("Logged in successfully");
+      router.push("/");
     },
   });
 
