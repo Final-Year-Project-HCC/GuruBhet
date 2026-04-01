@@ -1,7 +1,7 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
 COPY package*.json ./
-RUN npm install
+RUN for i in 1 2 3; do npm ci && break || sleep 5; done
 COPY . .
 RUN npm run build
 
