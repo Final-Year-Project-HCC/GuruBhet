@@ -6,36 +6,39 @@ export interface LiveKitSession {
   isInitialized: boolean;
 }
 
+export interface LiveKitInitOptions {
+  token: string;
+  url: string;
+  roomName: string;
+}
+
 export function useLiveKit() {
   const roomRef = useRef<any | null>(null);
   const participantRef = useRef<any | null>(null);
 
-  const initializeLiveKit = useCallback(
-    async (token: string, url: string, roomName: string) => {
-      try {
-        // Placeholder for LiveKit initialization
-        // Install @livekit/components-react and livekit-client when ready
-        console.log(
-          "[useLiveKit] Initializing with token:",
-          token.substring(0, 20) + "...",
-          "URL:",
-          url,
-          "Room:",
-          roomName,
-        );
+  const initializeLiveKit = useCallback(async (options: LiveKitInitOptions) => {
+    try {
+      // Placeholder for LiveKit initialization
+      // Install @livekit/components-react and livekit-client when ready
+      console.log(
+        "[useLiveKit] Initializing with token:",
+        options.token.substring(0, 20) + "...",
+        "URL:",
+        options.url,
+        "Room:",
+        options.roomName,
+      );
 
-        return {
-          room: roomRef.current,
-          localParticipant: participantRef.current,
-          isInitialized: true,
-        };
-      } catch (error) {
-        console.error("[useLiveKit] Failed to initialize:", error);
-        throw error;
-      }
-    },
-    [],
-  );
+      return {
+        room: roomRef.current,
+        localParticipant: participantRef.current,
+        isInitialized: true,
+      };
+    } catch (error) {
+      console.error("[useLiveKit] Failed to initialize:", error);
+      throw error;
+    }
+  }, []);
 
   const cleanup = useCallback(async () => {
     if (roomRef.current) {
