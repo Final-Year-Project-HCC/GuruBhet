@@ -1,4 +1,6 @@
 
+"use client";
+
 import React, { useState, useMemo } from 'react';
 import { TRENDING_TEACHERS, RECOMMENDED_TEACHERS } from '../constants';
 import { SubjectLevel } from '../types';

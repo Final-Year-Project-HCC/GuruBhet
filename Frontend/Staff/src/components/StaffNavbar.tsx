@@ -42,7 +42,21 @@ export default function StudentNavbar() {
           </Link>
         </div>
 
-        <nav className="flex items-center gap-3">
+        <nav className="flex items-center gap-6">
+          {/* Main Navigation Links */}
+          <Link
+            href="/teachers"
+            className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Teachers
+          </Link>
+          <Link
+            href="/academic-setup"
+            className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Academic Setup
+          </Link>
+
           <div className="relative" ref={menuRef}>
             <button
               aria-label="Open profile menu"
