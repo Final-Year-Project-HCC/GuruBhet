@@ -5,9 +5,12 @@ ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
-# Install system dependencies and Poetry
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# Install system dependencies and Poetry with retry logic
+RUN for i in 1 2 3; do \
+    apt-get update && apt-get install -y --no-install-recommends \
     libpq-dev curl build-essential \
+    && break || sleep 5; \
+    done \
     && rm -rf /var/lib/apt/lists/* \
     && pip install --no-cache-dir poetry
 
