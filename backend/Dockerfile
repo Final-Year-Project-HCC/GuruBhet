@@ -5,13 +5,18 @@ ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
-# Install only necessary system libs for psycopg2 and healthchecks
+# Install system dependencies and Poetry
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq-dev curl build-essential \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && pip install --no-cache-dir poetry
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Copy poetry files
+COPY pyproject.toml poetry.lock .
+
+# Install dependencies using Poetry
+RUN poetry config virtualenvs.create false && \
+    poetry install --no-interaction --no-ansi
 
 COPY . .
 
