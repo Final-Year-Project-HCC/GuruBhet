@@ -61,13 +61,12 @@ class Settings(BaseSettings):
     LIVEKIT_ROOM_LENIENCY_MINUTES_PER_15MIN: int  # minutes of leniency per 15-minute session block
     LIVEKIT_EMPTY_TIMEOUT_SECONDS: int = 86400  # 24 hours fallback (Celery task is primary controller)
 
-    # ── S3 / Object Storage ──────────────────────────────────────────
-    S3_ENDPOINT_URL: str
-    S3_ACCESS_KEY: str
-    S3_SECRET_KEY: str
-    AWS_REGION: str 
-    S3_BUCKET_DOCUMENTS: str = "gurubhet-documents"
-    S3_BUCKET_RECORDINGS: str = "gurubhet-recordings"
+    # ── Media Storage (Cloudinary) ──────────────────────────────────
+    # All media storage is handled by Cloudinary.
+    # Credentials are optional - if not provided, placeholder implementations will be used.
+    CLOUDINARY_CLOUD_NAME: str = ""
+    CLOUDINARY_API_KEY: str = ""
+    CLOUDINARY_API_SECRET: str = ""
 
     # ── Celery ───────────────────────────────────────────────────────
     CELERY_BROKER_URL: str

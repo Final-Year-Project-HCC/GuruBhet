@@ -73,7 +73,7 @@ def cleanup_unconfirmed_uploads(self):
         # TODO: Implement logic to:
         # 1. Query file_metadata with status=PENDING
         # 2. Filter for uploads older than 24 hours
-        # 3. Delete from S3 using s3_manager.delete_file()
+        # 3. Delete from Cloudinary using cloudinary_manager.delete_file()
         # 4. Delete from database
         # 5. Log freed storage space
         # 6. Send alerts if space freed is significant
