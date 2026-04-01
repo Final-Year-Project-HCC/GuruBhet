@@ -1,21 +1,20 @@
 import { useCallback, useRef } from "react";
-import { LocalParticipant, Room } from "livekit-client";
 
 export interface LiveKitSession {
-  room: Room | null;
-  localParticipant: LocalParticipant | null;
+  room: any | null;
+  localParticipant: any | null;
   isInitialized: boolean;
 }
 
 export function useLiveKit() {
-  const roomRef = useRef<Room | null>(null);
-  const participantRef = useRef<LocalParticipant | null>(null);
+  const roomRef = useRef<any | null>(null);
+  const participantRef = useRef<any | null>(null);
 
   const initializeLiveKit = useCallback(
     async (token: string, url: string, roomName: string) => {
       try {
-        // This is a placeholder for LiveKit initialization
-        // Import and use LiveKit client when ready
+        // Placeholder for LiveKit initialization
+        // Install @livekit/components-react and livekit-client when ready
         console.log(
           "[useLiveKit] Initializing with token:",
           token.substring(0, 20) + "...",
@@ -24,10 +23,6 @@ export function useLiveKit() {
           "Room:",
           roomName,
         );
-
-        // In production, you would initialize the LiveKit room here
-        // const room = new Room();
-        // await room.connect(url, token);
 
         return {
           room: roomRef.current,
@@ -44,7 +39,6 @@ export function useLiveKit() {
 
   const cleanup = useCallback(async () => {
     if (roomRef.current) {
-      await roomRef.current.disconnect();
       roomRef.current = null;
     }
     participantRef.current = null;
