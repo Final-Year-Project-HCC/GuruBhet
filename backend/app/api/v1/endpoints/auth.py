@@ -152,14 +152,14 @@ async def logout(db: DbSession, response: Response, x_refresh_token: str = Heade
     if not x_refresh_token:
         # still clear cookies client-side
         response.delete_cookie("access_token", path="/")
-        response.delete_cookie("refresh_token", path="/auth")
+        response.delete_cookie("refresh_token", path="/api/v1/auth")
         return {"message": "logged out"}
 
     try:
         payload = decode_token(x_refresh_token)
     except ValueError:
         response.delete_cookie("access_token", path="/")
-        response.delete_cookie("refresh_token", path="/auth/refresh")
+        response.delete_cookie("refresh_token", path="/api/v1/auth")
         return {"message": "logged out"}
 
     jti = payload.get("jti")
