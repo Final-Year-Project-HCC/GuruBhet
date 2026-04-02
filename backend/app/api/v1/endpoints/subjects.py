@@ -42,17 +42,16 @@ async def bulk_create_subjects(
     db: DbSession,
 ):
     """Bulk create subjects."""
-    subjects_data = body.get("subjects", [])
+    subjects_data = body.subjects
     if not subjects_data:
         raise HTTPException(status_code=400, detail="No subjects provided")
     
     created_subjects = []
     
     for subject_data in subjects_data:
-        university_id = subject_data.get("university_id")
-        faculty_id = subject_data.get("faculty_id")
-        semester_number = subject_data.get("semester_number")
-        subject_name = subject_data.get("name")
+        university_id = subject_data.university_id
+        faculty_id = subject_data.faculty_id
+        semester_number = subject_data.semester_number
         
         # Verify faculty exists and belongs to the university
         fac_result = await db.execute(
@@ -81,13 +80,13 @@ async def bulk_create_subjects(
         stmt = select(Subject).where(
             (Subject.faculty_id == faculty_id)
             & (Subject.semester_number == semester_number)
-            & (Subject.name == subject_name)
+            & (Subject.name == subject_data.name)
         )
         existing = await db.execute(stmt)
         if existing.scalar_one_or_none():
             continue  # Skip duplicates
         
-        subject = Subject(**subject_data)
+        subject = Subject(**subject_data.model_dump())
         db.add(subject)
         created_subjects.append(subject)
     
