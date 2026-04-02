@@ -160,11 +160,11 @@ async def get_faculty(
 async def bulk_create_faculties(
     body: BulkFacultyCreateRequest,
     db: DbSession,
-):
+):  
+    
 
     """Bulk create faculties."""
-    faculties_data = body.faculties
-    
+    faculties_data = body.faculties    
     if not faculties_data:
         raise HTTPException(status_code=400, detail="No faculties provided")
     
@@ -193,6 +193,8 @@ async def bulk_create_faculties(
             continue  # Skip duplicates
         
         faculty = Faculty(**faculty_data.model_dump())
+        db.add(faculty)
+        created_faculties.append(faculty)
     
     if created_faculties:
         await db.flush()
