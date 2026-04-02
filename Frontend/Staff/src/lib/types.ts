@@ -34,9 +34,11 @@ export interface Subject {
   id: string;
   universityId: string;
   facultyId: string;
-  semesterId: string;
+  semesterNumber: number;
+  className?: string;
   name: string;
   description?: string;
+  isActive: boolean;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -56,16 +58,11 @@ export interface CreateFacultyRequest {
   numberOfSemesters: number;
 }
 
-export interface CreateSemesterRequest {
-  universityId: string;
-  facultyId: string;
-  semesterNumber: number;
-}
-
 export interface CreateSubjectRequest {
   universityId: string;
   facultyId: string;
-  semesterId: string;
+  semesterNumber: number;
+  className?: string;
   name: string;
   description?: string;
 }

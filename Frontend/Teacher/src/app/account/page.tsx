@@ -5,6 +5,7 @@ import { useMutation } from "@tanstack/react-query";
 import axios from "axios";
 import { toast } from "react-toastify";
 import FileInputWithPreview from "../../components/FileInputWithPreview";
+import SubjectForm from "../../components/SubjectForm";
 
 type TeacherProfile = {
   firstName: string;
@@ -182,6 +183,11 @@ export default function TeacherProfilePage() {
           {mutation.isPending ? "Saving..." : "Save Changes"}
         </button>
       </form>
+
+      {/* Subject Management Section */}
+      <div className="mt-12 border-t border-border pt-12">
+        <SubjectForm />
+      </div>
     </div>
   );
 }

@@ -70,19 +70,19 @@ export default function AcademicDomainsAdmin() {
       <div className="mx-auto max-w-6xl px-4 py-8">
         {/* Show different content based on active tab */}
         {activeTab === "universities" && (
-          <div className="animate-fade-in">
+          <div className="animate-in fade-in duration-300">
             <UniversityManager />
           </div>
         )}
 
         {activeTab === "faculties" && (
-          <div className="animate-fade-in">
+          <div className="animate-in fade-in duration-300">
             <FacultyManager />
           </div>
         )}
 
         {activeTab === "subjects" && (
-          <div className="animate-fade-in">
+          <div className="animate-in fade-in duration-300">
             <SubjectManager />
           </div>
         )}
@@ -114,21 +114,6 @@ export default function AcademicDomainsAdmin() {
           </div>
         </div>
       </div>
-
-      <style jsx>{`
-        @keyframes fade-in {
-          from {
-            opacity: 0;
-          }
-          to {
-            opacity: 1;
-          }
-        }
-
-        .animate-fade-in {
-          animation: fade-in 0.3s ease-in-out;
-        }
-      `}</style>
     </div>
   );
 }

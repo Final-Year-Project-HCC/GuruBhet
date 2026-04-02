@@ -1,19 +1,16 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import axios from "axios";
-import { buildUrl } from "./utils";
+import apiClient from "./api";
 import {
   University,
   Faculty,
-  Semester,
   Subject,
   CreateUniversityRequest,
   CreateFacultyRequest,
-  CreateSemesterRequest,
   CreateSubjectRequest,
-  BulkCreateSubjectRequest,
   BulkCreateFacultyRequest,
+  BulkCreateSubjectRequest,
 } from "./types";
 import { toast } from "react-toastify";
 
@@ -24,7 +21,7 @@ export function useFetchUniversities() {
   return useQuery({
     queryKey: ["universities"],
     queryFn: async () => {
-      const { data } = await axios.get<University[]>(buildUrl("/staff/universities"));
+      const { data } = await apiClient.get<University[]>("/academic/universities");
       return data;
     },
   });
@@ -34,8 +31,8 @@ export function useCreateUniversity() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (payload: CreateUniversityRequest) => {
-      const { data } = await axios.post<University>(
-        buildUrl("/staff/universities"),
+      const { data } = await apiClient.post<University>(
+        "/academic/universities",
         payload
       );
       return data;
@@ -58,8 +55,8 @@ export function useFetchFacultiesByUniversity(universityId: string | null) {
     queryKey: ["faculties", universityId],
     queryFn: async () => {
       if (!universityId) return [];
-      const { data } = await axios.get<Faculty[]>(
-        buildUrl(`/staff/universities/${universityId}/faculties`)
+      const { data } = await apiClient.get<Faculty[]>(
+        `/academic/universities/${universityId}/faculties`
       );
       return data;
     },
@@ -71,13 +68,9 @@ export function useCreateFaculty() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (payload: CreateFacultyRequest) => {
-      const { data } = await axios.post<Faculty>(
-        buildUrl(`/staff/universities/${payload.universityId}/faculties`),
-        {
-          name: payload.name,
-          description: payload.description,
-          numberOfSemesters: payload.numberOfSemesters,
-        }
+      const { data } = await apiClient.post<Faculty>(
+        `/academic/universities/${payload.universityId}/faculties`,
+        payload
       );
       return data;
     },
@@ -97,8 +90,8 @@ export function useBulkCreateFaculty() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (payload: BulkCreateFacultyRequest) => {
-      const { data } = await axios.post<Faculty[]>(
-        buildUrl("/staff/faculties/bulk"),
+      const { data } = await apiClient.post<Faculty[]>(
+        "/academic/faculties/bulk",
         payload
       );
       return data;
@@ -118,21 +111,20 @@ export function useBulkCreateFaculty() {
   });
 }
 
+
 /**
- * Semesters
+ * Subjects
  */
-export function useFetchSemestersByFaculty(
+export function useFetchSubjectsByFaculty(
   universityId: string | null,
   facultyId: string | null
 ) {
   return useQuery({
-    queryKey: ["semesters", universityId, facultyId],
+    queryKey: ["subjects", universityId, facultyId],
     queryFn: async () => {
       if (!universityId || !facultyId) return [];
-      const { data } = await axios.get<Semester[]>(
-        buildUrl(
-          `/staff/universities/${universityId}/faculties/${facultyId}/semesters`
-        )
+      const { data } = await apiClient.get<Subject[]>(
+        `/subjects/universities/${universityId}/faculties/${facultyId}/subjects`
       );
       return data;
     },
@@ -140,73 +132,19 @@ export function useFetchSemestersByFaculty(
   });
 }
 
-export function useCreateSemester() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async (payload: CreateSemesterRequest) => {
-      const { data } = await axios.post<Semester>(
-        buildUrl(
-          `/staff/universities/${payload.universityId}/faculties/${payload.facultyId}/semesters`
-        ),
-        {
-          semesterNumber: payload.semesterNumber,
-        }
-      );
-      return data;
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({
-        queryKey: ["semesters", data.universityId, data.facultyId],
-      });
-      toast.success("Semester created successfully!");
-    },
-    onError: () => {
-      toast.error("Failed to create semester");
-    },
-  });
-}
-
-/**
- * Subjects
- */
-export function useFetchSubjectsByFaculty(
-  universityId: string | null,
-  facultyId: string | null,
-  semesterId: string | null
-) {
-  return useQuery({
-    queryKey: ["subjects", universityId, facultyId, semesterId],
-    queryFn: async () => {
-      if (!universityId || !facultyId || !semesterId) return [];
-      const { data } = await axios.get<Subject[]>(
-        buildUrl(
-          `/staff/universities/${universityId}/faculties/${facultyId}/semesters/${semesterId}/subjects`
-        )
-      );
-      return data;
-    },
-    enabled: !!universityId && !!facultyId && !!semesterId,
-  });
-}
-
 export function useCreateSubject() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (payload: CreateSubjectRequest) => {
-      const { data } = await axios.post<Subject>(
-        buildUrl(
-          `/staff/universities/${payload.universityId}/faculties/${payload.facultyId}/semesters/${payload.semesterId}/subjects`
-        ),
-        {
-          name: payload.name,
-          description: payload.description,
-        }
+      const { data } = await apiClient.post<Subject>(
+        "/subjects",
+        payload
       );
       return data;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({
-        queryKey: ["subjects", data.universityId, data.facultyId, data.semesterId],
+        queryKey: ["subjects", data.universityId, data.facultyId],
       });
       toast.success("Subject created successfully!");
     },
@@ -220,8 +158,8 @@ export function useBulkCreateSubject() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (payload: BulkCreateSubjectRequest) => {
-      const { data } = await axios.post<Subject[]>(
-        buildUrl("/staff/subjects/bulk"),
+      const { data } = await apiClient.post<Subject[]>(
+        "/subjects/bulk",
         payload
       );
       return data;
@@ -230,7 +168,7 @@ export function useBulkCreateSubject() {
       if (data.length > 0) {
         const item = data[0];
         queryClient.invalidateQueries({
-          queryKey: ["subjects", item.universityId, item.facultyId, item.semesterId],
+          queryKey: ["subjects", item.universityId, item.facultyId],
         });
       }
       toast.success(`${data.length} subjects created successfully!`);
