@@ -3,7 +3,6 @@ from fastapi import APIRouter, Query, HTTPException
 from sqlalchemy import select
 
 from app.core.dependencies import DbSession
-from app.models.university import University
 from app.models.faculty import Faculty
 from app.models.subject import Subject
 from app.schemas.subject import SubjectRead, SubjectCreate
@@ -118,69 +117,3 @@ async def deactivate_subject(subject_id: UUID, db: DbSession):
         raise HTTPException(status_code=404, detail="Subject not found")
     subject.is_active = False
     await db.flush()
-
-
-
-@router.get(
-    "/universities/{university_id}/faculties/{faculty_id}/subjects",
-    response_model=list[SubjectRead],
-)
-async def list_faculty_subjects(
-    university_id: UUID,
-    faculty_id: UUID,
-    db: DbSession,
-    limit: int = 50,
-    offset: int = 0,
-):
-    """List all subjects for a faculty."""
-    # Verify faculty exists and belongs to the university
-    fac_result = await db.execute(
-        select(Faculty).where(
-            (Faculty.id == faculty_id) & (Faculty.university_id == university_id)
-        )
-    )
-    if not fac_result.scalar_one_or_none():
-        raise HTTPException(status_code=404, detail="Faculty not found")
-    
-    stmt = (
-        select(Subject)
-        .where(
-            (Subject.faculty_id == faculty_id) & (Subject.is_active.is_(True))
-        )
-        .limit(limit)
-        .offset(offset)
-    )
-    result = await db.execute(stmt)
-    return list(result.scalars().all())
-
-@router.get(
-    "/universities/{university_id}/faculties/{faculty_id}/subjects/{subject_id}",
-    response_model=SubjectRead,
-)
-async def get_faculty_subject(
-    university_id: UUID,
-    faculty_id: UUID,
-    subject_id: UUID,
-    db: DbSession,
-):
-    """Get a specific subject from a faculty."""
-    # Verify faculty exists
-    fac_result = await db.execute(
-        select(Faculty).where(
-            (Faculty.id == faculty_id) & (Faculty.university_id == university_id)
-        )
-    )
-    if not fac_result.scalar_one_or_none():
-        raise HTTPException(status_code=404, detail="Faculty not found")
-    
-    result = await db.execute(
-        select(Subject).where(Subject.id == subject_id)
-    )
-    subject = result.scalar_one_or_none()
-    if (
-        not subject
-        or subject.faculty_id != faculty_id
-        or subject.university_id != university_id
-    ):
-        raise HTTPException(status_code=404, detail="Subject not found")
-    return subject

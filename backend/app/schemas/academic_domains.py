@@ -1,3 +1,4 @@
+from datetime import datetime
 from uuid import UUID
 from pydantic import field_validator
 
@@ -17,8 +18,8 @@ class UniversityCreate(UniversityBase):
 class UniversityRead(UniversityBase):
 
     id: UUID
-    created_at: str
-    updated_at: str
+    created_at: datetime
+    updated_at: datetime
 
 
 class FacultyBase(SharedConfig):
@@ -36,39 +37,5 @@ class FacultyRead(FacultyBase):
 
     id: UUID
     university_id: UUID
-    created_at: str
-    updated_at: str
-
-
-class SubjectBase(SharedConfig):
-
-    name: str
-    semester_number: int
-    class_name: str | None = None
-    description: str | None = None
-
-    # Commented fields — to be considered later
-    # level: StudyLevel
-    # board: str | None = None
-
-
-class SubjectCreate(SubjectBase):
-    university_id: UUID
-    faculty_id: UUID
-
-    @field_validator("semester_number")
-    @classmethod
-    def semester_positive(cls, v: int) -> int:
-        if v < 1:
-            raise ValueError("Semester number must be at least 1")
-        return v
-
-
-class SubjectRead(SubjectBase):
-
-    id: UUID
-    university_id: UUID
-    faculty_id: UUID
-    is_active: bool
-    created_at: str
-    updated_at: str
+    created_at: datetime
+    updated_at: datetime
