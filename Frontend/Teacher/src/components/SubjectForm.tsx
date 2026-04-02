@@ -14,49 +14,49 @@ interface University {
 
 interface Faculty {
   id: string;
-  university_id: string;
+  universityId: string;
   name: string;
-  number_of_semesters: number;
+  numberOfSemesters: number;
 }
 
 interface Subject {
   id: string;
   name: string;
-  university_id: string;
-  faculty_id: string;
-  semester_number: number;
-  is_active: boolean;
+  universityId: string;
+  facultyId: string;
+  semesterNumber: number;
+  isActive: boolean;
 }
 
 interface TeacherSubject {
-  teacher_id: string;
-  subject_id: string;
-  rate_per_session: number;
-  years_of_experience: number;
-  total_sessions_completed: number;
-  avg_rating: number;
-  rating_count: number;
-  is_active: boolean;
+  teacherId: string;
+  subjectId: string;
+  ratePerSession: number;
+  yearsOfExperience: number;
+  totalSessionsCompleted: number;
+  avgRating: number;
+  ratingCount: number;
+  isActive: boolean;
   subject: Subject;
 }
 
 interface SubjectFormState {
-  university_id: string;
-  faculty_id: string;
-  semester_number: string;
-  subject_id: string;
-  rate_per_session: string;
-  years_of_experience: string;
+  universityId: string;
+  facultyId: string;
+  semesterNumber: string;
+  subjectId: string;
+  ratePerSession: string;
+  yearsOfExperience: string;
 }
 
 export default function SubjectForm() {
   const [formState, setFormState] = useState<SubjectFormState>({
-    university_id: "",
-    faculty_id: "",
-    semester_number: "",
-    subject_id: "",
-    rate_per_session: "",
-    years_of_experience: "0",
+    universityId: "",
+    facultyId: "",
+    semesterNumber: "",
+    subjectId: "",
+    ratePerSession: "",
+    yearsOfExperience: "0",
   });
 
   // Step 1: Fetch all universities
@@ -71,46 +71,47 @@ export default function SubjectForm() {
 
   // Step 2: Fetch faculties for selected university
   const facultiesQuery = useQuery({
-    queryKey: ["faculties", formState.university_id],
+    queryKey: ["faculties", formState.universityId],
     queryFn: async () => {
       const { data } = await apiClient.get(
-        `/academic/universities/${formState.university_id}/faculties`
+        `/academic/universities/${formState.universityId}/faculties`
       );
       return data as Faculty[];
     },
-    enabled: !!formState.university_id,
+    enabled: !!formState.universityId,
     staleTime: 1000 * 60 * 10,
   });
 
-  // Step 3: Generate semester array from faculty.number_of_semesters
+  // Step 3: Generate semester array from faculty.numberOfSemesters
   const semesters = useMemo(() => {
-    if (!formState.faculty_id || !facultiesQuery.data) return [];
-    const faculty = facultiesQuery.data.find((f) => f.id === formState.faculty_id);
+    console.log(facultiesQuery.data)
+    if (!formState.facultyId || !facultiesQuery.data) return [];
+    const faculty = facultiesQuery.data.find((f) => f.id === formState.facultyId);
     if (!faculty) return [];
-    return Array.from({ length: faculty.number_of_semesters }, (_, i) => (i + 1).toString());
-  }, [formState.faculty_id, facultiesQuery.data]);
+    return Array.from({ length: faculty.numberOfSemesters }, (_, i) => (i + 1).toString());
+  }, [formState.facultyId, facultiesQuery.data]);
 
   // Step 4: Fetch subjects for selected faculty
   const facultySubjectsQuery = useQuery({
-    queryKey: ["faculty-subjects", formState.university_id, formState.faculty_id],
+    queryKey: ["faculty-subjects", formState.universityId, formState.facultyId],
     queryFn: async () => {
       const { data } = await apiClient.get(
-        `/subjects/universities/${formState.university_id}/faculties/${formState.faculty_id}/subjects`
+        `/academic/universities/${formState.universityId}/faculties/${formState.facultyId}/subjects`
       );
       return data as Subject[];
     },
-    enabled: !!formState.university_id && !!formState.faculty_id,
+    enabled: !!formState.universityId && !!formState.facultyId,
     staleTime: 1000 * 60 * 10,
   });
 
-  // Step 5: Filter subjects by semester_number
+  // Step 5: Filter subjects by semesterNumber
   const filteredSubjects = useMemo(() => {
-    if (!facultySubjectsQuery.data || !formState.semester_number) return [];
-    const semesterNum = parseInt(formState.semester_number, 10);
+    if (!facultySubjectsQuery.data || !formState.semesterNumber) return [];
+    const semesterNum = parseInt(formState.semesterNumber, 10);
     return facultySubjectsQuery.data.filter(
-      (subject) => subject.semester_number === semesterNum && subject.is_active
+      (subject) => subject.semesterNumber === semesterNum && subject.isActive
     );
-  }, [facultySubjectsQuery.data, formState.semester_number]);
+  }, [facultySubjectsQuery.data, formState.semesterNumber]);
 
   // Fetch teacher's existing subjects
   const teacherSubjectsQuery = useQuery({
@@ -126,26 +127,26 @@ export default function SubjectForm() {
     const { name, value } = e.target;
 
     // Reset dependent fields when parent selection changes
-    if (name === "university_id") {
+    if (name === "universityId") {
       setFormState((prev) => ({
         ...prev,
-        university_id: value,
-        faculty_id: "",
-        semester_number: "",
-        subject_id: "",
+        universityId: value,
+        facultyId: "",
+        semesterNumber: "",
+        subjectId: "",
       }));
-    } else if (name === "faculty_id") {
+    } else if (name === "facultyId") {
       setFormState((prev) => ({
         ...prev,
-        faculty_id: value,
-        semester_number: "",
-        subject_id: "",
+        facultyId: value,
+        semesterNumber: "",
+        subjectId: "",
       }));
-    } else if (name === "semester_number") {
+    } else if (name === "semesterNumber") {
       setFormState((prev) => ({
         ...prev,
-        semester_number: value,
-        subject_id: "",
+        semesterNumber: value,
+        subjectId: "",
       }));
     } else {
       setFormState((prev) => ({
@@ -157,19 +158,19 @@ export default function SubjectForm() {
 
   // Add subject mutation
   const addSubjectMutation = useMutation({
-    mutationFn: async (payload: { subject_id: string; rate_per_session: number; years_of_experience: number }) => {
+    mutationFn: async (payload: { subjectId: string; ratePerSession: number; yearsOfExperience: number }) => {
       const { data } = await apiClient.post("/teachers/me/subjects", payload);
       return data;
     },
     onSuccess: () => {
       toast.success("Subject added successfully");
       setFormState({
-        university_id: "",
-        faculty_id: "",
-        semester_number: "",
-        subject_id: "",
-        rate_per_session: "",
-        years_of_experience: "0",
+        universityId: "",
+        facultyId: "",
+        semesterNumber: "",
+        subjectId: "",
+        ratePerSession: "",
+        yearsOfExperience: "0",
       });
       teacherSubjectsQuery.refetch();
     },
@@ -207,32 +208,32 @@ export default function SubjectForm() {
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
-    if (!formState.subject_id) {
+    if (!formState.subjectId) {
       toast.error("Please select a subject");
       return;
     }
 
-    if (!formState.rate_per_session) {
+    if (!formState.ratePerSession) {
       toast.error("Please enter rate per session");
       return;
     }
 
-    const rate = parseFloat(formState.rate_per_session);
+    const rate = parseFloat(formState.ratePerSession);
     if (isNaN(rate) || rate <= 0) {
       toast.error("Rate must be a positive number");
       return;
     }
 
-    const experience = parseInt(formState.years_of_experience, 10);
+    const experience = parseInt(formState.yearsOfExperience, 10);
     if (isNaN(experience) || experience < 0) {
       toast.error("Years of experience must be a non-negative number");
       return;
     }
 
     addSubjectMutation.mutate({
-      subject_id: formState.subject_id,
-      rate_per_session: rate,
-      years_of_experience: experience,
+      subjectId: formState.subjectId,
+      ratePerSession: rate,
+      yearsOfExperience: experience,
     });
   }
 
@@ -247,8 +248,8 @@ export default function SubjectForm() {
           <div>
             <label className="mb-2 block text-sm font-medium text-muted-foreground">University</label>
             <select
-              name="university_id"
-              value={formState.university_id}
+              name="universityId"
+              value={formState.universityId}
               onChange={handleFormChange}
               disabled={universitiesQuery.isLoading}
               className="w-full rounded-md border border-border bg-background px-3 py-2 text-foreground disabled:opacity-50"
@@ -268,14 +269,14 @@ export default function SubjectForm() {
           <div>
             <label className="mb-2 block text-sm font-medium text-muted-foreground">Faculty</label>
             <select
-              name="faculty_id"
-              value={formState.faculty_id}
+              name="facultyId"
+              value={formState.facultyId}
               onChange={handleFormChange}
-              disabled={!formState.university_id || facultiesQuery.isLoading}
+              disabled={!formState.universityId || facultiesQuery.isLoading}
               className="w-full rounded-md border border-border bg-background px-3 py-2 text-foreground disabled:opacity-50"
             >
               <option value="">
-                {!formState.university_id
+                {!formState.universityId
                   ? "Select University first"
                   : facultiesQuery.isLoading
                     ? "Loading..."
@@ -293,14 +294,14 @@ export default function SubjectForm() {
           <div>
             <label className="mb-2 block text-sm font-medium text-muted-foreground">Semester</label>
             <select
-              name="semester_number"
-              value={formState.semester_number}
+              name="semesterNumber"
+              value={formState.semesterNumber}
               onChange={handleFormChange}
-              disabled={!formState.faculty_id}
+              disabled={!formState.facultyId}
               className="w-full rounded-md border border-border bg-background px-3 py-2 text-foreground disabled:opacity-50"
             >
               <option value="">
-                {!formState.faculty_id ? "Select Faculty first" : "Select Semester"}
+                {!formState.facultyId ? "Select Faculty first" : "Select Semester"}
               </option>
               {semesters.map((sem) => (
                 <option key={sem} value={sem}>
@@ -314,14 +315,14 @@ export default function SubjectForm() {
           <div>
             <label className="mb-2 block text-sm font-medium text-muted-foreground">Subject</label>
             <select
-              name="subject_id"
-              value={formState.subject_id}
+              name="subjectId"
+              value={formState.subjectId}
               onChange={handleFormChange}
-              disabled={!formState.semester_number || facultySubjectsQuery.isLoading}
+              disabled={!formState.semesterNumber || facultySubjectsQuery.isLoading}
               className="w-full rounded-md border border-border bg-background px-3 py-2 text-foreground disabled:opacity-50"
             >
               <option value="">
-                {!formState.semester_number
+                {!formState.semesterNumber
                   ? "Select Semester first"
                   : facultySubjectsQuery.isLoading
                     ? "Loading..."
@@ -340,11 +341,10 @@ export default function SubjectForm() {
             <label className="mb-2 block text-sm font-medium text-muted-foreground">Rate per Session (NPR)</label>
             <input
               type="number"
-              name="rate_per_session"
-              value={formState.rate_per_session}
+              name="ratePerSession"
+              value={formState.ratePerSession}
               onChange={handleFormChange}
               placeholder="Enter rate"
-              step="100"
               min="0"
               className="w-full rounded-md border border-border bg-background px-3 py-2 text-foreground"
             />
@@ -355,8 +355,8 @@ export default function SubjectForm() {
             <label className="mb-2 block text-sm font-medium text-muted-foreground">Years of Experience</label>
             <input
               type="number"
-              name="years_of_experience"
-              value={formState.years_of_experience}
+              name="yearsOfExperience"
+              value={formState.yearsOfExperience}
               onChange={handleFormChange}
               placeholder="0"
               min="0"
@@ -367,7 +367,7 @@ export default function SubjectForm() {
           {/* Add Button */}
           <button
             type="submit"
-            disabled={addSubjectMutation.isPending || !formState.subject_id}
+            disabled={addSubjectMutation.isPending || !formState.subjectId}
             className="rounded-md bg-primary px-4 py-2 text-primary-foreground hover:opacity-90 disabled:opacity-60"
           >
             {addSubjectMutation.isPending ? "Adding..." : "Add Subject"}
@@ -386,22 +386,22 @@ export default function SubjectForm() {
           <div className="space-y-2">
             {teacherSubjectsQuery.data?.map((ts) => (
               <div
-                key={ts.subject_id}
+                key={ts.subjectId}
                 className="flex items-center justify-between rounded-md border border-border bg-muted px-4 py-3"
               >
                 <div>
                   <p className="font-medium text-foreground">{ts.subject.name}</p>
                   <p className="text-sm text-muted-foreground">
-                    Rs. {ts.rate_per_session.toLocaleString()} per session • {ts.years_of_experience} years experience
+                    Rs. {ts.ratePerSession.toLocaleString()} per session • {ts.yearsOfExperience} years experience
                   </p>
-                  {ts.subject.semester_number && (
+                  {ts.subject.semesterNumber && (
                     <p className="text-xs text-muted-foreground">
-                      Semester {ts.subject.semester_number}
+                      Semester {ts.subject.semesterNumber}
                     </p>
                   )}
                 </div>
                 <button
-                  onClick={() => deleteSubjectMutation.mutate(ts.subject_id)}
+                  onClick={() => deleteSubjectMutation.mutate(ts.subjectId)}
                   disabled={deleteSubjectMutation.isPending}
                   className="rounded-md bg-destructive/10 p-2 hover:bg-destructive/20 disabled:opacity-50"
                   title="Remove subject"

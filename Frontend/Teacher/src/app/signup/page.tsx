@@ -202,7 +202,7 @@ export default function SignupPage() {
             onChange={onChange}
             onBlur={onBlur}
             className="w-full rounded-md border border-input bg-transparent px-3 py-2 outline-none focus:border-primary"
-            placeholder="+1 (555) 000-0000"
+            placeholder="9800000000"
           />
         </div>
 
