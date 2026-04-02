@@ -29,6 +29,7 @@ async def init_livekit() -> None:
         settings.LIVEKIT_URL,
         settings.LIVEKIT_API_KEY,
         settings.LIVEKIT_API_SECRET,
+        use_ssl=False,
     )
 async def close_livekit() -> None:
     """Called once at app shutdown to cleanly close the HTTP client."""
