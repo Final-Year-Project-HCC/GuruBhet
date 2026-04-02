@@ -47,7 +47,6 @@ async def create_university(body: UniversityCreate, db: DbSession):
     university = University(**body.model_dump())
     db.add(university)
     await db.flush()
-    await db.commit()
     await db.refresh(university)
     return university
 
@@ -129,7 +128,6 @@ async def create_faculty(
     faculty = Faculty(**body.model_dump())
     db.add(faculty)
     await db.flush()
-    await db.commit()
     await db.refresh(faculty)
     return faculty
 

@@ -33,9 +33,71 @@ async def create_subject(body: SubjectCreate, db: DbSession):
     subject = Subject(**body.model_dump())
     db.add(subject)
     await db.flush()
-    await db.commit()
     await db.refresh(subject)
     return subject
+
+
+@router.post("/bulk", response_model=list[SubjectRead], status_code=201)
+async def bulk_create_subjects(
+    body: dict,  # {"subjects": [SubjectCreate]}
+    db: DbSession,
+):
+    """Bulk create subjects."""
+    subjects_data = body.get("subjects", [])
+    if not subjects_data:
+        raise HTTPException(status_code=400, detail="No subjects provided")
+    
+    created_subjects = []
+    
+    for subject_data in subjects_data:
+        university_id = subject_data.get("university_id")
+        faculty_id = subject_data.get("faculty_id")
+        semester_number = subject_data.get("semester_number")
+        subject_name = subject_data.get("name")
+        
+        # Verify faculty exists and belongs to the university
+        fac_result = await db.execute(
+            select(Faculty).where(
+                (Faculty.id == faculty_id) & (Faculty.university_id == university_id)
+            )
+        )
+        faculty = fac_result.scalar_one_or_none()
+        if not faculty:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Faculty {faculty_id} not found in university {university_id}",
+            )
+        
+        # Verify semester_number is valid
+        if (
+            semester_number < 1
+            or semester_number > faculty.number_of_semesters
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Semester number must be between 1 and {faculty.number_of_semesters}",
+            )
+        
+        # Check if subject with this name already exists in this faculty/semester combination
+        stmt = select(Subject).where(
+            (Subject.faculty_id == faculty_id)
+            & (Subject.semester_number == semester_number)
+            & (Subject.name == subject_name)
+        )
+        existing = await db.execute(stmt)
+        if existing.scalar_one_or_none():
+            continue  # Skip duplicates
+        
+        subject = Subject(**subject_data)
+        db.add(subject)
+        created_subjects.append(subject)
+    
+    if created_subjects:
+        await db.flush()
+        for subject in created_subjects:
+            await db.refresh(subject)
+    
+    return created_subjects
 
 
 @router.get("/{subject_id}", response_model=SubjectRead)
@@ -56,12 +118,7 @@ async def deactivate_subject(subject_id: UUID, db: DbSession):
         raise HTTPException(status_code=404, detail="Subject not found")
     subject.is_active = False
     await db.flush()
-    await db.commit()
 
-
-# ════════════════════════════════════════════════════════════════════════════════════
-# SCOPED SUBJECT ROUTES (University/Faculty/Subject hierarchy)
-# ════════════════════════════════════════════════════════════════════════════════════
 
 
 @router.get(
@@ -95,70 +152,6 @@ async def list_faculty_subjects(
     )
     result = await db.execute(stmt)
     return list(result.scalars().all())
-
-
-@router.post(
-    "/universities/{university_id}/faculties/{faculty_id}/subjects",
-    response_model=SubjectRead,
-    status_code=201,
-)
-async def create_faculty_subject(
-    university_id: UUID,
-    faculty_id: UUID,
-    body: SubjectCreate,
-    db: DbSession,
-):
-    """Create a new subject in a faculty."""
-    # Verify faculty exists and belongs to the university
-    fac_result = await db.execute(
-        select(Faculty).where(
-            (Faculty.id == faculty_id) & (Faculty.university_id == university_id)
-        )
-    )
-    faculty = fac_result.scalar_one_or_none()
-    if not faculty:
-        raise HTTPException(status_code=404, detail="Faculty not found")
-    
-    # Verify all IDs in path and body match
-    if (
-        body.university_id != university_id
-        or body.faculty_id != faculty_id
-    ):
-        raise HTTPException(
-            status_code=400,
-            detail="University and Faculty IDs in path and body must match",
-        )
-    
-    # Verify semester_number is valid (1 to faculty.number_of_semesters)
-    if (
-        body.semester_number < 1
-        or body.semester_number > faculty.number_of_semesters
-    ):
-        raise HTTPException(
-            status_code=400,
-            detail=f"Semester number must be between 1 and {faculty.number_of_semesters}",
-        )
-    
-    # Check if subject with this name already exists in this faculty/semester combination
-    stmt = select(Subject).where(
-        (Subject.faculty_id == faculty_id)
-        & (Subject.semester_number == body.semester_number)
-        & (Subject.name == body.name)
-    )
-    existing = await db.execute(stmt)
-    if existing.scalar_one_or_none():
-        raise HTTPException(
-            status_code=400,
-            detail="Subject with this name already exists in this faculty/semester",
-        )
-    
-    subject = Subject(**body.model_dump())
-    db.add(subject)
-    await db.flush()
-    await db.commit()
-    await db.refresh(subject)
-    return subject
-
 
 @router.get(
     "/universities/{university_id}/faculties/{faculty_id}/subjects/{subject_id}",
