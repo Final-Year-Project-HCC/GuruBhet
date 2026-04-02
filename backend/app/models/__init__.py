@@ -8,6 +8,8 @@ from app.models.student import StudentProfile  # noqa: F401
 from app.models.teacher import TeacherProfile  # noqa: F401
 from app.models.teacher_document import TeacherDocument  # noqa: F401
 from app.models.payment_account import PaymentAccount  # noqa: F401
+from app.models.university import University  # noqa: F401
+from app.models.faculty import Faculty  # noqa: F401
 from app.models.subject import Subject  # noqa: F401
 from app.models.teacher_subject import TeacherSubject  # noqa: F401
 from app.models.booking import Booking, Session  # noqa: F401
@@ -22,6 +24,8 @@ __all__ = [
     "TeacherProfile",
     "TeacherDocument",
     "PaymentAccount",
+    "University",
+    "Faculty",
     "Subject",
     "TeacherSubject",
     "Booking",

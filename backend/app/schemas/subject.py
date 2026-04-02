@@ -10,22 +10,34 @@ class SubjectRead(BaseModel):
 
     id: UUID
     name: str
-    level: StudyLevel
-    board: str | None
-    university: str | None
-    faculty: str | None
-    semester: str | None
+    university_id: UUID
+    faculty_id: UUID
+    semester_number: int
     class_name: str | None
+    is_active: bool
+    
+    # Commented fields — to be considered later
+    # level: StudyLevel
+    # board: str | None
 
 
 class SubjectCreate(BaseModel):
     name: str
-    level: StudyLevel
-    board: str | None = None
-    university: str | None = None
-    faculty: str | None = None
-    semester: str | None = None
+    university_id: UUID
+    faculty_id: UUID
+    semester_number: int
     class_name: str | None = None
+    
+    # Commented fields — to be considered later
+    # level: StudyLevel
+    # board: str | None = None
+
+    @field_validator("semester_number")
+    @classmethod
+    def semester_positive(cls, v: int) -> int:
+        if v < 1:
+            raise ValueError("Semester number must be at least 1")
+        return v
 
 
 class TeacherSubjectCreate(BaseModel):
