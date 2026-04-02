@@ -55,6 +55,12 @@ export default function StudentNavbar() {
           >
             Sessions
           </Link>
+          <Link
+            href="/join-room"
+            className="rounded-md px-3 py-2 text-base text-foreground hover:bg-muted"
+          >
+            Join Room
+          </Link>
           <div className="relative" ref={menuRef}>
             <button
               aria-label="Open profile menu"
