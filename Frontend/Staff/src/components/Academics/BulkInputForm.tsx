@@ -7,6 +7,7 @@ export interface BulkInputItem {
   id: string;
   name: string;
   description?: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   [key: string]: any;
 }
 
@@ -55,6 +56,7 @@ export default function BulkInputForm({
     }
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const updateItem = (id: string, field: string, value: any) => {
     setItems(
       items.map((item) =>

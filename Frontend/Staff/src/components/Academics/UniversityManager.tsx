@@ -142,10 +142,6 @@ function UniversityCard({ university }: { university: University }) {
         {university.description && (
           <p className="text-sm text-muted-foreground">{university.description}</p>
         )}
-        <div className="flex items-center gap-2 text-xs text-muted-foreground pt-2">
-          <FiCheck size={14} className="text-green-600" />
-          <span>Ready for faculties</span>
-        </div>
       </div>
     </div>
   );

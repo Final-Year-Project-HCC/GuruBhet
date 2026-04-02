@@ -78,9 +78,9 @@ export default function SignupPage() {
   const mutation = useMutation({
     mutationFn: async (payload: Omit<SignupInput, "confirmPassword">) => {
       const registrationPayload = {
-        first_name: payload.firstName,
-        middle_name: payload.middleName || null,
-        last_name: payload.lastName,
+        firstName: payload.firstName,
+        middleName: payload.middleName || null,
+        lastName: payload.lastName,
         email: payload.email,
         phone: payload.phone || null,
         password: payload.password,
@@ -202,7 +202,7 @@ export default function SignupPage() {
             onChange={onChange}
             onBlur={onBlur}
             className="w-full rounded-md border border-input bg-transparent px-3 py-2 outline-none focus:border-primary"
-            placeholder="+1 (555) 000-0000"
+            placeholder="9800000000"
           />
         </div>
 

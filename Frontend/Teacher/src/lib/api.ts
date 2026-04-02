@@ -2,6 +2,7 @@ import axios from "axios";
 
 const apiClient = axios.create({
   baseURL: "https://api.gurubhet.tech/api/v1",
+  withCredentials: true,
   headers: {
     "Content-Type": "application/json",
   },
