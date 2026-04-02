@@ -42,6 +42,8 @@ class SubjectCreate(SharedConfig):
             raise ValueError("Semester number must be at least 1")
         return v
 
+class BulkSubjectCreateRequest(SharedConfig):
+    subjects: list[SubjectCreate]
 
 class TeacherSubjectCreate(SharedConfig):
 

@@ -44,3 +44,5 @@ class FacultyRead(FacultyBase):
 class BulkFacultyCreateRequest(SharedConfig):
     """Schema for bulk faculty creation requests."""
     faculties: list[FacultyCreate]
+
+

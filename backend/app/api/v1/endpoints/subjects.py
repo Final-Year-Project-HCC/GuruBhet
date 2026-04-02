@@ -5,7 +5,7 @@ from sqlalchemy import select
 from app.core.dependencies import DbSession
 from app.models.faculty import Faculty
 from app.models.subject import Subject
-from app.schemas.subject import SubjectRead, SubjectCreate
+from app.schemas.subject import SubjectRead, SubjectCreate, BulkSubjectCreateRequest
 
 router = APIRouter()
 
@@ -38,7 +38,7 @@ async def create_subject(body: SubjectCreate, db: DbSession):
 
 @router.post("/bulk", response_model=list[SubjectRead], status_code=201)
 async def bulk_create_subjects(
-    body: dict,  # {"subjects": [SubjectCreate]}
+    body: BulkSubjectCreateRequest,  
     db: DbSession,
 ):
     """Bulk create subjects."""
