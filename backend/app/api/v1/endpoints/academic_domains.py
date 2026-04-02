@@ -11,6 +11,7 @@ from app.schemas.academic_domains import (
     UniversityRead,
     FacultyCreate,
     FacultyRead,
+    BulkFacultyCreateRequest,
 )
 from app.schemas.subject import SubjectRead, SubjectCreate
 
@@ -157,18 +158,20 @@ async def get_faculty(
 
 @router.post("/faculties/bulk", response_model=list[FacultyRead], status_code=201)
 async def bulk_create_faculties(
-    body: dict,  # {"faculties": [FacultyCreate]}
+    body: BulkFacultyCreateRequest,
     db: DbSession,
 ):
+
     """Bulk create faculties."""
-    faculties_data = body.get("faculties", [])
+    faculties_data = body.faculties
+    
     if not faculties_data:
         raise HTTPException(status_code=400, detail="No faculties provided")
     
     created_faculties = []
     
     for faculty_data in faculties_data:
-        university_id = faculty_data.get("university_id")
+        university_id = faculty_data.university_id
         
         # Verify university exists
         univ_result = await db.execute(
@@ -183,15 +186,13 @@ async def bulk_create_faculties(
         # Check if faculty with this name already exists
         stmt = select(Faculty).where(
             (Faculty.university_id == university_id)
-            & (Faculty.name == faculty_data.get("name"))
+            & (Faculty.name == faculty_data.name)
         )
         existing = await db.execute(stmt)
         if existing.scalar_one_or_none():
             continue  # Skip duplicates
         
-        faculty = Faculty(**faculty_data)
-        db.add(faculty)
-        created_faculties.append(faculty)
+        faculty = Faculty(**faculty_data.model_dump())
     
     if created_faculties:
         await db.flush()

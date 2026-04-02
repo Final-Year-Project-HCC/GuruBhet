@@ -39,3 +39,8 @@ class FacultyRead(FacultyBase):
     university_id: UUID
     created_at: datetime
     updated_at: datetime
+
+
+class BulkFacultyCreateRequest(SharedConfig):
+    """Schema for bulk faculty creation requests."""
+    faculties: list[FacultyCreate]
