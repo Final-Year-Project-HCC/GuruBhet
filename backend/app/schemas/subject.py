@@ -1,12 +1,11 @@
 from uuid import UUID
 from decimal import Decimal
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import field_validator
 
-from app.core.enums import StudyLevel
+from .base import SharedConfig
 
 
-class SubjectRead(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+class SubjectRead(SharedConfig):
 
     id: UUID
     name: str
@@ -21,7 +20,8 @@ class SubjectRead(BaseModel):
     # board: str | None
 
 
-class SubjectCreate(BaseModel):
+class SubjectCreate(SharedConfig):
+
     name: str
     university_id: UUID
     faculty_id: UUID
@@ -40,7 +40,8 @@ class SubjectCreate(BaseModel):
         return v
 
 
-class TeacherSubjectCreate(BaseModel):
+class TeacherSubjectCreate(SharedConfig):
+
     subject_id: UUID
     rate_per_session: Decimal
     years_of_experience: int = 0
@@ -60,8 +61,7 @@ class TeacherSubjectCreate(BaseModel):
         return v
 
 
-class TeacherSubjectRead(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+class TeacherSubjectRead(SharedConfig):
 
     teacher_id: UUID
     subject_id: UUID
@@ -74,9 +74,8 @@ class TeacherSubjectRead(BaseModel):
     subject: SubjectRead
 
 
-class TeacherSearchResult(BaseModel):
+class TeacherSearchResult(SharedConfig):
     """Returned from the student search endpoint."""
-    model_config = ConfigDict(from_attributes=True)
 
     teacher_id: UUID
     subject_id: UUID

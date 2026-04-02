@@ -1,8 +1,11 @@
 from uuid import UUID
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import field_validator
+
+from .base import SharedConfig
 
 
-class UniversityBase(BaseModel):
+class UniversityBase(SharedConfig):
+
     name: str
     description: str | None = None
 
@@ -12,14 +15,14 @@ class UniversityCreate(UniversityBase):
 
 
 class UniversityRead(UniversityBase):
-    model_config = ConfigDict(from_attributes=True)
 
     id: UUID
     created_at: str
     updated_at: str
 
 
-class FacultyBase(BaseModel):
+class FacultyBase(SharedConfig):
+
     name: str
     description: str | None = None
     number_of_semesters: int
@@ -30,7 +33,6 @@ class FacultyCreate(FacultyBase):
 
 
 class FacultyRead(FacultyBase):
-    model_config = ConfigDict(from_attributes=True)
 
     id: UUID
     university_id: UUID
@@ -38,7 +40,8 @@ class FacultyRead(FacultyBase):
     updated_at: str
 
 
-class SubjectBase(BaseModel):
+class SubjectBase(SharedConfig):
+
     name: str
     semester_number: int
     class_name: str | None = None
@@ -62,7 +65,6 @@ class SubjectCreate(SubjectBase):
 
 
 class SubjectRead(SubjectBase):
-    model_config = ConfigDict(from_attributes=True)
 
     id: UUID
     university_id: UUID

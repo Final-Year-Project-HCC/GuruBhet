@@ -1,12 +1,14 @@
 from uuid import UUID
 from datetime import datetime
-from pydantic import BaseModel, EmailStr, ConfigDict, field_validator
+from pydantic import EmailStr, field_validator
 
 from app.core.enums import UserRole, VerificationStatus
 import re
+from .base import SharedConfig
 
 
-class UserBase(BaseModel):
+class UserBase(SharedConfig):
+
     first_name: str
     middle_name: str | None = None
     last_name: str
@@ -14,7 +16,8 @@ class UserBase(BaseModel):
     phone: str | None = None
 
 
-class PasswordChangeRequest(BaseModel):
+class PasswordChangeRequest(SharedConfig):
+
     current_password: str
     new_password: str
 
@@ -31,7 +34,6 @@ class PasswordChangeRequest(BaseModel):
 
 
 class UserRead(UserBase):
-    model_config = ConfigDict(from_attributes=True)
 
     id: UUID
     role: UserRole
@@ -41,21 +43,20 @@ class UserRead(UserBase):
     created_at: datetime
 
 
-class StudentProfileRead(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+class StudentProfileRead(SharedConfig):
 
     user_id: UUID
     bio: str | None
     avatar_url: str | None
 
 
-class StudentProfileUpdate(BaseModel):
+class StudentProfileUpdate(SharedConfig):
+
     bio: str | None = None
     avatar_url: str | None = None
 
 
-class TeacherProfileRead(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+class TeacherProfileRead(SharedConfig):
 
     user_id: UUID
     bio: str | None
@@ -64,7 +65,8 @@ class TeacherProfileRead(BaseModel):
     verification_status: VerificationStatus
 
 
-class TeacherProfileUpdate(BaseModel):
+class TeacherProfileUpdate(SharedConfig):
+
     bio: str | None = None
     avatar_url: str | None = None
     headline: str | None = None

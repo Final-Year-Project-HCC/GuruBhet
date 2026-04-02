@@ -1,13 +1,14 @@
 from uuid import UUID
 from decimal import Decimal
 from datetime import datetime
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import field_validator
 
 from app.core.enums import BookingStatus, SessionStatus
+from .base import SharedConfig
 
 
-class BookingRequestCreate(BaseModel):
-    """Student creates a booking request (pending teacher approval)."""
+class BookingRequestCreate(SharedConfig):
+
     teacher_id: UUID
     subject_id: UUID
     total_sessions: int
@@ -38,13 +39,12 @@ class BookingRequestCreate(BaseModel):
         return v
 
 
-class BookingApproveRequest(BaseModel):
-    """Teacher approves a booking request."""
+class BookingApproveRequest(SharedConfig):
+
     notes: str | None = None
 
 
-class SessionRead(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+class SessionRead(SharedConfig):
 
     id: UUID
     booking_id: UUID
@@ -62,9 +62,7 @@ class SessionRead(BaseModel):
     notes: str | None
 
 
-class SessionReadWithToken(BaseModel):
-    """SessionRead with LiveKit credentials (returned from /accept)."""
-    model_config = ConfigDict(from_attributes=True)
+class SessionReadWithToken(SharedConfig):
 
     id: UUID
     booking_id: UUID
@@ -84,8 +82,7 @@ class SessionReadWithToken(BaseModel):
     livekit_url: str  # LiveKit server URL
 
 
-class BookingRead(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+class BookingRead(SharedConfig):
 
     id: UUID
     student_id: UUID
@@ -105,11 +102,11 @@ class BookingRead(BaseModel):
     sessions: list[SessionRead] = []
 
 
-class BookingCancelRequest(BaseModel):
+class BookingCancelRequest(SharedConfig):
     reason: str
 
 
-class LiveKitTokenResponse(BaseModel):
+class LiveKitTokenResponse(SharedConfig):
     """LiveKit credentials for joining a session."""
     token: str
     room_name: str

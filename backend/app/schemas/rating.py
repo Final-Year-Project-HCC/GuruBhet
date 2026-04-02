@@ -1,9 +1,12 @@
 from uuid import UUID
 from datetime import datetime
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import field_validator
+
+from .base import SharedConfig
 
 
-class RatingCreate(BaseModel):
+class RatingCreate(SharedConfig):
+
     session_id: UUID
     score: int
     comment: str | None = None
@@ -17,8 +20,7 @@ class RatingCreate(BaseModel):
         return v
 
 
-class RatingRead(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+class RatingRead(SharedConfig):
 
     id: UUID
     session_id: UUID

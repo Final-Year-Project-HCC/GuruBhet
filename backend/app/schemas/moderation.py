@@ -1,11 +1,12 @@
 from uuid import UUID
 from datetime import datetime
-from pydantic import BaseModel, ConfigDict
 
 from app.core.enums import ReportReason, ReportStatus, BanStatus
+from .base import SharedConfig
 
 
-class ReportCreate(BaseModel):
+class ReportCreate(SharedConfig):
+
     reported_user_id: UUID
     booking_id: UUID | None = None
     evidence_session_id: UUID | None = None
@@ -13,8 +14,7 @@ class ReportCreate(BaseModel):
     description: str
 
 
-class ReportRead(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+class ReportRead(SharedConfig):
 
     id: UUID
     reporter_id: UUID
@@ -26,12 +26,14 @@ class ReportRead(BaseModel):
     created_at: datetime
 
 
-class ReportResolve(BaseModel):
+class ReportResolve(SharedConfig):
+
     status: ReportStatus
     resolution_notes: str
 
 
-class BanCreate(BaseModel):
+class BanCreate(SharedConfig):
+
     user_id: UUID
     report_id: UUID | None = None
     reason: str
@@ -40,8 +42,7 @@ class BanCreate(BaseModel):
     evidence_recording_url: str | None = None
 
 
-class BanRead(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+class BanRead(SharedConfig):
 
     id: UUID
     user_id: UUID

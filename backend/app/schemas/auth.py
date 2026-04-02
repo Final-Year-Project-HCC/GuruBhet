@@ -1,8 +1,11 @@
-from pydantic import BaseModel, EmailStr, field_validator, model_validator
+from pydantic import EmailStr, field_validator
 import re
 
+from .base import SharedConfig
 
-class RegisterRequest(BaseModel):
+
+class RegisterRequest(SharedConfig):
+
     first_name: str
     middle_name: str | None = None
     last_name: str
@@ -30,12 +33,14 @@ class RegisterRequest(BaseModel):
         return v
 
 
-class LoginRequest(BaseModel):
+class LoginRequest(SharedConfig):
+
     email: EmailStr
     password: str
 
 
 
 
-class RefreshRequest(BaseModel):
+class RefreshRequest(SharedConfig):
+
     refresh_token: str

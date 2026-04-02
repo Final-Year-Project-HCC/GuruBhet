@@ -1,13 +1,13 @@
 from uuid import UUID
 from decimal import Decimal
 from datetime import datetime
-from pydantic import BaseModel, ConfigDict
 
 from app.core.enums import TransactionType, TransactionReason, PayoutStatus, EsewaCallbackStatus
+from .base import SharedConfig
 
 
-class EsewaPaymentInitResponse(BaseModel):
-    """Returned to frontend to redirect the user to eSewa."""
+class EsewaPaymentInitResponse(SharedConfig):
+
     product_code: str
     amount: Decimal
     tax_amount: Decimal
@@ -19,8 +19,8 @@ class EsewaPaymentInitResponse(BaseModel):
     signature: str
 
 
-class EsewaCallbackRequest(BaseModel):
-    """eSewa POSTs this to our callback URL after payment."""
+class EsewaCallbackRequest(SharedConfig):
+
     transaction_code: str
     status: str
     total_amount: str
@@ -30,8 +30,7 @@ class EsewaCallbackRequest(BaseModel):
     signature: str
 
 
-class TransactionRead(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+class TransactionRead(SharedConfig):
 
     id: UUID
     user_id: UUID
@@ -44,8 +43,7 @@ class TransactionRead(BaseModel):
     created_at: datetime
 
 
-class PayoutRead(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+class PayoutRead(SharedConfig):
 
     id: UUID
     teacher_id: UUID
