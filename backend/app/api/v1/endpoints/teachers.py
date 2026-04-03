@@ -3,11 +3,12 @@ from decimal import Decimal
 
 from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import select
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, selectinload
 
 from app.core.dependencies import DbSession, CurrentUser
 from app.core.enums import UserRole
 from app.models.teacher import TeacherProfile
+from app.models.student import StudentProfile
 from app.models.booking import Booking
 from app.repositories.teacher_subject_repo import TeacherSubjectRepository
 from app.schemas.user import TeacherProfileRead, TeacherProfileUpdate
@@ -127,13 +128,17 @@ async def update_my_profile(
 
 @router.get("/me/bookings", response_model=list[BookingRead])
 async def get_my_bookings(current_user: CurrentUser, db: DbSession):
-    """Return all bookings for the logged-in teacher."""
+    """Return all bookings for the logged-in teacher with student and subject details."""
     if current_user.role != UserRole.TEACHER:
         raise HTTPException(status_code=403, detail="Only teachers can access this")
 
     result = await db.execute(
         select(Booking)
-        .options(joinedload(Booking.sessions))
+        .options(
+            joinedload(Booking.sessions),
+            selectinload(Booking.student).joinedload(StudentProfile.user),
+            selectinload(Booking.subject)
+        )
         .where(Booking.teacher_id == current_user.id)
         .order_by(Booking.created_at.desc())
     )

@@ -5,6 +5,7 @@ from pydantic import field_validator, computed_field
 
 from app.core.enums import BookingStatus, SessionStatus
 from .base import SharedConfig
+from .subject import SubjectRead
 
 
 class BookingRequestCreate(SharedConfig):
@@ -98,12 +99,22 @@ class SessionReadWithToken(SharedConfig):
         return None
 
 
+class StudentInBooking(SharedConfig):
+    """Minimal student details included in booking responses."""
+    id: UUID
+    first_name: str
+    last_name: str
+    avatar_url: str | None = None
+
+
 class BookingRead(SharedConfig):
 
     id: UUID
     student_id: UUID
+    student: StudentInBooking
     teacher_id: UUID
     subject_id: UUID
+    subject: SubjectRead
     total_sessions: int
     completed_sessions: int
     cancelled_sessions: int
