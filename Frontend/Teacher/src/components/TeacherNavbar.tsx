@@ -3,10 +3,27 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import apiClient from "@/lib/api";
+import { Booking } from "@/lib/types";
 
 export default function StudentNavbar() {
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
+
+  // Fetch pending approval count
+  const { data: bookings = [] } = useQuery<Booking[]>({
+    queryKey: ["teacherBookings"],
+    queryFn: async () => {
+      const { data } = await apiClient.get("/teachers/me/bookings");
+      return data;
+    },
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
+
+  const pendingApprovalCount = bookings.filter(
+    (b) => b.status === "PENDING_APPROVAL"
+  ).length;
 
   useEffect(() => {
     function onClickOutside(e: MouseEvent) {
@@ -31,7 +48,7 @@ export default function StudentNavbar() {
         localStorage.removeItem("token");
         window.location.href = "/login";
       }
-    } catch (e) {
+    } catch {
       // no-op
     }
   }
@@ -63,6 +80,17 @@ export default function StudentNavbar() {
             className="rounded-md px-3 py-2 text-base text-foreground hover:bg-muted"
           >
             Sessions
+          </Link>
+          <Link
+            href="/bookings"
+            className="relative rounded-md px-3 py-2 text-base text-foreground hover:bg-muted"
+          >
+            Bookings
+            {pendingApprovalCount > 0 && (
+              <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white">
+                {pendingApprovalCount}
+              </span>
+            )}
           </Link>
           <Link
             href="/earnings"

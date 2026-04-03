@@ -29,7 +29,7 @@ export default function JoinRoomPage() {
   if (isJoined) {
   return (
     /* Full screen overlay on top of everything */
-    <div className="fixed inset-0 z-[9999] flex flex-col bg-black">
+    <div className="fixed inset-0 z-9999 flex flex-col bg-black">
       {/* Leave button */}
       <div className="absolute top-4 right-4 z-50">
         <button

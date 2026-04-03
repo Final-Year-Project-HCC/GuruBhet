@@ -2,11 +2,11 @@
 import { Teacher, Session, SubjectLevel } from './types';
 
 // export const ACTIVE_SESSIONS: Session[] = [
-//   { id: '1', teacherName: 'Sarah Jenkins', subject: 'Advanced Calculus', subjectLevel: 'Bachelor', status: 'Live', duration_minutes: 60 },
-//   { id: '2', teacherName: 'Dr. Marcus Thorne', subject: 'Organic Chemistry', subjectLevel: 'Bachelor', status: 'Active', duration_minutes: 90 },
-//   { id: '3', teacherName: 'Elena Rodriguez', subject: 'UI/UX Design', subjectLevel: 'Diploma', status: 'Live', duration_minutes: 45 },
-//   { id: '4', teacherName: 'Kevin Wang', subject: 'Data Structures', subjectLevel: 'Bachelor', status: 'Active', duration_minutes: 60 },
-//   { id: '5', teacherName: 'Chloe Baker', subject: 'English Literature', subjectLevel: '11-12', status: 'Live', duration_minutes: 60 },
+//   { id: '1', teacherName: 'Sarah Jenkins', subject: 'Advanced Calculus', subjectLevel: 'Bachelor', status: 'Live', durationMinutes: 60 },
+//   { id: '2', teacherName: 'Dr. Marcus Thorne', subject: 'Organic Chemistry', subjectLevel: 'Bachelor', status: 'Active', durationMinutes: 90 },
+//   { id: '3', teacherName: 'Elena Rodriguez', subject: 'UI/UX Design', subjectLevel: 'Diploma', status: 'Live', durationMinutes: 45 },
+//   { id: '4', teacherName: 'Kevin Wang', subject: 'Data Structures', subjectLevel: 'Bachelor', status: 'Active', durationMinutes: 60 },
+//   { id: '5', teacherName: 'Chloe Baker', subject: 'English Literature', subjectLevel: '11-12', status: 'Live', durationMinutes: 60 },
 // ];
 export const ACTIVE_SESSIONS: Session[] = [
   { 
@@ -15,10 +15,10 @@ export const ACTIVE_SESSIONS: Session[] = [
     subject: 'Advanced Calculus', 
     subjectLevel: 'Bachelor', 
     status: 'Live', 
-    duration_minutes: 60,
-    completed_sessions: 8,
-    total_sessions: 12,
-    next_session_time: 'Starts in 15 mins'
+    durationMinutes: 60,
+    completedSessions: 8,
+    totalSessions: 12,
+    nextSessionTime: 'Starts in 15 mins'
   },
   { 
     id: '2', 
@@ -26,10 +26,10 @@ export const ACTIVE_SESSIONS: Session[] = [
     subject: 'Organic Chemistry', 
     subjectLevel: 'Bachelor', 
     status: 'Scheduled', 
-    duration_minutes: 90,
-    completed_sessions: 3,
-    total_sessions: 20,
-    next_session_time: 'Tomorrow, 4:00 PM'
+    durationMinutes: 90,
+    completedSessions: 3,
+    totalSessions: 20,
+    nextSessionTime: 'Tomorrow, 4:00 PM'
   },
   { 
     id: '3', 
@@ -37,10 +37,10 @@ export const ACTIVE_SESSIONS: Session[] = [
     subject: 'UI/UX Design', 
     subjectLevel: 'Diploma', 
     status: 'Active', 
-    duration_minutes: 45,
-    completed_sessions: 15,
-    total_sessions: 15,
-    next_session_time: 'Review Pending'
+    durationMinutes: 45,
+    completedSessions: 15,
+    totalSessions: 15,
+    nextSessionTime: 'Review Pending'
   },
   { 
     id: '4', 
@@ -48,10 +48,10 @@ export const ACTIVE_SESSIONS: Session[] = [
     subject: 'Data Structures', 
     subjectLevel: 'Bachelor', 
     status: 'Scheduled', 
-    duration_minutes: 60,
-    completed_sessions: 5,
-    total_sessions: 10,
-    next_session_time: 'Wednesday, 10:00 AM'
+    durationMinutes: 60,
+    completedSessions: 5,
+    totalSessions: 10,
+    nextSessionTime: 'Wednesday, 10:00 AM'
   },
 ];
 
@@ -62,11 +62,11 @@ export const COMPLETED_SESSIONS: Session[] = [
     subject: 'Quantum Mechanics Basics',
     subjectLevel: 'Bachelor',
     status: 'Completed',
-    duration_minutes: 60,
-    completed_sessions: 10,
-    total_sessions: 10,
-    completion_date: 'Oct 12, 2023',
-    rating_given: 5
+    durationMinutes: 60,
+    completedSessions: 10,
+    totalSessions: 10,
+    completionDate: 'Oct 12, 2023',
+    ratingGiven: 5
   },
   {
     id: 'c2',
@@ -74,11 +74,11 @@ export const COMPLETED_SESSIONS: Session[] = [
     subject: 'Intro to Mandarin',
     subjectLevel: '10',
     status: 'Completed',
-    duration_minutes: 45,
-    completed_sessions: 5,
-    total_sessions: 5,
-    completion_date: 'Sept 28, 2023',
-    rating_given: 4
+    durationMinutes: 45,
+    completedSessions: 5,
+    totalSessions: 5,
+    completionDate: 'Sept 28, 2023',
+    ratingGiven: 4
   },
   {
     id: 'c3',
@@ -86,11 +86,11 @@ export const COMPLETED_SESSIONS: Session[] = [
     subject: 'Statistical Physics',
     subjectLevel: 'Master',
     status: 'Completed',
-    duration_minutes: 90,
-    completed_sessions: 12,
-    total_sessions: 12,
-    completion_date: 'Aug 15, 2023',
-    rating_given: 5
+    durationMinutes: 90,
+    completedSessions: 12,
+    totalSessions: 12,
+    completionDate: 'Aug 15, 2023',
+    ratingGiven: 5
   }
 ];
 
@@ -103,9 +103,9 @@ export const TRENDING_TEACHERS: Teacher[] = [
     image: 'https://picsum.photos/seed/james/400/400', 
     rating: 4.9, 
     popularity: 'Top Rated', 
-    rate_per_session: 1200, 
-    level_expertise: ['Bachelor', 'Master'],
-    verification_status: 'APPROVED'
+    ratePerSession: 1200, 
+    levelExpertise: ['Bachelor', 'Master'],
+    verificationStatus: 'APPROVED'
   },
   { 
     id: 't2', 
@@ -114,9 +114,9 @@ export const TRENDING_TEACHERS: Teacher[] = [
     image: 'https://picsum.photos/seed/amara/400/400', 
     rating: 4.8, 
     popularity: 'Rising Star', 
-    rate_per_session: 850, 
-    level_expertise: ['11-12', 'Bachelor'],
-    verification_status: 'APPROVED'
+    ratePerSession: 850, 
+    levelExpertise: ['11-12', 'Bachelor'],
+    verificationStatus: 'APPROVED'
   },
   { 
     id: 't3', 
@@ -125,9 +125,9 @@ export const TRENDING_TEACHERS: Teacher[] = [
     image: 'https://picsum.photos/seed/liam/400/400', 
     rating: 5.0, 
     popularity: 'Bestseller', 
-    rate_per_session: 1500, 
-    level_expertise: ['Bachelor', 'Master'],
-    verification_status: 'APPROVED'
+    ratePerSession: 1500, 
+    levelExpertise: ['Bachelor', 'Master'],
+    verificationStatus: 'APPROVED'
   },
   { 
     id: 't4', 
@@ -136,9 +136,9 @@ export const TRENDING_TEACHERS: Teacher[] = [
     image: 'https://picsum.photos/seed/sophia/400/400', 
     rating: 4.7, 
     popularity: 'Trending', 
-    rate_per_session: 950, 
-    level_expertise: ['10', '11-12', 'Diploma'],
-    verification_status: 'APPROVED'
+    ratePerSession: 950, 
+    levelExpertise: ['10', '11-12', 'Diploma'],
+    verificationStatus: 'APPROVED'
   },
 ];
 
@@ -149,9 +149,9 @@ export const RECOMMENDED_TEACHERS: Teacher[] = [
     subject: 'Computer Science', 
     tagline: 'Ex-Google engineer teaching Python & Algorithms.', 
     image: 'https://picsum.photos/seed/emily/400/400',
-    rate_per_session: 1100,
-    level_expertise: ['Bachelor'],
-    verification_status: 'APPROVED'
+    ratePerSession: 1100,
+    levelExpertise: ['Bachelor'],
+    verificationStatus: 'APPROVED'
   },
   { 
     id: 'r2', 
@@ -159,9 +159,9 @@ export const RECOMMENDED_TEACHERS: Teacher[] = [
     subject: 'Graphic Design', 
     tagline: 'Master the Adobe Suite with a professional artist.', 
     image: 'https://picsum.photos/seed/david/400/400',
-    rate_per_session: 700,
-    level_expertise: ['Diploma'],
-    verification_status: 'APPROVED'
+    ratePerSession: 700,
+    levelExpertise: ['Diploma'],
+    verificationStatus: 'APPROVED'
   },
   { 
     id: 'r3', 
@@ -169,9 +169,9 @@ export const RECOMMENDED_TEACHERS: Teacher[] = [
     subject: 'Italian Language', 
     tagline: 'Native speaker with 10 years of teaching experience.', 
     image: 'https://picsum.photos/seed/isabella/400/400',
-    rate_per_session: 900,
-    level_expertise: ['10', '11-12'],
-    verification_status: 'APPROVED'
+    ratePerSession: 900,
+    levelExpertise: ['10', '11-12'],
+    verificationStatus: 'APPROVED'
   },
   { 
     id: 'r4', 
@@ -179,9 +179,9 @@ export const RECOMMENDED_TEACHERS: Teacher[] = [
     subject: 'Applied Physics', 
     tagline: 'Simplifying complex quantum mechanics for everyone.', 
     image: 'https://picsum.photos/seed/arpan/400/400',
-    rate_per_session: 1400,
-    level_expertise: ['Bachelor', 'Master'],
-    verification_status: 'APPROVED'
+    ratePerSession: 1400,
+    levelExpertise: ['Bachelor', 'Master'],
+    verificationStatus: 'APPROVED'
   },
 ];
 

@@ -6,14 +6,14 @@ import { ACTIVE_SESSIONS, COMPLETED_SESSIONS } from '../constants';
 const SessionsPage: React.FC = () => {
   const activeStats = {
     total: ACTIVE_SESSIONS.length,
-    remaining: ACTIVE_SESSIONS.reduce((acc, s) => acc + ((s.total_sessions || 0) - (s.completed_sessions || 0)), 0),
+    remaining: ACTIVE_SESSIONS.reduce((acc, s) => acc + ((s.totalSessions || 0) - (s.completedSessions || 0)), 0),
     liveCount: ACTIVE_SESSIONS.filter(s => s.status === 'Live').length
   };
 
   const completedStats = {
     total: COMPLETED_SESSIONS.length,
-    totalHours: COMPLETED_SESSIONS.reduce((acc, s) => acc + (s.duration_minutes * (s.completed_sessions || 1)) / 60, 0),
-    avgRating: (COMPLETED_SESSIONS.reduce((acc, s) => acc + (s.rating_given || 0), 0) / COMPLETED_SESSIONS.length).toFixed(1)
+    totalHours: COMPLETED_SESSIONS.reduce((acc, s) => acc + (s.durationMinutes * (s.completedSessions || 1)) / 60, 0),
+    avgRating: (COMPLETED_SESSIONS.reduce((acc, s) => acc + (s.ratingGiven || 0), 0) / COMPLETED_SESSIONS.length).toFixed(1)
   };
 
   return (
@@ -51,8 +51,8 @@ const SessionsPage: React.FC = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {ACTIVE_SESSIONS.map((session) => {
-              const progress = session.completed_sessions && session.total_sessions 
-                ? Math.round((session.completed_sessions / session.total_sessions) * 100) 
+              const progress = session.completedSessions && session.totalSessions 
+                ? Math.round((session.completedSessions / session.totalSessions) * 100) 
                 : 0;
 
               return (
@@ -67,24 +67,24 @@ const SessionsPage: React.FC = () => {
                         {session.status === 'Live' ? 'Session In Progress' : session.status}
                       </span>
                     </div>
-                    {session.next_session_time && (
+                    {session.nextSessionTime && (
                       <span className="text-[10px] font-bold text-muted-foreground bg-muted px-3 py-1.5 rounded-xl uppercase">
-                        {session.next_session_time}
+                        {session.nextSessionTime}
                       </span>
                     )}
                   </div>
 
                   <div className="mb-6">
                     <h3 className="font-black text-2xl leading-tight mb-2 group-hover:text-primary transition-colors">
-                      {session.subject}
+                      {typeof session.subject === 'string' ? session.subject : session.subject?.name}
                     </h3>
                     <div className="flex items-center gap-3">
                       <Image
-                        src={`https://picsum.photos/seed/${session.teacherName}/48/48`}
+                        src={`https://picsum.photos/seed/${session.teacherName || 'teacher'}/48/48`}
                         width={48}
                         height={48}
                         className="w-8 h-8 rounded-full grayscale group-hover:grayscale-0 transition-all border border-border shadow-sm"
-                        alt={session.teacherName}
+                        alt={session.teacherName || 'Teacher'}
                       />
                       <p className="text-sm font-bold text-muted-foreground">Taught by {session.teacherName}</p>
                     </div>
@@ -95,7 +95,7 @@ const SessionsPage: React.FC = () => {
                       <div className="flex flex-col">
                         <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Course Progress</span>
                         <span className="text-lg font-black text-primary">
-                          {session.completed_sessions} <span className="text-muted-foreground text-sm font-bold">/ {session.total_sessions} Sessions</span>
+                          {session.completedSessions} <span className="text-muted-foreground text-sm font-bold">/ {session.totalSessions} Sessions</span>
                         </span>
                       </div>
                       <span className="text-lg font-black text-primary">{progress}%</span>
@@ -165,35 +165,35 @@ const SessionsPage: React.FC = () => {
                     <tr key={session.id} className="hover:bg-subtle/50 transition-colors">
                       <td className="px-8 py-6">
                         <div>
-                          <p className="font-black text-primary">{session.subject}</p>
+                          <p className="font-black text-primary">{typeof session.subject === 'string' ? session.subject : session.subject?.name}</p>
                           <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-tighter">{session.subjectLevel} Level</p>
                         </div>
                       </td>
                       <td className="px-8 py-6">
                         <div className="flex items-center gap-2">
                           <Image
-                            src={`https://picsum.photos/seed/${session.teacherName}/32/32`}
+                            src={`https://picsum.photos/seed/${session.teacherName || 'teacher'}/32/32`}
                             width={32}
                             height={32}
                             className="w-6 h-6 rounded-full border border-border"
-                            alt={session.teacherName}
+                            alt={session.teacherName || 'Teacher'}
                           />
                           <span className="text-sm font-bold text-muted-foreground">{session.teacherName}</span>
                         </div>
                       </td>
                       <td className="px-8 py-6">
-                        <span className="text-sm font-black text-primary">{session.total_sessions} Sessions</span>
-                        <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tighter">{session.duration_minutes}m / each</p>
+                        <span className="text-sm font-black text-primary">{session.totalSessions} Sessions</span>
+                        <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tighter">{session.durationMinutes}m / each</p>
                       </td>
                       <td className="px-8 py-6">
-                        <span className="text-sm font-bold text-muted-foreground">{session.completion_date}</span>
+                        <span className="text-sm font-bold text-muted-foreground">{session.completionDate}</span>
                       </td>
                       <td className="px-8 py-6">
                         <div className="flex gap-0.5">
                           {[...Array(5)].map((_, i) => (
                             <svg 
                               key={i} 
-                              className={`w-3.5 h-3.5 ${(session.rating_given || 0) > i ? 'text-warning' : 'text-subtle-foreground/30'}`} 
+                              className={`w-3.5 h-3.5 ${(session.ratingGiven || 0) > i ? 'text-warning' : 'text-subtle-foreground/30'}`} 
                               fill="currentColor" 
                               viewBox="0 0 20 20"
                             >

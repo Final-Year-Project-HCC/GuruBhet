@@ -12,8 +12,8 @@ const ActiveSessions: React.FC = () => {
         subtitle="Manage your current learning tracks and upcoming 1-to-1 classes."
       >
         {ACTIVE_SESSIONS.map((session) => {
-          const progress = session.completed_sessions && session.total_sessions 
-            ? Math.round((session.completed_sessions / session.total_sessions) * 100) 
+          const progress = session.completedSessions && session.totalSessions 
+            ? Math.round((session.completedSessions / session.totalSessions) * 100) 
             : 0;
 
           return (
@@ -29,9 +29,9 @@ const ActiveSessions: React.FC = () => {
                     {session.status === 'Live' ? 'Ongoing Session' : 'Enrolled Course'}
                   </span>
                 </div>
-                {session.next_session_time && (
+                {session.nextSessionTime && (
                   <span className="text-[10px] font-bold text-muted-foreground bg-muted px-2 py-1 rounded-md uppercase tracking-tight">
-                    {session.next_session_time}
+                    {session.nextSessionTime}
                   </span>
                 )}
               </div>
@@ -39,15 +39,15 @@ const ActiveSessions: React.FC = () => {
               {/* Course Info */}
               <div className="mb-4">
                 <h3 className="font-extrabold text-xl leading-tight mb-1 group-hover:text-primary transition-colors">
-                  {session.subject}
+                  {typeof session.subject === 'string' ? session.subject : session.subject?.name}
                 </h3>
                 <div className="flex items-center gap-2">
                   <Image
-                    src={`https://picsum.photos/seed/${session.teacherName}/32/32`}
+                    src={`https://picsum.photos/seed/${session.teacherName || 'teacher'}/32/32`}
                     width={32}
                     height={32}
                     className="w-6 h-6 rounded-full grayscale hover:grayscale-0 transition-all"
-                    alt={session.teacherName}
+                    alt={session.teacherName || 'Teacher'}
                   />
                   <p className="text-xs font-semibold text-muted-foreground">with {session.teacherName}</p>
                 </div>
@@ -59,7 +59,7 @@ const ActiveSessions: React.FC = () => {
                   <div>
                     <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-0.5">Progress</p>
                     <p className="text-sm font-black text-foreground">
-                      {session.completed_sessions} / {session.total_sessions} <span className="text-muted-foreground font-medium text-xs">Sessions</span>
+                      {session.completedSessions} / {session.totalSessions} <span className="text-muted-foreground font-medium text-xs">Sessions</span>
                     </p>
                   </div>
                   <span className="text-sm font-black text-primary">{progress}%</span>

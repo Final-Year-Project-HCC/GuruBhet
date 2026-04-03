@@ -13,7 +13,6 @@ const TeacherDetailPage: React.FC<TeacherDetailPageProps> = ({ teacherId, onBack
   
   const allTeachers = [...TRENDING_TEACHERS, ...RECOMMENDED_TEACHERS];
   const teacher = allTeachers.find(t => t.id === teacherId);
-  console.log("TeacherDetailPage received teacherId:", teacherId);
 
   if (!teacher) {
     return (
@@ -46,7 +45,7 @@ const TeacherDetailPage: React.FC<TeacherDetailPageProps> = ({ teacherId, onBack
               <div className="aspect-square relative overflow-hidden">
                 <Image src={teacher.image} fill sizes="(max-width: 1024px) 100vw, 33vw" className="w-full h-full object-cover" alt={teacher.name} />
                 <div className="absolute top-6 left-6">
-                  {teacher.verification_status === 'APPROVED' && (
+                  {teacher.verificationStatus === 'APPROVED' && (
                     <div className="bg-accent text-accent-foreground p-2 rounded-full shadow-lg border border-background/20">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                         <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
@@ -98,7 +97,7 @@ const TeacherDetailPage: React.FC<TeacherDetailPageProps> = ({ teacherId, onBack
               <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-4">Pricing Details</h4>
               <div className="flex justify-between items-center">
                 <span className="font-bold">Standard Hourly Rate</span>
-                <span className="text-xl font-black text-primary tracking-tighter">NPR {teacher.rate_per_session}</span>
+                <span className="text-xl font-black text-primary tracking-tighter">NPR {teacher.ratePerSession}</span>
               </div>
               <p className="text-[10px] text-muted-foreground mt-2 italic">*Discount available for 10+ sessions packages</p>
             </div>
@@ -123,7 +122,7 @@ const TeacherDetailPage: React.FC<TeacherDetailPageProps> = ({ teacherId, onBack
             >
               <h2 className="text-xl font-black mb-6 uppercase tracking-widest text-muted-foreground">Expertise & Levels</h2>
               <div className="flex flex-wrap gap-3">
-                {teacher.level_expertise.map((level) => (
+                {teacher.levelExpertise.map((level) => (
                   <div key={level} className="bg-surface border border-border px-6 py-4 rounded-2xl flex items-center gap-3">
                     <div className="w-2 h-2 rounded-full bg-primary"></div>
                     <div>
