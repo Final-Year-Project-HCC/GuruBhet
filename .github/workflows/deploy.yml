@@ -3,30 +3,50 @@ name: Build and Push GuruBhet
 on:
   push:
     branches: ["main"]
+    paths:
+      - "backend/**"
+      - "Frontend/**"
+      - ".github/workflows/deploy.yml"
 
 jobs:
-  build-and-push:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      student: ${{ steps.filter.outputs.student }}
+      teacher: ${{ steps.filter.outputs.teacher }}
+      staff: ${{ steps.filter.outputs.staff }}
+      workflow: ${{ steps.filter.outputs.workflow }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend: 'backend/**'
+            student: 'Frontend/Student/**'
+            teacher: 'Frontend/Teacher/**'
+            staff: 'Frontend/Staff/**'
+            workflow: '.github/workflows/deploy.yml'
+
+  build-backend:
+    needs: changes
+    if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.workflow == 'true' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Log in to GitHub Container Registry
+      - uses: actions/checkout@v4
+      - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GH_PAT }}
-
       - name: Set lowercase repository owner
         id: lowercase
         run: echo "owner=$(echo ${{ github.repository_owner }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
-
-      # ─── 1. BACKEND ───
       - name: Build and Push API
         uses: docker/build-push-action@v5
         with:
@@ -34,7 +54,24 @@ jobs:
           push: true
           tags: ghcr.io/${{ steps.lowercase.outputs.owner }}/gurubhet-api:latest
 
-      # ─── 2. STUDENT FRONTEND ───
+  build-student:
+    needs: changes
+    if: ${{ needs.changes.outputs.student == 'true' || needs.changes.outputs.workflow == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GH_PAT }}
+      - name: Set lowercase repository owner
+        id: lowercase
+        run: echo "owner=$(echo ${{ github.repository_owner }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
       - name: Build and Push Student App
         uses: docker/build-push-action@v5
         with:
@@ -42,7 +79,24 @@ jobs:
           push: true
           tags: ghcr.io/${{ steps.lowercase.outputs.owner }}/gurubhet-student:latest
 
-      # ─── 3. TEACHER FRONTEND ───
+  build-teacher:
+    needs: changes
+    if: ${{ needs.changes.outputs.teacher == 'true' || needs.changes.outputs.workflow == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GH_PAT }}
+      - name: Set lowercase repository owner
+        id: lowercase
+        run: echo "owner=$(echo ${{ github.repository_owner }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
       - name: Build and Push Teacher App
         uses: docker/build-push-action@v5
         with:
@@ -50,7 +104,24 @@ jobs:
           push: true
           tags: ghcr.io/${{ steps.lowercase.outputs.owner }}/gurubhet-teacher:latest
 
-      # ─── 4. STAFF FRONTEND ───
+  build-staff:
+    needs: changes
+    if: ${{ needs.changes.outputs.staff == 'true' || needs.changes.outputs.workflow == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GH_PAT }}
+      - name: Set lowercase repository owner
+        id: lowercase
+        run: echo "owner=$(echo ${{ github.repository_owner }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
       - name: Build and Push Staff App
         uses: docker/build-push-action@v5
         with:

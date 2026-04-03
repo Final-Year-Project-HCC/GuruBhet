@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "GuruBhet"
     VERSION: str = "0.1.0"
     API_V1_STR: str = "/api/v1"
-    ENVIRONMENT: str = "development"
+    ENVIRONMENT: str
 
     # ── Security ─────────────────────────────────────────────────────
     SECRET_KEY: str
