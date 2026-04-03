@@ -75,8 +75,8 @@ async def login(body: LoginRequest, db: DbSession, response: Response):
         "access_token",
         access,
         httponly=True,
-        samesite="lax",
-        secure=(settings.ENVIRONMENT == "production"),
+        samesite=settings.ENVIRONMENT=="production"?"lax":"none",
+        secure=True,
         max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         path="/",
     )
@@ -84,8 +84,8 @@ async def login(body: LoginRequest, db: DbSession, response: Response):
         "refresh_token",
         refresh,
         httponly=True,
-        samesite="lax",
-        secure=(settings.ENVIRONMENT == "production"),
+       samesite=settings.ENVIRONMENT=="production"?"lax":"none",
+        secure=True,
         max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
         path="/api/v1/auth",
     )
@@ -129,8 +129,8 @@ async def refresh(db: DbSession, response: Response, x_refresh_token: str = Head
         "access_token",
         access,
         httponly=True,
-        samesite="lax",
-        secure=(settings.ENVIRONMENT == "production"),
+       samesite=settings.ENVIRONMENT=="production"?"lax":"none",
+        secure=True,
         max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         path="/",
     )
@@ -138,8 +138,8 @@ async def refresh(db: DbSession, response: Response, x_refresh_token: str = Head
         "refresh_token",
         refresh,
         httponly=True,
-        samesite="lax",
-        secure=(settings.ENVIRONMENT == "production"),
+     samesite=settings.ENVIRONMENT=="production"?"lax":"none",
+        secure=True,
         max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
         path="/api/v1/auth",
     )
