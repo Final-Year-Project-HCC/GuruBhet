@@ -41,12 +41,12 @@ class Settings(BaseSettings):
     # This list allows your Local Mac Frontend to talk to your Azure VPS Backend
     ALLOWED_ORIGINS: List[str] = [
         # --- LOCAL DEVELOPMENT (MacBook M4) ---
-        "http://localhost:3000",      # Student Local
-        "http://localhost:3001",      # Teacher Local
-        "http://localhost:3002",      # Staff Local
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:3001",
-        "http://127.0.0.1:3002",
+        "https://localhost:3000",      # Student Local
+        "https://localhost:3001",      # Teacher Local
+        "https://localhost:3002",      # Staff Local
+        "https://127.0.0.1:3000",
+        "https://127.0.0.1:3001",
+        "https://127.0.0.1:3002",
 
         # --- PRODUCTION (Azure VPS) ---
         "https://gurubhet.tech",
