@@ -52,7 +52,7 @@ const BookingCard = ({ booking, statusColor, statusLabel }: BookingCardProps) =>
     },
   });
 
-  const studentName = `${booking.student.firstName} ${booking.student.lastName}`;
+  const studentName = booking.student ? `${booking.student.firstName} ${booking.student.lastName}` : 'Unknown Student';
   const formattedDate = new Date(booking.createdAt).toLocaleDateString("en-IN");
 
   const handleApprove = () => {
@@ -76,7 +76,7 @@ const BookingCard = ({ booking, statusColor, statusLabel }: BookingCardProps) =>
           <div className="flex gap-3 flex-1">
             {/* Student Avatar */}
             <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full bg-linear-to-br from-blue-400 to-blue-600">
-              {booking.student.profilePictureUrl ? (
+            {booking.student?.profilePictureUrl ? (
                 <Image
                   src={booking.student.profilePictureUrl}
                   alt={studentName}
@@ -86,7 +86,7 @@ const BookingCard = ({ booking, statusColor, statusLabel }: BookingCardProps) =>
                 />
               ) : (
                 <div className="flex h-full w-full items-center justify-center text-sm font-bold text-white">
-                  {booking.student.firstName[0]}
+                  {booking.student?.firstName?.[0] || 'S'}
                 </div>
               )}
             </div>
@@ -95,7 +95,7 @@ const BookingCard = ({ booking, statusColor, statusLabel }: BookingCardProps) =>
             <div className="flex-1 min-w-0">
               <p className="font-bold text-foreground truncate">{studentName}</p>
               <p className="text-sm text-muted-foreground truncate">
-                {booking.subject.name}
+                {booking.subject?.name || 'Unknown Subject'}
               </p>
             </div>
           </div>

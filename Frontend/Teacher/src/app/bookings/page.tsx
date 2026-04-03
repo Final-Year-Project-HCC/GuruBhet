@@ -34,7 +34,7 @@ export default function BookingsPage() {
 
   // Search filter for history tab
   const filteredHistory = historyBookings.filter((b) =>
-    `${b.student.firstName} ${b.student.lastName}`
+    `${b.student?.firstName || ''} ${b.student?.lastName || ''}`
       .toLowerCase()
       .includes(searchQuery.toLowerCase())
   );
