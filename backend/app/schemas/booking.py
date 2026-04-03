@@ -1,7 +1,7 @@
 from uuid import UUID
 from decimal import Decimal
 from datetime import datetime
-from pydantic import field_validator
+from pydantic import field_validator, computed_field
 
 from app.core.enums import BookingStatus, SessionStatus
 from .base import SharedConfig
@@ -57,9 +57,17 @@ class SessionRead(SharedConfig):
     actual_end_at: datetime | None
     teacher_joined_at: datetime | None
     student_joined_at: datetime | None
-    duration_seconds: int | None
     recording_url: str | None
     notes: str | None
+
+    @computed_field  # type: ignore[misc]
+    @property
+    def duration_seconds(self) -> int | None:
+        """Calculate duration in seconds from actual start and end times."""
+        if self.actual_start_at and self.actual_end_at:
+            delta = self.actual_end_at - self.actual_start_at
+            return int(delta.total_seconds())
+        return None
 
 
 class SessionReadWithToken(SharedConfig):
@@ -75,11 +83,19 @@ class SessionReadWithToken(SharedConfig):
     actual_end_at: datetime | None
     teacher_joined_at: datetime | None
     student_joined_at: datetime | None
-    duration_seconds: int | None
     recording_url: str | None
     notes: str | None
     token: str  # LiveKit JWT token
     livekit_url: str  # LiveKit server URL
+
+    @computed_field  # type: ignore[misc]
+    @property
+    def duration_seconds(self) -> int | None:
+        """Calculate duration in seconds from actual start and end times."""
+        if self.actual_start_at and self.actual_end_at:
+            delta = self.actual_end_at - self.actual_start_at
+            return int(delta.total_seconds())
+        return None
 
 
 class BookingRead(SharedConfig):
