@@ -43,7 +43,6 @@ class BookingStatus(str, Enum):
     COMPLETED = "COMPLETED"                # all sessions done
     CANCELLED_BY_STUDENT = "CANCELLED_BY_STUDENT"
     CANCELLED_BY_TEACHER = "CANCELLED_BY_TEACHER"
-    DISPUTED = "DISPUTED"
 
 
 class SessionStatus(str, Enum):
