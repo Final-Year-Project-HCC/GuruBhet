@@ -135,14 +135,14 @@ async def get_my_bookings(current_user: CurrentUser, db: DbSession):
     result = await db.execute(
         select(Booking)
         .options(
-            joinedload(Booking.sessions),
-            selectinload(Booking.student).joinedload(StudentProfile.user),
+            selectinload(Booking.sessions),
+            selectinload(Booking.student).selectinload(StudentProfile.user),
             selectinload(Booking.subject)
         )
         .where(Booking.teacher_id == current_user.id)
         .order_by(Booking.created_at.desc())
     )
-    return list(result.scalars().unique().all())
+    return list(result.scalars().all())
 
 
 # ── Subject management ────────────────────────────────────────────────────────

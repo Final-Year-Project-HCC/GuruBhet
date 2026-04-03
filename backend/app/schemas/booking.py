@@ -1,7 +1,7 @@
 from uuid import UUID
 from decimal import Decimal
 from datetime import datetime
-from pydantic import field_validator, computed_field
+from pydantic import field_validator, computed_field, model_validator
 
 from app.core.enums import BookingStatus, SessionStatus
 from .base import SharedConfig
@@ -104,7 +104,21 @@ class StudentInBooking(SharedConfig):
     id: UUID
     first_name: str
     last_name: str
-    avatar_url: str | None = None
+    profile_picture_url: str | None = None
+
+    @model_validator(mode='before')
+    @classmethod
+    def extract_from_student_profile(cls, data):
+        """Transform StudentProfile ORM object to dict with correct field mapping."""
+        # If data is a StudentProfile ORM object with a user relationship
+        if hasattr(data, 'user') and data.user:
+            return {
+                'id': data.user_id,
+                'first_name': data.user.first_name,
+                'last_name': data.user.last_name,
+                'profile_picture_url': data.avatar_url,
+            }
+        return data
 
 
 class BookingRead(SharedConfig):
