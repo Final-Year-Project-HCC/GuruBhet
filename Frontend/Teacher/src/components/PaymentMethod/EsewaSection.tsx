@@ -12,7 +12,7 @@ type SavedPaymentMethod = {
   id: string;
   type: "esewa" | string;
   verified: boolean;
-  wallet_mobile?: string;
+  walletMobile?: string;
 };
 
 export default function EsewaSection() {
@@ -98,7 +98,7 @@ export default function EsewaSection() {
                   className="rounded-md border border-border p-4 flex items-center justify-between"
                 >
                   <div>
-                    <div className="text-sm font-medium">eSewa • {maskMobile(esewa.wallet_mobile)}</div>
+                    <div className="text-sm font-medium">eSewa • {maskMobile(esewa.walletMobile)}</div>
                     <div className="text-xs text-muted-foreground">{esewa.verified ? "Verified" : "Unverified"}</div>
                   </div>
                   <button

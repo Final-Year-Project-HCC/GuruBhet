@@ -1,5 +1,6 @@
 
 import React from 'react';
+import Image from 'next/image';
 import { Calendar, Clock, Users, BookOpen } from 'lucide-react';
 
 type SubjectLevel = '10' | '11-12' | 'Bachelor' | 'Master' | 'Diploma';
@@ -10,12 +11,12 @@ interface Session {
   subject: string;
   subjectLevel: SubjectLevel;
   status: 'Active' | 'Live' | 'Scheduled' | 'Completed';
-  duration_minutes: number;
-  completed_sessions?: number;
-  total_sessions?: number;
-  next_session_time?: string;
-  completion_date?: string;
-  rating_given?: number;
+  durationMinutes: number;
+  completedSessions?: number;
+  totalSessions?: number;
+  nextSessionTime?: string;
+  completionDate?: string;
+  ratingGiven?: number;
 }
 
 interface TeacherSession extends Session {
@@ -32,10 +33,10 @@ const TEACHER_SESSIONS: TeacherSession[] = [
     subject: 'Quantum Physics',
     subjectLevel: 'Bachelor',
     status: 'Live',
-    duration_minutes: 60,
-    next_session_time: 'Now',
-    completed_sessions: 4,
-    total_sessions: 10
+    durationMinutes: 60,
+    nextSessionTime: 'Now',
+    completedSessions: 4,
+    totalSessions: 10
   },
   {
     id: 'ts2',
@@ -45,10 +46,10 @@ const TEACHER_SESSIONS: TeacherSession[] = [
     subject: 'Advanced Mechanics',
     subjectLevel: 'Master',
     status: 'Scheduled',
-    duration_minutes: 90,
-    next_session_time: 'Today, 4:00 PM',
-    completed_sessions: 2,
-    total_sessions: 8
+    durationMinutes: 90,
+    nextSessionTime: 'Today, 4:00 PM',
+    completedSessions: 2,
+    totalSessions: 8
   },
   {
     id: 'ts3',
@@ -58,15 +59,15 @@ const TEACHER_SESSIONS: TeacherSession[] = [
     subject: 'Thermodynamics',
     subjectLevel: 'Bachelor',
     status: 'Scheduled',
-    duration_minutes: 60,
-    next_session_time: 'Tomorrow, 10:00 AM',
-    completed_sessions: 0,
-    total_sessions: 5
+    durationMinutes: 60,
+    nextSessionTime: 'Tomorrow, 10:00 AM',
+    completedSessions: 0,
+    totalSessions: 5
   }
 ];
 
 const TeacherDashboard: React.FC = () => {
-  const todaySessions = TEACHER_SESSIONS.filter(s => s.next_session_time?.includes('Today') || s.next_session_time === 'Now');
+  const todaySessions = TEACHER_SESSIONS.filter(s => s.nextSessionTime?.includes('Today') || s.nextSessionTime === 'Now');
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
@@ -120,11 +121,12 @@ const TeacherDashboard: React.FC = () => {
                 className="bg-white p-6 rounded-2xl border border-border shadow-sm flex flex-col md:flex-row items-center justify-between gap-6 hover:scale-[1.01] transition-transform"
               >
                 <div className="flex items-center gap-4 w-full md:w-auto">
-                  <img 
+                  <Image 
                     src={session.studentImage} 
                     alt={session.studentName}
-                    className="w-14 h-14 rounded-full object-cover border-2 border-white shadow-sm"
-                    referrerPolicy="no-referrer"
+                    width={56}
+                    height={56}
+                    className="rounded-full object-cover border-2 border-white shadow-sm"
                   />
                   <div>
                     <h4 className="font-bold text-lg">{session.studentName}</h4>
@@ -135,22 +137,22 @@ const TeacherDashboard: React.FC = () => {
                 <div className="flex flex-wrap items-center gap-8 w-full md:w-auto">
                   <div className="flex items-center gap-2 text-sm">
                     <Clock size={16} className="text-muted-foreground" />
-                    <span>{session.duration_minutes} mins</span>
+                    <span>{session.durationMinutes} mins</span>
                   </div>
                   <div className="flex items-center gap-2 text-sm">
                     <Calendar size={16} className="text-muted-foreground" />
                     <span className={session.status === 'Live' ? 'text-red-500 font-bold' : ''}>
-                      {session.next_session_time}
+                      {session.nextSessionTime}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="w-32 h-2 bg-muted rounded-full overflow-hidden">
                       <div 
                         className="h-full bg-primary" 
-                        style={{ width: `${((session.completed_sessions || 0) / (session.total_sessions || 1)) * 100}%` }}
+                        style={{ width: `${((session.completedSessions || 0) / (session.totalSessions || 1)) * 100}%` }}
                       />
                     </div>
-                    <span className="text-xs font-medium">{session.completed_sessions}/{session.total_sessions}</span>
+                    <span className="text-xs font-medium">{session.completedSessions}/{session.totalSessions}</span>
                   </div>
                 </div>
 

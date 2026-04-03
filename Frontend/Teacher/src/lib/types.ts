@@ -1,4 +1,3 @@
-
 /**
  * Academic Domain Hierarchy
  * University -> Faculty -> Semester(s) -> Subject(s)
@@ -45,38 +44,11 @@ export interface Subject {
 }
 
 /**
- * User & Authentication
+ * Teacher Profile & Authentication
  */
 
-export type UserRole = 'STUDENT' | 'TEACHER' | 'ADMIN';
-export type VerificationStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 export type SubjectLevel = '10' | '11-12' | 'Bachelor' | 'Master' | 'Diploma';
-
-export interface User {
-  id: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  phoneNumber?: string;
-  userType: UserRole;
-  isActive: boolean;
-  emailVerified: boolean;
-  createdAt?: string;
-  updatedAt?: string;
-}
-
-export interface StudentProfile {
-  id: string;
-  userId: string;
-  educationalLevel?: SubjectLevel;
-  profilePictureUrl?: string;
-  createdAt?: string;
-  updatedAt?: string;
-}
-
-/**
- * Teacher Information (for student discovery)
- */
+export type VerificationStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 
 export interface TeacherProfile {
   id: string;
@@ -107,24 +79,17 @@ export interface TeacherSubject {
   updatedAt?: string;
 }
 
-export interface Teacher {
+export interface User {
   id: string;
-  name: string;
-  email?: string;
+  email: string;
+  firstName: string;
+  lastName: string;
   phoneNumber?: string;
-  subject: string;
-  image: string;
-  rating?: number;
-  popularity?: string;
-  tagline?: string;
-  ratePerSession: number;
-  levelExpertise: SubjectLevel[];
-  verificationStatus: VerificationStatus;
-  bio?: string;
-  qualification?: string;
-  yearsOfExperience?: number;
-  totalReviews?: number;
-  isAvailable?: boolean;
+  userType: 'TEACHER' | 'STUDENT' | 'ADMIN';
+  isActive: boolean;
+  emailVerified: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 /**
@@ -139,15 +104,24 @@ export type BookingStatus =
   | 'CANCELLED_BY_STUDENT'
   | 'CANCELLED_BY_TEACHER';
 
-export type SessionStatus = 'SCHEDULED' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED' | 'Live' | 'Scheduled' | 'Completed' | 'Active';
+export type SessionStatus = 'SCHEDULED' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
+
+export interface Student {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email?: string;
+  profilePictureUrl?: string;
+  phoneNumber?: string;
+}
 
 export interface Booking {
   id: string;
   teacherId: string;
   studentId: string;
-  teacher?: Teacher;
+  student: Student;
   subjectId: string;
-  subject?: Subject;
+  subject: Subject;
   status: BookingStatus;
   totalAmount: number;
   ratePerSession: number;
@@ -163,15 +137,15 @@ export interface Booking {
 
 export interface Session {
   id: string;
-  bookingId?: string;
+  bookingId: string;
   booking?: Booking;
-  teacherId?: string;
-  studentId?: string;
-  teacher?: Teacher;
-  subjectId?: string;
-  subject?: Subject | string; // Allow string for mock data
+  teacherId: string;
+  studentId: string;
+  student?: Student;
+  subjectId: string;
+  subject?: Subject;
   status: SessionStatus;
-  scheduledAt?: string;
+  scheduledAt: string;
   startedAt?: string;
   endedAt?: string;
   durationMinutes: number;
@@ -179,26 +153,16 @@ export interface Session {
   livekitRoomName?: string;
   createdAt?: string;
   updatedAt?: string;
-  // UI/Display properties
-  teacherName?: string;
-  subjectLevel?: SubjectLevel;
-  completedSessions?: number;
-  totalSessions?: number;
-  nextSessionTime?: string;
-  startTime?: string;
-  completionDate?: string;
-  ratingGiven?: number;
 }
 
-export interface SessionWithTeacher extends Session {
-  teacherName: string;
-  subjectLevel: SubjectLevel;
-  completedSessions: number;
-  totalSessions: number;
-  nextSessionTime?: string;
-  startTime?: string;
-  completionDate?: string;
-  ratingGiven?: number;
+export interface SessionNote {
+  id: string;
+  sessionId: string;
+  teacherId: string;
+  content: string;
+  attachmentUrl?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 /**
@@ -206,7 +170,7 @@ export interface SessionWithTeacher extends Session {
  */
 
 export type PaymentStatus = 'PENDING' | 'COMPLETED' | 'FAILED' | 'REFUNDED';
-export type PaymentMethod = 'ESEWA' | 'BANK_TRANSFER' | 'WALLET';
+export type PaymentMethod = 'ESEWA';
 
 export interface Payment {
   id: string;
@@ -222,6 +186,67 @@ export interface Payment {
   updatedAt?: string;
 }
 
+export interface PaymentAccount {
+  id: string;
+  teacherId: string;
+  accountType: string;
+  bankAccountHolder?: string;
+  bankAccountNumber?: string;
+  bankName?: string;
+  esewaId?: string;
+  isPrimary: boolean;
+  isVerified: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface Payout {
+  id: string;
+  teacherId: string;
+  amount: number;
+  status: PaymentStatus;
+  paymentAccountId: string;
+  transactionId?: string;
+  notes?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface Transaction {
+  id: string;
+  studentName: string;
+  amount: number;
+  date: string;
+  status: PaymentStatus;
+  sessionSubject: string;
+  booking_id?: string;
+}
+
+/**
+ * Analytics & Dashboard
+ */
+
+export interface DashboardStats {
+  totalStudents: number;
+  totalSessions: number;
+  totalHoursTaught: number;
+  averageRating: number;
+  totalEarnings: number;
+  pendingPayments: number;
+}
+
+export interface EarningsData {
+  totalEarned: number;
+  monthlyEarnings: MonthlyEarning[];
+  recentTransactions: Transaction[];
+}
+
+export interface MonthlyEarning {
+  month: string;
+  amount: number;
+  transactionCount: number;
+}
+
 /**
  * Rating & Review
  */
@@ -231,7 +256,7 @@ export interface Rating {
   bookingId: string;
   teacherId: string;
   studentId: string;
-  teacher?: Teacher;
+  student?: Student;
   ratingValue: number; // 1-5
   reviewText?: string;
   createdAt?: string;
@@ -239,75 +264,68 @@ export interface Rating {
 }
 
 /**
- * Communication
+ * Audit & Logging
  */
 
-export interface Message {
+export interface AuditLog {
   id: string;
-  senderId: string;
-  recipientId: string;
-  sender?: User;
-  recipient?: User;
-  content: string;
-  isRead: boolean;
+  userId: string;
+  action: string;
+  resourceType: string;
+  resourceId: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  changes?: Record<string, any>;
+  ipAddress?: string;
   createdAt?: string;
-  updatedAt?: string;
 }
 
 /**
- * Analytics & Dashboard
+ * API Request/Response Types
  */
 
-export interface StudentDashboardStats {
-  totalSessions: number;
-  completedSessions: number;
-  totalSpent: number;
-  averageTeacherRating: number;
-}
-
-export interface StudentBookingInfo {
-  id: string;
-  subject: string;
-  teacherName: string;
-  totalSessions: number;
-  completedSessions: number;
-  status: BookingStatus;
-}
-
-/**
- * API Request/Response types
- */
-
-export interface BookTeacherRequest {
-  teacherId: string;
+export interface CreateTeacherSubjectRequest {
   subjectId: string;
-  totalSessions: number;
-  sessionDurationMinutes: number;
   ratePerSession: number;
+  yearsOfExperience: number;
+}
+
+export interface UpdateTeacherSubjectRequest {
+  ratePerSession?: number;
+  yearsOfExperience?: number;
+  isActive?: boolean;
+}
+
+export interface ApproveBookingRequest {
+  bookingId: string;
+}
+
+export interface DeclineBookingRequest {
+  bookingId: string;
+  reason?: string;
 }
 
 export interface InitiatePaymentRequest {
   bookingId: string;
-  paymentMethod: PaymentMethod;
+}
+
+export interface CreateSessionRequest {
+  bookingId: string;
+  scheduledAt: string;
+}
+
+export interface CreatePaymentAccountRequest {
+  accountType: string;
+  bankAccountHolder?: string;
+  bankAccountNumber?: string;
+  bankName?: string;
+  esewaId?: string;
+  isPrimary: boolean;
 }
 
 export interface SubmitRatingRequest {
   bookingId: string;
   ratingValue: number;
   reviewText?: string;
-}
-
-export interface CancelBookingRequest {
-  bookingId: string;
-  reason?: string;
-}
-
-export interface UpdateStudentProfileRequest {
-  firstName?: string;
-  lastName?: string;
-  phoneNumber?: string;
-  educationalLevel?: SubjectLevel;
-  profilePictureUrl?: string;
 }
 
 /**

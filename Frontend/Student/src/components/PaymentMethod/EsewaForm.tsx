@@ -5,9 +5,9 @@ import { useState } from "react";
 import { toast } from "react-toastify";
 
 type EsewaPayload = {
-  wallet_mobile: string;
-  full_name?: string;
-  is_default?: boolean;
+  walletMobile: string;
+  fullName?: string;
+  isDefault?: boolean;
 };
 
 export default function EsewaForm() {

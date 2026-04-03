@@ -32,14 +32,14 @@ const SearchPage: React.FC<SearchPageProps> = ({ onViewProfile }) => {
           t.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
           t.subject.toLowerCase().includes(searchTerm.toLowerCase());
         const matchesLevel =
-          selectedLevel === 'All' || t.level_expertise.includes(selectedLevel as SubjectLevel);
-        const matchesPrice = t.rate_per_session <= maxPrice;
+          selectedLevel === 'All' || t.levelExpertise.includes(selectedLevel as SubjectLevel);
+        const matchesPrice = t.ratePerSession <= maxPrice;
         return matchesSearch && matchesLevel && matchesPrice;
       })
       .sort((a, b) => {
         if (sortBy === 'rating') return (b.rating || 0) - (a.rating || 0);
-        if (sortBy === 'price-low') return a.rate_per_session - b.rate_per_session;
-        if (sortBy === 'price-high') return b.rate_per_session - a.rate_per_session;
+        if (sortBy === 'price-low') return a.ratePerSession - b.ratePerSession;
+        if (sortBy === 'price-high') return b.ratePerSession - a.ratePerSession;
         return 0;
       });
   }, [allTeachers, searchTerm, selectedLevel, maxPrice, sortBy]);
@@ -48,7 +48,6 @@ const SearchPage: React.FC<SearchPageProps> = ({ onViewProfile }) => {
   const handleMessage = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     // In a real app, this would open a chat or contact modal
-    console.log(`Messaging teacher: ${id}`);
   };
 
   const handleReset = () => {

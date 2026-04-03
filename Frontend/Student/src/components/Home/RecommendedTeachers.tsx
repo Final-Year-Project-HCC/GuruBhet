@@ -13,7 +13,7 @@ const RecommendedTeachers: React.FC = () => {
        subtitle="These expert tutors have been matched to your learning profile."
 
       >
-        {RECOMMENDED_TEACHERS.map((teacher, index) => (
+        {RECOMMENDED_TEACHERS.map((teacher) => (
           <div 
             key={teacher.id} 
             className="min-w-70 sm:min-w-[320px] group relative bg-surface border border-border rounded-3xl overflow-hidden scroll-snap-align-start hover:shadow-xl hover:border-primary/20 transition-all duration-500 flex flex-col"
@@ -37,7 +37,7 @@ const RecommendedTeachers: React.FC = () => {
                     className="relative w-16 h-16 rounded-xl object-cover border border-border shadow-sm group-hover:scale-105 transition-transform duration-500"
                     alt={teacher.name}
                   />
-                  {teacher.verification_status === 'APPROVED' && (
+                  {teacher.verificationStatus === 'APPROVED' && (
                     <div className="absolute -bottom-1 -right-1 bg-accent text-accent-foreground p-0.5 rounded-full border border-background shadow-md">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-2.5 w-2.5" viewBox="0 0 20 20" fill="currentColor">
                         <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
@@ -74,7 +74,7 @@ const RecommendedTeachers: React.FC = () => {
 
               {/* Levels - Minimal Pills */}
               <div className="flex flex-wrap gap-1.5">
-                {teacher.level_expertise.map((lvl) => (
+                {teacher.levelExpertise.map((lvl) => (
                   <span key={lvl} className="px-2 py-1 bg-surface border border-border text-[9px] font-bold text-muted-foreground uppercase rounded-lg tracking-tight">
                     {lvl}
                   </span>
@@ -88,7 +88,7 @@ const RecommendedTeachers: React.FC = () => {
                 <span className="text-[8px] text-muted-foreground font-black uppercase tracking-widest mb-0.5">Hourly Rate</span>
                 <div className="flex items-baseline gap-0.5">
                   <span className="text-[10px] font-bold text-primary">NPR</span>
-                  <span className="text-lg font-black text-primary tracking-tighter">{teacher.rate_per_session}</span>
+                  <span className="text-lg font-black text-primary tracking-tighter">{teacher.ratePerSession}</span>
                 </div>
               </div>
 

@@ -10,12 +10,12 @@ interface Session {
   subject: string;
   subjectLevel: SubjectLevel;
   status: 'Active' | 'Live' | 'Scheduled' | 'Completed';
-  duration_minutes: number;
-  completed_sessions?: number;
-  total_sessions?: number;
-  next_session_time?: string;
-  completion_date?: string;
-  rating_given?: number;
+  durationMinutes: number;
+  completedSessions?: number;
+  totalSessions?: number;
+  nextSessionTime?: string;
+  completionDate?: string;
+  ratingGiven?: number;
 }
 
 interface TeacherSession extends Session {
@@ -32,10 +32,10 @@ const TEACHER_SESSIONS: TeacherSession[] = [
     subject: 'Quantum Physics',
     subjectLevel: 'Bachelor',
     status: 'Live',
-    duration_minutes: 60,
-    next_session_time: 'Now',
-    completed_sessions: 4,
-    total_sessions: 10
+    durationMinutes: 60,
+    nextSessionTime: 'Now',
+    completedSessions: 4,
+    totalSessions: 10
   },
   {
     id: 'ts2',
@@ -45,10 +45,10 @@ const TEACHER_SESSIONS: TeacherSession[] = [
     subject: 'Advanced Mechanics',
     subjectLevel: 'Master',
     status: 'Scheduled',
-    duration_minutes: 90,
-    next_session_time: 'Today, 4:00 PM',
-    completed_sessions: 2,
-    total_sessions: 8
+    durationMinutes: 90,
+    nextSessionTime: 'Today, 4:00 PM',
+    completedSessions: 2,
+    totalSessions: 8
   },
   {
     id: 'ts3',
@@ -58,10 +58,10 @@ const TEACHER_SESSIONS: TeacherSession[] = [
     subject: 'Thermodynamics',
     subjectLevel: 'Bachelor',
     status: 'Scheduled',
-    duration_minutes: 60,
-    next_session_time: 'Tomorrow, 10:00 AM',
-    completed_sessions: 0,
-    total_sessions: 5
+    durationMinutes: 60,
+    nextSessionTime: 'Tomorrow, 10:00 AM',
+    completedSessions: 0,
+    totalSessions: 5
   }
 ];
 
@@ -91,7 +91,7 @@ const TeacherSessions: React.FC = () => {
       </div>
 
       <div className="flex flex-col md:flex-row  items-center gap-4 mb-8">
-        <div className="relative flex-grow w-full">
+        <div className="relative grow w-full">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
           <input 
             type="text" 
@@ -139,7 +139,7 @@ const TeacherSessions: React.FC = () => {
                 </div>
               </div>
 
-              <div className="flex-grow text-center md:text-left">
+              <div className="grow text-center md:text-left">
                 <div className="flex flex-col md:flex-row md:items-center gap-2 mb-2 justify-center md:justify-start">
                   <h3 className="text-xl font-bold">{session.studentName}</h3>
                   <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider w-fit mx-auto md:mx-0 ${
@@ -157,26 +157,26 @@ const TeacherSessions: React.FC = () => {
                 <div className="flex flex-wrap items-center justify-center md:justify-start gap-6 text-sm text-muted-foreground">
                   <div className="flex items-center gap-2">
                     <Clock size={16} className="text-primary" />
-                    <span>{session.duration_minutes} Minutes</span>
+                    <span>{session.durationMinutes} Minutes</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Calendar size={16} className="text-primary" />
-                    <span>{session.next_session_time}</span>
+                    <span>{session.nextSessionTime}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <CheckCircle size={16} className="text-primary" />
-                    <span>{session.completed_sessions}/{session.total_sessions} Sessions</span>
+                    <span>{session.completedSessions}/{session.totalSessions} Sessions</span>
                   </div>
                 </div>
               </div>
 
               <div className="flex flex-row md:flex-col gap-3 w-full md:w-auto">
                 {session.status === 'Live' ? (
-                  <button className="flex-grow md:flex-none bg-red-500 text-white px-8 py-3 rounded-2xl font-bold hover:bg-red-600 transition-all shadow-lg shadow-red-200 flex items-center justify-center gap-2">
+                  <button className="grow md:flex-none bg-red-500 text-white px-8 py-3 rounded-2xl font-bold hover:bg-red-600 transition-all shadow-lg shadow-red-200 flex items-center justify-center gap-2">
                     Join Classroom
                   </button>
                 ) : (
-                  <button className="flex-grow md:flex-none bg-primary text-primary-foreground px-8 py-3 rounded-2xl font-bold hover:bg-opacity-90 transition-all shadow-lg shadow-primary/20">
+                  <button className="grow md:flex-none bg-primary text-primary-foreground px-8 py-3 rounded-2xl font-bold hover:bg-opacity-90 transition-all shadow-lg shadow-primary/20">
                     View Details
                   </button>
                 )}

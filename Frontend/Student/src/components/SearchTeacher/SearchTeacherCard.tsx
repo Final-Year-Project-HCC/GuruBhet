@@ -30,7 +30,7 @@ const SearchTeacherCard: React.FC<SearchTeacherCardProps> = ({
         />
 
         {/* Verification Checkmark */}
-        {teacher.verification_status === 'APPROVED' && (
+        {teacher.verificationStatus === 'APPROVED' && (
           <div className="absolute top-5 left-5 bg-accent text-accent-foreground p-2 rounded-full shadow-lg border-2 border-background">
             <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
               <path
@@ -69,7 +69,7 @@ const SearchTeacherCard: React.FC<SearchTeacherCardProps> = ({
 
         {/* Expertise Tags */}
         <div className="flex flex-wrap gap-2 mb-8">
-          {teacher.level_expertise.map((lvl) => (
+          {teacher.levelExpertise.map((lvl) => (
             <span
               key={lvl}
               className="px-3 py-1.5 bg-subtle text-[10px] font-black text-subtle-foreground uppercase border border-border rounded-xl"
@@ -88,7 +88,7 @@ const SearchTeacherCard: React.FC<SearchTeacherCardProps> = ({
             <div className="flex items-baseline gap-1">
               <span className="text-xs font-bold text-primary">NPR</span>
               <span className="text-2xl font-black tracking-tighter text-primary">
-                {teacher.rate_per_session}
+                {teacher.ratePerSession}
               </span>
             </div>
           </div>

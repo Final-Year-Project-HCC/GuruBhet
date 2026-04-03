@@ -11,9 +11,9 @@ import { maskMobile } from "@/lib/utils";
 type SavedPaymentMethod = {
   id: string;
   type: "esewa" | string;
-  is_default: boolean;
+  isDefault: boolean;
   verified: boolean;
-  wallet_mobile?: string;
+  walletMobile?: string;
 };
 
 export default function EsewaSection() {
@@ -86,11 +86,11 @@ export default function EsewaSection() {
                 >
                   <div>
                     <div className="text-sm font-medium">
-                      eSewa • {maskMobile(esewa.wallet_mobile)}
+                      eSewa • {maskMobile(esewa.walletMobile)}
                     </div>
                     <div className="text-xs text-muted-foreground">
                       {esewa.verified ? "Verified" : "Unverified"}
-                      {esewa.is_default ? " • Default" : ""}
+                      {esewa.isDefault ? " • Default" : ""}
                     </div>
                   </div>
                   <button
