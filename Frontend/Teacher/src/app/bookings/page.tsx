@@ -7,7 +7,7 @@ import BookingCard from "@/components/BookingCard";
 import { Search, TrendingUp, ClipboardList, BookOpen } from "lucide-react";
 import { Booking } from "@/lib/types";
 
-type TabType = "requests" | "ongoing" | "history";
+type TabType = "requests" | "unpaid" | "ongoing" | "history";
 
 export default function BookingsPage() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -25,9 +25,8 @@ export default function BookingsPage() {
 
   // Filter bookings by status
   const requestBookings = bookings.filter((b) => b.status === "PENDING_APPROVAL");
-  const ongoingBookings = bookings.filter(
-    (b) => b.status === "PENDING_PAYMENT" || b.status === "ACTIVE"
-  );
+  const unpaidBookings = bookings.filter((b) => b.status === "PENDING_PAYMENT");
+  const ongoingBookings = bookings.filter((b) => b.status === "ACTIVE");
   const historyBookings = bookings.filter(
     (b) => b.status === "COMPLETED" || b.status.includes("CANCELLED")
   );
@@ -47,6 +46,7 @@ export default function BookingsPage() {
   // Tab content mapping
   const tabContent = {
     requests: requestBookings,
+    unpaid: unpaidBookings,
     ongoing: ongoingBookings,
     history: filteredHistory,
   };
@@ -152,6 +152,16 @@ export default function BookingsPage() {
               Requests ({requestBookings.length})
             </button>
             <button
+              onClick={() => setActiveTab("unpaid")}
+              className={`px-4 py-3 font-medium transition-colors ${
+                activeTab === "unpaid"
+                  ? "border-b-2 border-primary text-primary"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Unpaid ({unpaidBookings.length})
+            </button>
+            <button
               onClick={() => setActiveTab("ongoing")}
               className={`px-4 py-3 font-medium transition-colors ${
                 activeTab === "ongoing"
@@ -217,6 +227,13 @@ export default function BookingsPage() {
                   <p className="text-xl font-medium text-foreground">All caught up! 🎉</p>
                   <p className="mt-2 text-sm text-muted-foreground">
                     No pending booking requests right now
+                  </p>
+                </>
+              ) : activeTab === "unpaid" ? (
+                <>
+                  <p className="text-xl font-medium text-foreground">No unpaid bookings</p>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    All bookings have been paid
                   </p>
                 </>
               ) : activeTab === "ongoing" ? (
