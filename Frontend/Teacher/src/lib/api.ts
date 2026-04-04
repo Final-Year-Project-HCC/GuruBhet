@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const apiClient = axios.create({
-  baseURL: "https://api.gurubhet.tech/api/v1",
+  baseURL: process.env.NEXT_PUBLIC_API_URL || "https://localhost:8000",
   withCredentials: true,
   headers: {
     "Content-Type": "application/json",

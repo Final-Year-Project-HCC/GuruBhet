@@ -1,9 +1,8 @@
 import axios from "axios";
 
 // Build API base URL from environment variable or default to production
-
 const apiClient = axios.create({
-  baseURL: "https://api.gurubhet.tech/api/v1",
+  baseURL: process.env.NEXT_PUBLIC_API_URL || "https://localhost:8000",
   headers: {
     "Content-Type": "application/json",
   },
