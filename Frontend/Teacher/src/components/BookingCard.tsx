@@ -71,47 +71,45 @@ const BookingCard = ({ booking, statusColor, statusLabel }: BookingCardProps) =>
     <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all hover:shadow-md">
       {/* Header Section */}
       <div className="border-b border-border bg-muted/30 p-5">
-        {/* Student Info + Subject + Status Badge */}
-        <div className="flex items-start justify-between gap-4 mb-4">
-          <div className="flex gap-3 flex-1">
-            {/* Student Avatar */}
-            <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full bg-linear-to-br from-blue-400 to-blue-600">
+        {/* Student Info */}
+        <div className="flex gap-3 mb-4">
+          {/* Student Avatar */}
+          <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full border border-border">
             {booking.student?.profilePictureUrl ? (
-                <Image
-                  src={booking.student.profilePictureUrl}
-                  alt={studentName}
-                  width={48}
-                  height={48}
-                  className="h-full w-full object-cover"
-                />
-              ) : (
-                <div className="flex h-full w-full items-center justify-center text-sm font-bold text-white">
-                  {booking.student?.firstName?.[0] || 'S'}
-                </div>
-              )}
-            </div>
-
-            {/* Student Name and Subject */}
-            <div className="flex-1 min-w-0">
-              <p className="font-bold text-foreground truncate">{studentName}</p>
-              <p className="text-sm text-muted-foreground truncate">
-                {booking.subject?.name || 'Unknown Subject'}
-              </p>
-            </div>
+              <Image
+                src={booking.student.profilePictureUrl}
+                alt={studentName}
+                width={48}
+                height={48}
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center text-sm font-bold bg-muted text-foreground">
+                {booking.student?.firstName?.[0] || 'S'}
+              </div>
+            )}
           </div>
 
-          {/* Status Badge */}
-          <span
-            className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide whitespace-nowrap ${statusColor}`}
-          >
-            {booking.status === "PENDING_APPROVAL" && <AlertCircle className="h-3 w-3" />}
-            {booking.status === "PENDING_PAYMENT" && <AlertCircle className="h-3 w-3" />}
-            {booking.status === "ACTIVE" && <CheckCircle className="h-3 w-3" />}
-            {booking.status === "COMPLETED" && <CheckCircle className="h-3 w-3" />}
-            {booking.status.includes("CANCELLED") && <XCircle className="h-3 w-3" />}
-            {statusLabel}
-          </span>
+          {/* Student Name and Subject */}
+          <div className="flex-1 min-w-0">
+            <p className="font-bold text-foreground truncate">{studentName}</p>
+            <p className="text-sm text-muted-foreground truncate">
+              {booking.subject?.name || 'Unknown Subject'}
+            </p>
+          </div>
         </div>
+
+        {/* Status Badge */}
+        <span
+          className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wide ${statusColor}`}
+        >
+          {booking.status === "PENDING_APPROVAL" && <AlertCircle className="h-3 w-3" />}
+          {booking.status === "PENDING_PAYMENT" && <AlertCircle className="h-3 w-3" />}
+          {booking.status === "ACTIVE" && <CheckCircle className="h-3 w-3" />}
+          {booking.status === "COMPLETED" && <CheckCircle className="h-3 w-3" />}
+          {booking.status.includes("CANCELLED") && <XCircle className="h-3 w-3" />}
+          {statusLabel}
+        </span>
       </div>
 
       {/* Contract Details Section */}
@@ -179,14 +177,14 @@ const BookingCard = ({ booking, statusColor, statusLabel }: BookingCardProps) =>
             <button
               onClick={handleApprove}
               disabled={isApproving || approveMutation.isPending}
-              className="flex-1 rounded-lg bg-emerald-600 px-4 py-2.5 font-medium text-white transition-colors hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 rounded-lg bg-primary text-primary-foreground px-4 py-2.5 font-medium transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isApproving ? "Approving..." : "Approve Request"}
             </button>
             <button
               onClick={handleDecline}
               disabled={isDeclining || declineMutation.isPending}
-              className="flex-1 rounded-lg border border-destructive bg-transparent px-4 py-2.5 font-medium text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 rounded-lg border border-destructive bg-transparent px-4 py-2.5 font-medium text-destructive transition-opacity hover:opacity-80 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isDeclining ? "Declining..." : "Decline"}
             </button>
@@ -194,7 +192,7 @@ const BookingCard = ({ booking, statusColor, statusLabel }: BookingCardProps) =>
         )}
 
         {booking.status === "PENDING_PAYMENT" && (
-          <button className="flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 font-medium text-white transition-colors hover:bg-blue-700">
+          <button className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary text-primary-foreground px-4 py-2.5 font-medium transition-opacity hover:opacity-90">
             <MessageCircle className="h-4 w-4" />
             Message Student
           </button>
@@ -209,21 +207,21 @@ const BookingCard = ({ booking, statusColor, statusLabel }: BookingCardProps) =>
                 </span>
               </p>
             )}
-            <button className="w-full rounded-lg bg-primary px-4 py-2.5 font-medium text-white transition-colors hover:bg-primary/90">
+            <button className="w-full rounded-lg bg-primary text-primary-foreground px-4 py-2.5 font-medium transition-opacity hover:opacity-90">
               View Sessions
             </button>
           </div>
         )}
 
         {booking.status === "COMPLETED" && (
-          <p className="text-center text-sm font-medium text-emerald-600">
+          <p className="text-center text-sm font-medium text-foreground">
             ✓ Booking completed
           </p>
         )}
 
         {booking.status.includes("CANCELLED") && (
           <div className="space-y-2">
-            <p className="text-center text-sm font-medium text-red-600">
+            <p className="text-center text-sm font-medium text-destructive">
               Cancelled {booking.cancelledAt && `on ${new Date(booking.cancelledAt).toLocaleDateString("en-IN")}`}
             </p>
             {booking.cancellationReason && (

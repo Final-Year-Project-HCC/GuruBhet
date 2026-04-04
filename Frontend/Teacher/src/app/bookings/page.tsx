@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import apiClient from "@/lib/api";
 import BookingCard from "@/components/BookingCard";
-import { Search, TrendingUp } from "lucide-react";
+import { Search, TrendingUp, ClipboardList, BookOpen } from "lucide-react";
 import { Booking } from "@/lib/types";
 
 type TabType = "requests" | "ongoing" | "history";
@@ -53,19 +53,19 @@ export default function BookingsPage() {
 
   const currentBookings = tabContent[activeTab];
 
-  // Status badge colors
+  // Status badge colors using theme variables
   const getStatusColor = (status: string) => {
     switch (status) {
       case "PENDING_APPROVAL":
-        return "bg-orange-100 text-orange-700";
+        return "bg-muted text-foreground border border-border";
       case "PENDING_PAYMENT":
-        return "bg-yellow-100 text-yellow-700";
+        return "bg-muted text-foreground border border-border";
       case "ACTIVE":
-        return "bg-emerald-100 text-emerald-700";
+        return "bg-primary text-primary-foreground border border-primary";
       case "COMPLETED":
-        return "bg-blue-100 text-blue-700";
+        return "bg-muted text-muted-foreground border border-border";
       default:
-        return "bg-red-100 text-red-700";
+        return "bg-destructive/10 text-destructive border border-destructive";
     }
   };
 
@@ -96,8 +96,8 @@ export default function BookingsPage() {
                   {requestBookings.length}
                 </p>
               </div>
-              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-orange-100">
-                <span className="text-lg text-orange-600">📋</span>
+              <div className="flex h-12 w-12 items-center justify-center rounded-lg text-muted-foreground">
+                <ClipboardList className="h-6 w-6" />
               </div>
             </div>
           </div>
@@ -112,8 +112,8 @@ export default function BookingsPage() {
                   {ongoingBookings.length}
                 </p>
               </div>
-              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-emerald-100">
-                <span className="text-lg text-emerald-600">🎓</span>
+              <div className="flex h-12 w-12 items-center justify-center rounded-lg text-muted-foreground">
+                <BookOpen className="h-6 w-6" />
               </div>
             </div>
           </div>
@@ -131,8 +131,8 @@ export default function BookingsPage() {
                   })}
                 </p>
               </div>
-              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-green-100">
-                <TrendingUp className="h-6 w-6 text-green-600" />
+              <div className="flex h-12 w-12 items-center justify-center rounded-lg text-muted-foreground">
+                <TrendingUp className="h-6 w-6" />
               </div>
             </div>
           </div>
