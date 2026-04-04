@@ -13,7 +13,7 @@ from app.models.booking import Booking
 from app.repositories.teacher_subject_repo import TeacherSubjectRepository
 from app.schemas.user import TeacherProfileRead, TeacherProfileUpdate
 from app.schemas.subject import TeacherSearchResult, TeacherSubjectCreate, TeacherSubjectRead
-from app.schemas.booking import BookingRead
+from app.schemas.booking import BookingRead, BookingDetailedReadForTeacher
 
 router = APIRouter()
 
@@ -126,7 +126,7 @@ async def update_my_profile(
 
 # ── Own bookings ──────────────────────────────────────────────────────────────
 
-@router.get("/me/bookings", response_model=list[BookingRead])
+@router.get("/me/bookings", response_model=list[BookingDetailedReadForTeacher])
 async def get_my_bookings(current_user: CurrentUser, db: DbSession):
     """Return all bookings for the logged-in teacher with student and subject details."""
     if current_user.role != UserRole.TEACHER:

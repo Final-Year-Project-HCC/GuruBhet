@@ -106,7 +106,7 @@ async def approve_booking_request(
 
     booking.status = BookingStatus.PENDING_PAYMENT
     booking.teacher_approved_at = datetime.now(tz=timezone.utc)
-    booking.teacher_approval_notes = body.notes
+    booking.teacher_approval_notes = body.notes if body else None
     await db.flush()
     await db.refresh(booking)
     return booking
