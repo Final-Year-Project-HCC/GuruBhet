@@ -10,7 +10,7 @@ from app.core.enums import BookingStatus, UserRole, SessionStatus
 from app.models.booking import Booking, Session
 from app.models.subject import Subject
 from app.schemas.booking import (
-    BookingRequestCreate, BookingApproveRequest,
+    BookingRequestCreate,
     BookingRead, BookingCancelRequest, LiveKitTokenResponse, SessionRead
 )
 from app.schemas.payment import EsewaPaymentInitResponse
@@ -79,7 +79,7 @@ async def create_booking_request(
 
 @router.post("/{booking_id}/approve", response_model=BookingRead)
 async def approve_booking_request(
-    booking_id: UUID, body: BookingApproveRequest, current_user: CurrentUser, db: DbSession
+    booking_id: UUID, current_user: CurrentUser, db: DbSession
 ):
     """
     Step 2: Teacher approves the booking request.
@@ -106,7 +106,6 @@ async def approve_booking_request(
 
     booking.status = BookingStatus.PENDING_PAYMENT
     booking.teacher_approved_at = datetime.now(tz=timezone.utc)
-    booking.teacher_approval_notes = body.notes if body else None
     await db.flush()
     await db.refresh(booking)
     return booking

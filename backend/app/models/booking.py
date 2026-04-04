@@ -63,7 +63,6 @@ class Booking(Base, UUIDPrimaryKeyMixin, TimestampMixin):
 
     # Teacher approval tracking
     teacher_approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    teacher_approval_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # eSewa transaction reference for the initial payment
     esewa_transaction_uuid: Mapped[str | None] = mapped_column(Text, nullable=True, unique=True)

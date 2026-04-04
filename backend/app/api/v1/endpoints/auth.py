@@ -70,13 +70,16 @@ async def login(body: LoginRequest, db: DbSession, response: Response):
     access = create_access_token(str(user.id), user.role.value)
     refresh = create_refresh_token(str(user.id))
 
+
+    sameSitePolicy = "lax" if (settings.ENVIRONMENT=="production" or settings.ENVIRONMENT == "development2") else "none"
+    securePolicy = False if settings.ENVIRONMENT == "development2" else True
     # Set tokens as HttpOnly cookies with SameSite=Lax
     response.set_cookie(
         "access_token",
         access,
         httponly=True,
-        samesite="lax" if settings.ENVIRONMENT=="production" else "none",
-        secure=True,
+        samesite=sameSitePolicy,
+        secure= securePolicy,
         max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         path="/",
     )
@@ -84,8 +87,8 @@ async def login(body: LoginRequest, db: DbSession, response: Response):
         "refresh_token",
         refresh,
         httponly=True,
-        samesite="lax" if settings.ENVIRONMENT=="production" else "none",
-        secure=True,
+        samesite=sameSitePolicy,
+        secure=securePolicy,
         max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
         path="/api/v1/auth",
     )
@@ -125,12 +128,14 @@ async def refresh(db: DbSession, response: Response, x_refresh_token: str = Head
     access = create_access_token(str(user.id), user.role.value)
     refresh = create_refresh_token(str(user.id))
 
+    sameSitePolicy = "lax" if (settings.ENVIRONMENT=="production" or settings.ENVIRONMENT == "development2") else "none"
+    securePolicy = False if settings.ENVIRONMENT == "development2" else True
     response.set_cookie(
         "access_token",
         access,
         httponly=True,
-        samesite="lax" if settings.ENVIRONMENT=="production" else "none",
-        secure=True,
+        samesite=sameSitePolicy,
+        secure=securePolicy,
         max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         path="/",
     )
@@ -138,8 +143,8 @@ async def refresh(db: DbSession, response: Response, x_refresh_token: str = Head
         "refresh_token",
         refresh,
         httponly=True,
-        samesite="lax" if settings.ENVIRONMENT=="production" else "none",
-        secure=True,
+        samesite=sameSitePolicy,
+        secure=securePolicy,
         max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
         path="/api/v1/auth",
     )

@@ -5,3 +5,4 @@ Frontend/shared_keys/
 livekit.yaml
 docker-compose.local.yml
 *.md
+*.dev

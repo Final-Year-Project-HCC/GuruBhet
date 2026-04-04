@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { useMutation } from "@tanstack/react-query";
 import apiClient from "@/lib/api";
@@ -14,7 +15,12 @@ interface BookingCardProps {
   statusLabel: string;
 }
 
-const BookingCard = ({ booking, statusColor, statusLabel }: BookingCardProps) => {
+const BookingCard = ({
+  booking,
+  statusColor,
+  statusLabel,
+}: BookingCardProps) => {
+  const router = useRouter();
   const [isApproving, setIsApproving] = useState(false);
   const [isDeclining, setIsDeclining] = useState(false);
 
@@ -26,7 +32,7 @@ const BookingCard = ({ booking, statusColor, statusLabel }: BookingCardProps) =>
     onSuccess: () => {
       toast.success("Booking approved!");
       setIsApproving(false);
-      // In a real app, you'd refetch the bookings query here
+      router.refresh();
     },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     onError: (error: any) => {
@@ -37,13 +43,15 @@ const BookingCard = ({ booking, statusColor, statusLabel }: BookingCardProps) =>
 
   // Decline booking mutation
   const declineMutation = useMutation({
-    mutationFn: async () => {
-      return await apiClient.post(`/bookings/${booking.id}/decline`);
+    mutationFn: async (reason: string) => {
+      return await apiClient.post(`/bookings/${booking.id}/cancel`, {
+        reason,
+      });
     },
     onSuccess: () => {
       toast.success("Booking declined");
       setIsDeclining(false);
-      // In a real app, you'd refetch the bookings query here
+      router.refresh();
     },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     onError: (error: any) => {
@@ -52,7 +60,9 @@ const BookingCard = ({ booking, statusColor, statusLabel }: BookingCardProps) =>
     },
   });
 
-  const studentName = booking.student ? `${booking.student.firstName} ${booking.student.lastName}` : 'Unknown Student';
+  const studentName = booking.student
+    ? `${booking.student.firstName} ${booking.student.lastName}`
+    : "Unknown Student";
   const formattedDate = new Date(booking.createdAt).toLocaleDateString("en-IN");
 
   const handleApprove = () => {
@@ -61,9 +71,14 @@ const BookingCard = ({ booking, statusColor, statusLabel }: BookingCardProps) =>
   };
 
   const handleDecline = () => {
-    if (window.confirm("Are you sure you want to decline this booking request?")) {
+    const reason = window.prompt(
+      "Please provide a reason for declining this booking request:",
+    );
+    if (reason !== null && reason.trim()) {
       setIsDeclining(true);
-      declineMutation.mutate();
+      declineMutation.mutate(reason.trim());
+    } else if (reason === "") {
+      toast.warning("Please provide a reason for declining");
     }
   };
 
@@ -85,7 +100,7 @@ const BookingCard = ({ booking, statusColor, statusLabel }: BookingCardProps) =>
               />
             ) : (
               <div className="flex h-full w-full items-center justify-center text-sm font-bold bg-muted text-foreground">
-                {booking.student?.firstName?.[0] || 'S'}
+                {booking.student?.firstName?.[0] || "S"}
               </div>
             )}
           </div>
@@ -94,7 +109,7 @@ const BookingCard = ({ booking, statusColor, statusLabel }: BookingCardProps) =>
           <div className="flex-1 min-w-0">
             <p className="font-bold text-foreground truncate">{studentName}</p>
             <p className="text-sm text-muted-foreground truncate">
-              {booking.subject?.name || 'Unknown Subject'}
+              {booking.subject?.name || "Unknown Subject"}
             </p>
           </div>
         </div>
@@ -103,11 +118,19 @@ const BookingCard = ({ booking, statusColor, statusLabel }: BookingCardProps) =>
         <span
           className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wide ${statusColor}`}
         >
-          {booking.status === "PENDING_APPROVAL" && <AlertCircle className="h-3 w-3" />}
-          {booking.status === "PENDING_PAYMENT" && <AlertCircle className="h-3 w-3" />}
+          {booking.status === "PENDING_APPROVAL" && (
+            <AlertCircle className="h-3 w-3" />
+          )}
+          {booking.status === "PENDING_PAYMENT" && (
+            <AlertCircle className="h-3 w-3" />
+          )}
           {booking.status === "ACTIVE" && <CheckCircle className="h-3 w-3" />}
-          {booking.status === "COMPLETED" && <CheckCircle className="h-3 w-3" />}
-          {booking.status.includes("CANCELLED") && <XCircle className="h-3 w-3" />}
+          {booking.status === "COMPLETED" && (
+            <CheckCircle className="h-3 w-3" />
+          )}
+          {booking.status.includes("CANCELLED") && (
+            <XCircle className="h-3 w-3" />
+          )}
           {statusLabel}
         </span>
       </div>
@@ -202,8 +225,11 @@ const BookingCard = ({ booking, statusColor, statusLabel }: BookingCardProps) =>
           <div className="space-y-3">
             {booking.nextSessionDate && (
               <p className="text-sm text-muted-foreground">
-                Next session: <span className="font-medium text-foreground">
-                  {new Date(booking.nextSessionDate).toLocaleDateString("en-IN")}
+                Next session:{" "}
+                <span className="font-medium text-foreground">
+                  {new Date(booking.nextSessionDate).toLocaleDateString(
+                    "en-IN",
+                  )}
                 </span>
               </p>
             )}
@@ -222,7 +248,9 @@ const BookingCard = ({ booking, statusColor, statusLabel }: BookingCardProps) =>
         {booking.status.includes("CANCELLED") && (
           <div className="space-y-2">
             <p className="text-center text-sm font-medium text-destructive">
-              Cancelled {booking.cancelledAt && `on ${new Date(booking.cancelledAt).toLocaleDateString("en-IN")}`}
+              Cancelled{" "}
+              {booking.cancelledAt &&
+                `on ${new Date(booking.cancelledAt).toLocaleDateString("en-IN")}`}
             </p>
             {booking.cancellationReason && (
               <p className="text-xs text-muted-foreground">

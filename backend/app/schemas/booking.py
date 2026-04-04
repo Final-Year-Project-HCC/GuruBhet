@@ -40,9 +40,6 @@ class BookingRequestCreate(SharedConfig):
         return v
 
 
-class BookingApproveRequest(SharedConfig):
-
-    notes: str | None = None
 
 
 class SessionRead(SharedConfig):
@@ -158,7 +155,6 @@ class BookingRead(SharedConfig):
     refunded_amount: Decimal
     status: BookingStatus
     teacher_approved_at: datetime | None
-    teacher_approval_notes: str | None
     created_at: datetime
 
 
@@ -179,7 +175,6 @@ class BookingDetailedReadForStudent(SharedConfig):
     refunded_amount: Decimal
     status: BookingStatus
     teacher_approved_at: datetime | None
-    teacher_approval_notes: str | None
     created_at: datetime
     sessions: list[SessionRead] = []
 
@@ -201,7 +196,6 @@ class BookingDetailedReadForTeacher(SharedConfig):
     refunded_amount: Decimal
     status: BookingStatus
     teacher_approved_at: datetime | None
-    teacher_approval_notes: str | None
     created_at: datetime
     sessions: list[SessionRead] = []
 

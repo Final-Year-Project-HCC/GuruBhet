@@ -47,6 +47,9 @@ class Settings(BaseSettings):
         "https://127.0.0.1:3000",
         "https://127.0.0.1:3001",
         "https://127.0.0.1:3002",
+        "http://localhost:3000",      # Student Local
+        "http://localhost:3001",      # Teacher Local
+        "http://localhost:3002", 
 
         # --- PRODUCTION (Azure VPS) ---
         "https://gurubhet.tech",
