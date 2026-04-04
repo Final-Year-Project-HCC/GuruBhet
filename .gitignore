@@ -1,4 +1,7 @@
-backend/.env
+*.env
 backend/notes.txt
 backend/.venv
 Frontend/shared_keys/
+livekit.yaml
+docker-compose.local.yml
+*.md

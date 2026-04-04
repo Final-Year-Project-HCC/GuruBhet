@@ -78,6 +78,8 @@ jobs:
           context: ./Frontend/Student
           push: true
           tags: ghcr.io/${{ steps.lowercase.outputs.owner }}/gurubhet-student:latest
+          build-args: |
+            NEXT_PUBLIC_API_URL=${{ vars.NEXT_PUBLIC_API_URL }}
 
   build-teacher:
     needs: changes
@@ -103,6 +105,8 @@ jobs:
           context: ./Frontend/Teacher
           push: true
           tags: ghcr.io/${{ steps.lowercase.outputs.owner }}/gurubhet-teacher:latest
+          build-args: |
+            NEXT_PUBLIC_API_URL=${{ vars.NEXT_PUBLIC_API_URL }}
 
   build-staff:
     needs: changes
@@ -128,3 +132,5 @@ jobs:
           context: ./Frontend/Staff
           push: true
           tags: ghcr.io/${{ steps.lowercase.outputs.owner }}/gurubhet-staff:latest
+          build-args: |
+            NEXT_PUBLIC_API_URL=${{ vars.NEXT_PUBLIC_API_URL }}

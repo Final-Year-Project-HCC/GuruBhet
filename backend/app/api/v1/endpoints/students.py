@@ -9,7 +9,7 @@ from app.core.enums import UserRole
 from app.models.student import StudentProfile
 from app.models.booking import Booking
 from app.schemas.user import StudentProfileRead, StudentProfileUpdate
-from app.schemas.booking import BookingRead
+from app.schemas.booking import BookingRead, BookingDetailedReadForStudent
 
 router = APIRouter()
 
@@ -60,19 +60,26 @@ async def update_my_profile(
 
 # ── Own bookings ──────────────────────────────────────────────────────────────
 
-@router.get("/me/bookings", response_model=list[BookingRead])
+@router.get("/me/bookings", response_model=list[BookingDetailedReadForStudent])
 async def get_my_bookings(current_user: CurrentUser, db: DbSession):
-    """Return all bookings for the logged-in student."""
+    """Return all bookings for the logged-in student with teacher and subject details."""
     if current_user.role != UserRole.STUDENT:
         raise HTTPException(status_code=403, detail="Only students can access this")
 
+    from sqlalchemy.orm import selectinload
+    from app.models.teacher import TeacherProfile
+
     result = await db.execute(
         select(Booking)
-        .options(joinedload(Booking.sessions))
+        .options(
+            selectinload(Booking.sessions),
+            selectinload(Booking.teacher).selectinload(TeacherProfile.user),
+            selectinload(Booking.subject)
+        )
         .where(Booking.student_id == current_user.id)
         .order_by(Booking.created_at.desc())
     )
-    return list(result.scalars().unique().all())
+    return list(result.scalars().all())
 
 
 # ── Public profile (viewable by teachers and admins) ─────────────────────────

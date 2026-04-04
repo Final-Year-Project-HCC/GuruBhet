@@ -121,8 +121,71 @@ class StudentInBooking(SharedConfig):
         return data
 
 
-class BookingRead(SharedConfig):
+class TeacherInBooking(SharedConfig):
+    """Minimal teacher details included in booking responses."""
+    id: UUID
+    first_name: str
+    last_name: str
+    profile_picture_url: str | None = None
 
+    @model_validator(mode='before')
+    @classmethod
+    def extract_from_teacher_profile(cls, data):
+        """Transform TeacherProfile ORM object to dict with correct field mapping."""
+        # If data is a TeacherProfile ORM object with a user relationship
+        if hasattr(data, 'user') and data.user:
+            return {
+                'id': data.user_id,
+                'first_name': data.user.first_name,
+                'last_name': data.user.last_name,
+                'profile_picture_url': data.avatar_url,
+            }
+        return data
+
+
+class BookingRead(SharedConfig):
+    """Generic booking response with only IDs for related entities."""
+    id: UUID
+    student_id: UUID
+    teacher_id: UUID
+    subject_id: UUID
+    total_sessions: int
+    completed_sessions: int
+    cancelled_sessions: int
+    rate_per_session: Decimal
+    session_duration_minutes: int
+    total_amount: Decimal
+    refunded_amount: Decimal
+    status: BookingStatus
+    teacher_approved_at: datetime | None
+    teacher_approval_notes: str | None
+    created_at: datetime
+
+
+class BookingDetailedReadForStudent(SharedConfig):
+    """Booking response for students: includes teacher and subject details."""
+    id: UUID
+    student_id: UUID
+    teacher_id: UUID
+    teacher: TeacherInBooking
+    subject_id: UUID
+    subject: SubjectRead
+    total_sessions: int
+    completed_sessions: int
+    cancelled_sessions: int
+    rate_per_session: Decimal
+    session_duration_minutes: int
+    total_amount: Decimal
+    refunded_amount: Decimal
+    status: BookingStatus
+    teacher_approved_at: datetime | None
+    teacher_approval_notes: str | None
+    created_at: datetime
+    sessions: list[SessionRead] = []
+
+
+class BookingDetailedReadForTeacher(SharedConfig):
+    """Booking response for teachers: includes student and subject details."""
     id: UUID
     student_id: UUID
     student: StudentInBooking
