@@ -10,11 +10,6 @@ class SubjectRead(SharedConfig):
 
     id: UUID
     name: str
-    university_id: UUID
-    faculty_id: UUID
-    semester_number: int
-    class_name: str | None
-    is_active: bool
     created_at: datetime
     updated_at: datetime
     
@@ -26,21 +21,10 @@ class SubjectRead(SharedConfig):
 class SubjectCreate(SharedConfig):
 
     name: str
-    university_id: UUID
-    faculty_id: UUID
-    semester_number: int
-    class_name: str | None = None
     
     # Commented fields — to be considered later
     # level: StudyLevel
     # board: str | None = None
-
-    @field_validator("semester_number")
-    @classmethod
-    def semester_positive(cls, v: int) -> int:
-        if v < 1:
-            raise ValueError("Semester number must be at least 1")
-        return v
 
 class BulkSubjectCreateRequest(SharedConfig):
     subjects: list[SubjectCreate]

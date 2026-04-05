@@ -3,7 +3,6 @@ from fastapi import APIRouter, Query, HTTPException
 from sqlalchemy import select
 
 from app.core.dependencies import DbSession
-from app.models.faculty import Faculty
 from app.models.subject import Subject
 from app.schemas.subject import SubjectRead, SubjectCreate, BulkSubjectCreateRequest
 
@@ -18,7 +17,7 @@ async def list_subjects(
     offset: int = Query(default=0, ge=0),
 ):
     """List or search the subject catalog. Public endpoint."""
-    stmt = select(Subject).where(Subject.is_active.is_(True))
+    stmt = select(Subject)
     if search:
         stmt = stmt.where(Subject.name.ilike(f"%{search}%"))
     stmt = stmt.limit(limit).offset(offset)
@@ -49,39 +48,8 @@ async def bulk_create_subjects(
     created_subjects = []
     
     for subject_data in subjects_data:
-        university_id = subject_data.university_id
-        faculty_id = subject_data.faculty_id
-        semester_number = subject_data.semester_number
-        
-        # Verify faculty exists and belongs to the university
-        fac_result = await db.execute(
-            select(Faculty).where(
-                (Faculty.id == faculty_id) & (Faculty.university_id == university_id)
-            )
-        )
-        faculty = fac_result.scalar_one_or_none()
-        if not faculty:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Faculty {faculty_id} not found in university {university_id}",
-            )
-        
-        # Verify semester_number is valid
-        if (
-            semester_number < 1
-            or semester_number > faculty.number_of_semesters
-        ):
-            raise HTTPException(
-                status_code=400,
-                detail=f"Semester number must be between 1 and {faculty.number_of_semesters}",
-            )
-        
-        # Check if subject with this name already exists in this faculty/semester combination
-        stmt = select(Subject).where(
-            (Subject.faculty_id == faculty_id)
-            & (Subject.semester_number == semester_number)
-            & (Subject.name == subject_data.name)
-        )
+        # Check if subject with this name already exists
+        stmt = select(Subject).where(Subject.name == subject_data.name)
         existing = await db.execute(stmt)
         if existing.scalar_one_or_none():
             continue  # Skip duplicates

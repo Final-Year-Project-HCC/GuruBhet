@@ -154,7 +154,6 @@ async def login(body: LoginRequest, db: DbSession, response: Response, request: 
         raise UserDisabledError(detail="Account inactive or banned")
 
     # Validate subdomain matches user role
-    host = request.headers.get("host")
     validate_subdomain_matches_role(request, user.role)
 
     access = create_access_token(str(user.id), user.role.value)
@@ -210,7 +209,6 @@ async def refresh(db: DbSession, response: Response, request: Request, x_refresh
         raise UserDisabledError()
 
     # Validate subdomain matches user role
-    host = request.headers.get("host")
     validate_subdomain_matches_role(request, user.role)
 
     # Rotation: blacklist current refresh token jti until its expiry
