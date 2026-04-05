@@ -37,11 +37,17 @@ def get_subdomain_from_host(host: str | None) -> str | None:
     """
     Extract subdomain from Host header.
     
+    Returns:
+    - None: for localhost/127.0.0.1 (development bypass)
+    - "": for root domain like gurubhet.tech (no subdomain)
+    - subdomain name: for subdomains like teacher.gurubhet.tech
+    
     Examples:
-      'student.gurubhet.tech' → 'student'
       'localhost:3000' → None
       '127.0.0.1:3000' → None
-      'teacher.gurubhet.tech:8000' → 'teacher'
+      'gurubhet.tech' → ""
+      'teacher.gurubhet.tech' → 'teacher'
+      'api.gurubhet.tech' → 'api'
     """
     if not host:
         return None
@@ -49,30 +55,31 @@ def get_subdomain_from_host(host: str | None) -> str | None:
     # Remove port if present
     host_without_port = host.split(':')[0]
     
-    # Localhost and 127.0.0.1 bypass subdomain check
+    # Localhost and 127.0.0.1 bypass subdomain check (development)
     if host_without_port in ('localhost', '127.0.0.1'):
         return None
     
     # Extract subdomain from domain
     parts = host_without_port.split('.')
-    if len(parts) >= 3:  # Has subdomain
+    if len(parts) >= 3:  # Has subdomain (e.g., teacher.gurubhet.tech)
         return parts[0]
     
-    return None
+    # Root domain with no subdomain (e.g., gurubhet.tech)
+    return ""
 
 
 def validate_subdomain_matches_role(host: str | None, user_role: UserRole) -> None:
     """
-    Validate that the request origin subdomain matches the user's role.
+    Validate that the request origin matches the user's role.
     
-    Rules:
-    - STUDENT ↔ student.<DOMAIN_NAME> or api.<DOMAIN_NAME> (all apps call API)
-    - TEACHER ↔ teacher.<DOMAIN_NAME> or api.<DOMAIN_NAME>
-    - STAFF ↔ staff.<DOMAIN_NAME> or api.<DOMAIN_NAME>
-    - Localhost/127.0.0.1: Always allowed (development)
-    - api.<DOMAIN_NAME>: Always allowed (all apps call the API from here)
+    Access Rules:
+    - localhost/127.0.0.1: All roles allowed (development)
+    - api.gurubhet.tech: All roles allowed (API endpoint)
+    - gurubhet.tech (root, no subdomain): Only STUDENT allowed
+    - teacher.gurubhet.tech: Only TEACHER allowed
+    - staff.gurubhet.tech: Only STAFF allowed
     
-    Raises PermissionDeniedError if mismatch.
+    Raises PermissionDeniedError if access doesn't match user role.
     """
     subdomain = get_subdomain_from_host(host)
     
@@ -84,25 +91,34 @@ def validate_subdomain_matches_role(host: str | None, user_role: UserRole) -> No
     if subdomain == 'api':
         return
     
-    # Map role to expected subdomain
-    role_to_subdomain = {
-        UserRole.STUDENT: 'student',
-        UserRole.TEACHER: 'teacher',
-        UserRole.STAFF: 'staff',
-    }
+    # Root domain (no subdomain) - only STUDENT allowed
+    if subdomain == "":
+        if user_role == UserRole.STUDENT:
+            return
+        else:
+            correct_url = f"https://{user_role.value.lower()}.{settings.DOMAIN_NAME}"
+            raise PermissionDeniedError(
+                detail=f"Wrong website for {user_role.value}s. Go to {correct_url} instead",
+                context={
+                    "expected_subdomain": user_role.value.lower(),
+                    "requested_from": "root",
+                    "user_role": user_role.value,
+                    "correct_url": correct_url,
+                }
+            )
     
-    expected_subdomain = role_to_subdomain.get(user_role)
-    if not expected_subdomain:
-        raise PermissionDeniedError(
-            detail=f"Invalid user role: {user_role.value}"
-        )
-    
-    if subdomain != expected_subdomain:
-        correct_url = f"https://{expected_subdomain}.{settings.DOMAIN_NAME}"
+    # Subdomain-based routing for teacher and staff
+    if user_role == UserRole.TEACHER and subdomain == 'teacher':
+        return
+    elif user_role == UserRole.STAFF and subdomain == 'staff':
+        return
+    else:
+        # Invalid: student accessing from subdomain, or teacher/staff from wrong subdomain
+        correct_url = f"https://{user_role.value.lower()}.{settings.DOMAIN_NAME}"
         raise PermissionDeniedError(
             detail=f"Wrong website for {user_role.value}s. Go to {correct_url} instead",
             context={
-                "expected_subdomain": expected_subdomain,
+                "expected_subdomain": user_role.value.lower(),
                 "requested_from": subdomain,
                 "user_role": user_role.value,
                 "correct_url": correct_url,
