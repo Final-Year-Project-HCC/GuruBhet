@@ -21,29 +21,29 @@ async def list_reports(db: DbSession, status: str | None = None):
 
 
 @router.patch("/reports/{report_id}", response_model=ReportRead, dependencies=[RequireStaff])
-async def resolve_report(report_id: UUID, body: ReportUpdate, db: DbSession):
+async def resolve_report(report_id: UUID, body: ReportResolve, db: DbSession):
     """Staff: resolve or dismiss a report."""
     ...
 
 
 # ── Bans ──────────────────────────────────────────────────────────────────────
 
-@router.post("/bans", response_model=BanRead, status_code=201, dependencies=[RequireAdmin])
+@router.post("/bans", response_model=BanRead, status_code=201, dependencies=[RequireStaff])
 async def ban_user(body: BanCreate, db: DbSession):
     """
-    Admin: ban a teacher (or user).
+    Staff: ban a teacher (or user).
     Sets User.is_banned = True and creates a UserBan audit record.
     Can attach a recording URL as evidence.
     """
     ...
 
 
-@router.delete("/bans/{ban_id}", status_code=204, dependencies=[RequireAdmin])
+@router.delete("/bans/{ban_id}", status_code=204, dependencies=[RequireStaff])
 async def lift_ban(ban_id: UUID, db: DbSession):
-    """Admin: lift an active ban."""
+    """Staff: lift an active ban."""
     ...
 
 
-@router.get("/bans", response_model=list[BanRead], dependencies=[RequireAdmin])
+@router.get("/bans", response_model=list[BanRead], dependencies=[RequireStaff])
 async def list_bans(db: DbSession):
     ...
