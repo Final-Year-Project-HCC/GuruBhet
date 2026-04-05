@@ -81,28 +81,32 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
             query_params=dict(request.query_params),
         )
         
+        response = None
         try:
             # Process request
             response = await call_next(request)
         except Exception as exc:
+            # Calculate request duration for error logging
+            duration_ms = (time.time() - request.state.start_time) * 1000
+            
             # Log exception with full context
             self.logger.error(
                 "request_failed",
                 error_type=type(exc).__name__,
                 error=str(exc),
+                duration_ms=duration_ms,
                 exc_info=True,
             )
             raise
         finally:
-            # Calculate request duration
-            duration_ms = (time.time() - request.state.start_time) * 1000
-            
-            # Log response
-            self.logger.info(
-                "request_complete",
-                status_code=response.status_code,
-                duration_ms=duration_ms,
-            )
+            # Log response completion only if response exists
+            if response is not None:
+                duration_ms = (time.time() - request.state.start_time) * 1000
+                self.logger.info(
+                    "request_complete",
+                    status_code=response.status_code,
+                    duration_ms=duration_ms,
+                )
         
         # Add trace ID to response headers
         response.headers["X-Trace-ID"] = request_id

@@ -66,10 +66,11 @@ def validate_subdomain_matches_role(host: str | None, user_role: UserRole) -> No
     Validate that the request origin subdomain matches the user's role.
     
     Rules:
-    - STUDENT ↔ student.<DOMAIN_NAME>
-    - TEACHER ↔ teacher.<DOMAIN_NAME>
-    - STAFF ↔ staff.<DOMAIN_NAME>
+    - STUDENT ↔ student.<DOMAIN_NAME> or api.<DOMAIN_NAME> (all apps call API)
+    - TEACHER ↔ teacher.<DOMAIN_NAME> or api.<DOMAIN_NAME>
+    - STAFF ↔ staff.<DOMAIN_NAME> or api.<DOMAIN_NAME>
     - Localhost/127.0.0.1: Always allowed (development)
+    - api.<DOMAIN_NAME>: Always allowed (all apps call the API from here)
     
     Raises PermissionDeniedError if mismatch.
     """
@@ -77,6 +78,10 @@ def validate_subdomain_matches_role(host: str | None, user_role: UserRole) -> No
     
     # Localhost is always allowed (development)
     if subdomain is None:
+        return
+    
+    # API subdomain is always allowed (all apps call the API from api.gurubhet.tech)
+    if subdomain == 'api':
         return
     
     # Map role to expected subdomain
