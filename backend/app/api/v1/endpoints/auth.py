@@ -35,82 +35,77 @@ router = APIRouter()
 
 from urllib.parse import urlparse
 
-def get_subdomain_from_origin(origin: str | None) -> str | None:
-    if not origin:
-        return ""
+def get_subdomain(request: Request) -> str | None:
+    """
+    Extracts subdomain from Origin header (browser) or Host header (fallback).
+    """
+    # 1. Try Origin first (this is where the frontend lives)
+    raw_origin = request.headers.get("origin")
     
-    # Parse the URL (e.g., https://teacher.gurubhet.tech)
-    parsed = urlparse(origin)
-    host = parsed.netloc  # returns 'teacher.gurubhet.tech'
+    if raw_origin:
+        # urlparse handles 'https://teacher.gurubhet.tech' -> 'teacher.gurubhet.tech'
+        host = urlparse(raw_origin).netloc
+    else:
+        # Fallback to Host (e.g., api.gurubhet.tech)
+        host = request.headers.get("host", "")
+
+    # Remove port if present
+    host = host.split(':')[0]
     
-    # Reuse your existing logic or simplify
-    if not host or any(h in host for h in ('localhost', '127.0.0.1')):
+    # Development bypass
+    if not host or host in ('localhost', '127.0.0.1'):
         return None
-        
+    
+    # Logic to identify the 'api' subdomain specifically from the Host
+    # if Origin wasn't provided, but we don't want to block internal API calls
+    if host.startswith("api."):
+        return "api"
+
     parts = host.split('.')
-    # If using guruhet.tech, parts are ['gurubhet', 'tech'] (len 2)
-    # If using teacher.gurubhet.tech, parts are ['teacher', 'gurubhet', 'tech'] (len 3)
+    # gurubhet.tech (2 parts) -> ""
+    # teacher.gurubhet.tech (3 parts) -> "teacher"
     if len(parts) >= 3:
         return parts[0]
+    
     return ""
 
-
-def validate_subdomain_matches_role(host: str | None, user_role: UserRole) -> None:
-    """
-    Validate that the request origin matches the user's role.
+def validate_subdomain_matches_role(request: Request, user_role: UserRole) -> None:
+    subdomain = get_subdomain(request)
     
-    Access Rules:
-    - localhost/127.0.0.1: All roles allowed (development)
-    - api.gurubhet.tech: All roles allowed (API endpoint)
-    - gurubhet.tech (root, no subdomain): Only STUDENT allowed
-    - teacher.gurubhet.tech: Only TEACHER allowed
-    - staff.gurubhet.tech: Only STAFF allowed
-    
-    Raises PermissionDeniedError if access doesn't match user role.
-    """
-    subdomain = get_subdomain_from_host(host)
-    
-    # Localhost is always allowed (development)
+    # Localhost / Dev bypass
     if subdomain is None:
         return
     
-    # API subdomain is always allowed (all apps call the API from api.gurubhet.tech)
-    if subdomain == 'api':
+    # IMPORTANT: We only allow the 'api' bypass IF there was no Origin header.
+    # If a browser is used, Origin will be 'teacher.gurubhet.tech', NOT 'api'.
+    if subdomain == 'api' and not request.headers.get("origin"):
         return
     
-    # Root domain (no subdomain) - only STUDENT allowed
-    if subdomain == "":
-        if user_role == UserRole.STUDENT:
+    # Normalized role string (e.g., 'teacher', 'student', 'staff')
+    role_str = user_role.value.lower()
+    
+    # 1. Student Logic (Root domain "" or "student" subdomain)
+    if role_str == "student":
+        if subdomain in ("", "student"):
             return
-        else:
-            correct_url = f"https://{user_role.value.lower()}.{settings.DOMAIN_NAME}"
-            raise PermissionDeniedError(
-                detail=f"Wrong website for {user_role.value}s. Go to {correct_url} instead",
-                context={
-                    "expected_subdomain": user_role.value.lower(),
-                    "requested_from": "root",
-                    "user_role": user_role.value,
-                    "correct_url": correct_url,
-                }
-            )
+            
+    # 2. Teacher/Staff Logic (Strict subdomain match)
+    elif role_str == subdomain:
+        return
+
+    # 3. Mismatch Fallback
+    # If student is on 'teacher.gurubhet.tech' or teacher is on 'staff.gurubhet.tech'
+    correct_sub = "www" if role_str == "student" else role_str
+    correct_url = f"https://{correct_sub}.{settings.DOMAIN_NAME}"
     
-    # Subdomain-based routing for teacher and staff
-    if user_role == UserRole.TEACHER and subdomain == 'teacher':
-        return
-    elif user_role == UserRole.STAFF and subdomain == 'staff':
-        return
-    else:
-        # Invalid: student accessing from subdomain, or teacher/staff from wrong subdomain
-        correct_url = f"https://{user_role.value.lower()}.{settings.DOMAIN_NAME}"
-        raise PermissionDeniedError(
-            detail=f"Wrong website for {user_role.value}s. Go to {correct_url} instead",
-            context={
-                "expected_subdomain": user_role.value.lower(),
-                "requested_from": subdomain,
-                "user_role": user_role.value,
-                "correct_url": correct_url,
-            }
-        )
+    raise PermissionDeniedError(
+        detail=f"Wrong website for {user_role.value}s. Go to {correct_url} instead",
+        context={
+            "expected": role_str,
+            "actual": subdomain or "root",
+            "correct_url": correct_url,
+        }
+    )
 
 
 @router.post("/register", response_model=UserRead, status_code=status.HTTP_201_CREATED)
