@@ -1,6 +1,6 @@
 from uuid import UUID
 from fastapi import APIRouter
-from app.core.dependencies import DbSession, RequireAdmin
+from app.core.dependencies import DbSession, RequireStaff
 from app.schemas.user import TeacherProfileRead
 from app.core.enums import VerificationStatus
 
@@ -8,8 +8,8 @@ router = APIRouter()
 
 
 @router.get("/teachers/pending", response_model=list[TeacherProfileRead])
-async def list_pending_teachers(db: DbSession, _=RequireAdmin):
-    """Admin: list teachers awaiting document verification."""
+async def list_pending_teachers(db: DbSession, _=RequireStaff):
+    """Staff: list teachers awaiting document verification."""
     ...
 
 
@@ -19,13 +19,13 @@ async def verify_teacher(
     status: VerificationStatus,
     remarks: str | None = None,
     db: DbSession = None,
-    _=RequireAdmin,
+    _=RequireStaff,
 ):
-    """Admin: approve or reject a teacher's verification."""
+    """Staff: approve or reject a teacher's verification."""
     ...
 
 
 @router.get("/stats")
-async def platform_stats(db: DbSession, _=RequireAdmin):
-    """Admin dashboard: users, bookings, revenue, payouts summary."""
+async def platform_stats(db: DbSession, _=RequireStaff):
+    """Staff dashboard: users, bookings, revenue, payouts summary."""
     ...

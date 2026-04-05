@@ -56,5 +56,5 @@ def require_role(*roles: UserRole):
 
 RequireStudent = Depends(require_role(UserRole.STUDENT))
 RequireTeacher = Depends(require_role(UserRole.TEACHER))
-RequireAdmin = Depends(require_role(UserRole.ADMIN))
+RequireStaff = Depends(require_role(UserRole.STAFF))
 RequireStudentOrTeacher = Depends(require_role(UserRole.STUDENT, UserRole.TEACHER))

@@ -59,6 +59,12 @@ class Settings(BaseSettings):
         "https://tasks.gurubhet.tech",
     ]
 
+    # ── Domain Configuration ──────────────────────────────────────────
+    # For subdomain-based role validation in login/refresh routes
+    # Format: student.<DOMAIN_NAME>, teacher.<DOMAIN_NAME>, staff.<DOMAIN_NAME>
+    # Localhost is exempt from subdomain validation
+    DOMAIN_NAME: str = "gurubhet.tech"
+
     # ── eSewa ────────────────────────────────────────────────────────
     ESEWA_MERCHANT_CODE: str
     ESEWA_SECRET_KEY: str

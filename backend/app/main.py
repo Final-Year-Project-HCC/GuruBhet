@@ -6,10 +6,12 @@ from socketio import ASGIApp
 
 from app.core.config import settings
 from app.core.logging import configure_logging
+from app.core.exception_handlers import register_exception_handlers
 from app.db.session import sessionmanager
 from app.api.v1.router import api_router
 from app.utils.livekit import init_livekit, close_livekit, get_livekit_api
 from app.middleware.cookie_to_header import CookieToHeaderMiddleware
+from app.middleware.request_context import RequestContextMiddleware
 from app.core.socketio import create_socketio_server, SocketIOManager
 from app.api.v1.socketio_handlers import setup_socketio_handlers
 
@@ -57,6 +59,13 @@ def create_application() -> FastAPI:
         openapi_url=f"{settings.API_V1_STR}/openapi.json",
         lifespan=lifespan,
     )
+
+    # Register exception handlers (must be done before adding middleware)
+    register_exception_handlers(app)
+
+    # Add middleware in reverse order of execution (bottom to top)
+    # Request context middleware first (innermost)
+    app.add_middleware(RequestContextMiddleware)
 
     app.add_middleware(
         CORSMiddleware,

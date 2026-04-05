@@ -1,6 +1,6 @@
 from uuid import UUID
 from fastapi import APIRouter
-from app.core.dependencies import DbSession, CurrentUser, RequireAdmin
+from app.core.dependencies import DbSession, CurrentUser, RequireStaff
 from app.schemas.moderation import ReportCreate, ReportRead, ReportResolve, BanCreate, BanRead
 
 router = APIRouter()
@@ -14,15 +14,15 @@ async def file_report(body: ReportCreate, current_user: CurrentUser, db: DbSessi
     ...
 
 
-@router.get("/reports", response_model=list[ReportRead], dependencies=[RequireAdmin])
+@router.get("/reports", response_model=list[ReportRead], dependencies=[RequireStaff])
 async def list_reports(db: DbSession, status: str | None = None):
-    """Admin: list all reports, filterable by status."""
+    """Staff: list all reports, filterable by status."""
     ...
 
 
-@router.patch("/reports/{report_id}", response_model=ReportRead, dependencies=[RequireAdmin])
-async def resolve_report(report_id: UUID, body: ReportResolve, db: DbSession):
-    """Admin: resolve or dismiss a report."""
+@router.patch("/reports/{report_id}", response_model=ReportRead, dependencies=[RequireStaff])
+async def resolve_report(report_id: UUID, body: ReportUpdate, db: DbSession):
+    """Staff: resolve or dismiss a report."""
     ...
 
 

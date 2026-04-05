@@ -1,21 +1,48 @@
 from uuid import UUID
 from decimal import Decimal
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Query
 from sqlalchemy import select
-from sqlalchemy.orm import joinedload, selectinload
+from sqlalchemy.orm import selectinload
 
 from app.core.dependencies import DbSession, CurrentUser
 from app.core.enums import UserRole
+from app.core.exceptions import (
+    PermissionDeniedError,
+    TeacherNotFoundError,
+    SubjectNotFoundError,
+    ConflictError,
+)
 from app.models.teacher import TeacherProfile
 from app.models.student import StudentProfile
 from app.models.booking import Booking
+from app.models.teacher_subject import TeacherSubject
 from app.repositories.teacher_subject_repo import TeacherSubjectRepository
 from app.schemas.user import TeacherProfileRead, TeacherProfileUpdate
 from app.schemas.subject import TeacherSearchResult, TeacherSubjectCreate, TeacherSubjectRead
 from app.schemas.booking import BookingRead, BookingDetailedReadForTeacher
 
 router = APIRouter()
+
+
+# ── List all teachers (unauthenticated) ──────────────────────────────────────
+# TODO: TEMPORARY ENDPOINT - Remove this after frontend integration with search
+#       This is a debug/development endpoint. In production, use /search with filters.
+
+@router.get("/", response_model=list[TeacherProfileRead])
+async def list_all_teachers(db: DbSession):
+    """
+    Fetch all registered teachers without authentication.
+    
+    ⚠️  TEMPORARY ENDPOINT - For development/debugging only.
+    Will be removed in production. Use /search endpoint for production queries.
+    """
+    result = await db.execute(
+        select(TeacherProfile)
+        .options(selectinload(TeacherProfile.user))
+        .order_by(TeacherProfile.created_at.desc())
+    )
+    return list(result.scalars().all())
 
 
 # ── Public search (students use this) ────────────────────────────────────────
@@ -60,38 +87,21 @@ async def search_teachers(
     ]
 
 
-# ── Public profile (viewable by anyone) ──────────────────────────────────────
-
-@router.get("/{teacher_id}", response_model=TeacherProfileRead)
-async def get_teacher_profile(teacher_id: UUID, db: DbSession):
-    """
-    Fetch a teacher's public profile.
-    Accessible by any authenticated or unauthenticated user.
-    Only shows approved teachers.
-    """
-    result = await db.execute(
-        select(TeacherProfile).where(TeacherProfile.user_id == teacher_id)
-    )
-    profile = result.scalar_one_or_none()
-    if not profile:
-        raise HTTPException(status_code=404, detail="Teacher not found")
-    return profile
-
-
 # ── Own profile (teacher only) ────────────────────────────────────────────────
+# Note: /me must be defined BEFORE /{teacher_id} to avoid UUID parsing conflicts
 
 @router.get("/me", response_model=TeacherProfileRead)
 async def get_my_profile(current_user: CurrentUser, db: DbSession):
     """Return the logged-in teacher's own profile."""
     if current_user.role != UserRole.TEACHER:
-        raise HTTPException(status_code=403, detail="Only teachers can access this")
+        raise PermissionDeniedError(detail="Only teachers can access this")
 
     result = await db.execute(
         select(TeacherProfile).where(TeacherProfile.user_id == current_user.id)
     )
     profile = result.scalar_one_or_none()
     if not profile:
-        raise HTTPException(status_code=404, detail="Teacher profile not found")
+        raise TeacherNotFoundError(teacher_id=str(current_user.id))
     return profile
 
 
@@ -103,14 +113,14 @@ async def update_my_profile(
 ):
     """Update the logged-in teacher's bio, avatar, and headline."""
     if current_user.role != UserRole.TEACHER:
-        raise HTTPException(status_code=403, detail="Only teachers can access this")
+        raise PermissionDeniedError(detail="Only teachers can access this")
 
     result = await db.execute(
         select(TeacherProfile).where(TeacherProfile.user_id == current_user.id)
     )
     profile = result.scalar_one_or_none()
     if not profile:
-        raise HTTPException(status_code=404, detail="Teacher profile not found")
+        raise TeacherNotFoundError(teacher_id=str(current_user.id))
 
     if body.bio is not None:
         profile.bio = body.bio
@@ -130,7 +140,7 @@ async def update_my_profile(
 async def get_my_bookings(current_user: CurrentUser, db: DbSession):
     """Return all bookings for the logged-in teacher with student and subject details."""
     if current_user.role != UserRole.TEACHER:
-        raise HTTPException(status_code=403, detail="Only teachers can access this")
+        raise PermissionDeniedError(detail="Only teachers can access this")
 
     result = await db.execute(
         select(Booking)
@@ -151,12 +161,8 @@ async def get_my_bookings(current_user: CurrentUser, db: DbSession):
 async def list_my_subjects(current_user: CurrentUser, db: DbSession):
     """Teacher: list all subjects they have registered."""
     if current_user.role != UserRole.TEACHER:
-        raise HTTPException(status_code=403, detail="Only teachers can access this")
+        raise PermissionDeniedError(detail="Only teachers can access this")
 
-    from sqlalchemy import select
-    from sqlalchemy.orm import selectinload
-    from app.models.teacher_subject import TeacherSubject
-    
     result = await db.execute(
         select(TeacherSubject)
         .where(TeacherSubject.teacher_id == current_user.id)
@@ -173,16 +179,13 @@ async def add_subject(
 ):
     """Teacher: register a subject they can teach."""
     if current_user.role != UserRole.TEACHER:
-        raise HTTPException(status_code=403, detail="Only teachers can access this")
+        raise PermissionDeniedError(detail="Only teachers can access this")
 
     repo = TeacherSubjectRepository(db)
     existing = await repo.get_by_teacher_and_subject(current_user.id, body.subject_id)
     if existing:
-        raise HTTPException(status_code=409, detail="Subject already registered")
+        raise ConflictError(detail="Subject already registered")
 
-    from app.models.teacher_subject import TeacherSubject
-    from sqlalchemy.orm import selectinload
-    
     ts = TeacherSubject(
         teacher_id=current_user.id,
         subject_id=body.subject_id,
@@ -193,7 +196,6 @@ async def add_subject(
     await db.flush()
     
     # Explicitly load the subject relationship before returning
-    from sqlalchemy import select
     result = await db.execute(
         select(TeacherSubject)
         .where((TeacherSubject.teacher_id == current_user.id) & (TeacherSubject.subject_id == body.subject_id))
@@ -201,7 +203,6 @@ async def add_subject(
     )
     ts = result.scalar_one()
     await db.commit()
-    return ts
     return ts
 
 
@@ -214,12 +215,12 @@ async def update_subject(
 ):
     """Teacher: update rate or experience for a registered subject."""
     if current_user.role != UserRole.TEACHER:
-        raise HTTPException(status_code=403, detail="Only teachers can access this")
+        raise PermissionDeniedError(detail="Only teachers can access this")
 
     repo = TeacherSubjectRepository(db)
     ts = await repo.get_by_teacher_and_subject(current_user.id, subject_id)
     if not ts:
-        raise HTTPException(status_code=404, detail="Subject not found")
+        raise SubjectNotFoundError(subject_id=str(subject_id))
 
     ts.rate_per_session = body.rate_per_session
     ts.years_of_experience = body.years_of_experience
@@ -236,12 +237,31 @@ async def remove_subject(
 ):
     """Teacher: deactivate a subject offering (soft delete)."""
     if current_user.role != UserRole.TEACHER:
-        raise HTTPException(status_code=403, detail="Only teachers can access this")
+        raise PermissionDeniedError(detail="Only teachers can access this")
 
     repo = TeacherSubjectRepository(db)
     ts = await repo.get_by_teacher_and_subject(current_user.id, subject_id)
     if not ts:
-        raise HTTPException(status_code=404, detail="Subject not found")
+        raise SubjectNotFoundError(subject_id=str(subject_id))
 
     ts.is_active = False
     await db.flush()
+
+
+# ── Public profile (viewable by anyone) ──────────────────────────────────────
+# Note: /{teacher_id} is defined LAST to avoid conflicts with /me and /search
+
+@router.get("/{teacher_id}", response_model=TeacherProfileRead)
+async def get_teacher_profile(teacher_id: UUID, db: DbSession):
+    """
+    Fetch a teacher's public profile.
+    Accessible by any authenticated or unauthenticated user.
+    Only shows approved teachers.
+    """
+    result = await db.execute(
+        select(TeacherProfile).where(TeacherProfile.user_id == teacher_id)
+    )
+    profile = result.scalar_one_or_none()
+    if not profile:
+        raise TeacherNotFoundError(teacher_id=str(teacher_id))
+    return profile

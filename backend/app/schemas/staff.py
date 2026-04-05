@@ -1,5 +1,5 @@
 """
-Schemas for admin management endpoints.
+Schemas for staff management endpoints.
 """
 from uuid import UUID
 from datetime import datetime
@@ -8,23 +8,23 @@ from pydantic import EmailStr
 from .base import SharedConfig
 
 
-class AdminCreateRequest(SharedConfig):
+class StaffCreateRequest(SharedConfig):
 
     first_name: str
     last_name: str
     email: EmailStr
     phone: str | None = None
     password: str
-    admin_role: str  # AdminRole value
+    staff_role: str  # Staff role value
 
 
-class AdminUpdateRequest(SharedConfig):
+class StaffUpdateRequest(SharedConfig):
 
-    admin_role: str | None = None  # AdminRole value
+    staff_role: str | None = None  # Staff role value
     is_active: bool | None = None
 
 
-class AdminRead(SharedConfig):
+class StaffRead(SharedConfig):
 
     id: UUID
 

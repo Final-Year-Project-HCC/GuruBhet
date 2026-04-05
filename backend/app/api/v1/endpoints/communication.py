@@ -17,7 +17,7 @@ This module implements the HTTP-to-Socket flow:
 import logging
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
@@ -30,6 +30,12 @@ from app.schemas.communication import MessageCreate, MessageResponse
 from app.schemas.booking import BookingCreate, BookingResponse
 from app.services.communication import CommunicationService, NotificationService
 from app.core.socketio import socketio_manager
+from app.core.exceptions import (
+    ValidationError,
+    UserNotFoundError,
+    BookingNotFoundError,
+    PermissionDeniedError,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -72,9 +78,9 @@ async def send_message(
     try:
         # Validate receiver exists and is not the same as sender
         if message_create.receiver_id == current_user_id:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+            raise ValidationError(
                 detail="Cannot send message to yourself",
+                context={"receiver_id": str(message_create.receiver_id)}
             )
         
         result = await db.execute(
@@ -83,10 +89,7 @@ async def send_message(
         receiver = result.scalar_one_or_none()
         
         if not receiver:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Recipient not found",
-            )
+            raise UserNotFoundError(user_id=str(message_create.receiver_id))
         
         # Save message to database (Database-First)
         message = await CommunicationService.save_and_send_message(
@@ -121,20 +124,20 @@ async def send_message(
             read_at=message.read_at,
         )
     
-    except HTTPException:
+    except ValidationError:
         raise
-    except ValueError as e:
+    except ValidationError as e:
         logger.warning(f"Validation error in send_message: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+        raise ValidationError(
             detail=str(e),
+            context={"error_type": "validation"}
         )
     except Exception as e:
         logger.error(f"Error sending message: {e}", exc_info=True)
         await db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        raise ValidationError(
             detail="Failed to send message",
+            context={"error_type": "unknown"}
         )
 
 
@@ -197,9 +200,9 @@ async def get_conversation(
         }
     except Exception as e:
         logger.error(f"Error retrieving conversation: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        raise ValidationError(
             detail="Failed to retrieve conversation",
+            context={"error_type": "database"}
         )
 
 
@@ -243,10 +246,7 @@ async def create_booking_request(
         teacher = result.scalar_one_or_none()
         
         if not teacher:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Teacher not found",
-            )
+            raise UserNotFoundError(user_id=str(booking_create.teacher_id))
         
         # Create booking with PENDING_APPROVAL status
         booking = Booking(
@@ -294,14 +294,14 @@ async def create_booking_request(
             "created_at": booking.created_at.isoformat() if booking.created_at else None,
         }
     
-    except HTTPException:
+    except UserNotFoundError:
         raise
     except Exception as e:
         logger.error(f"Error creating booking request: {e}", exc_info=True)
         await db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        raise ValidationError(
             detail="Failed to create booking request",
+            context={"error_type": "database"}
         )
 
 
@@ -340,16 +340,12 @@ async def approve_booking_request(
         booking = result.scalar_one_or_none()
         
         if not booking:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Booking not found",
-            )
+            raise BookingNotFoundError(booking_id=str(booking_id))
         
         # Verify current user is the teacher
         if booking.teacher_id != current_user_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="You are not authorized to approve this booking",
+            raise PermissionDeniedError(
+                detail="You are not authorized to approve this booking"
             )
         
         # Update status
@@ -380,14 +376,14 @@ async def approve_booking_request(
             "message": "Booking approved. Please proceed with payment.",
         }
     
-    except HTTPException:
+    except ValidationError:
         raise
     except Exception as e:
         logger.error(f"Error approving booking: {e}", exc_info=True)
         await db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        raise ValidationError(
             detail="Failed to approve booking",
+            context={"error_type": "database"}
         )
 
 
@@ -424,15 +420,11 @@ async def reject_booking_request(
         booking = result.scalar_one_or_none()
         
         if not booking:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Booking not found",
-            )
+            raise BookingNotFoundError(booking_id=str(booking_id))
         
         if booking.teacher_id != current_user_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="You are not authorized to reject this booking",
+            raise PermissionDeniedError(
+                detail="You are not authorized to reject this booking"
             )
         
         # Update booking status
@@ -464,12 +456,14 @@ async def reject_booking_request(
             "message": "Booking rejected",
         }
     
-    except HTTPException:
+    except BookingNotFoundError:
+        raise
+    except PermissionDeniedError:
         raise
     except Exception as e:
         logger.error(f"Error rejecting booking: {e}", exc_info=True)
         await db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        raise ValidationError(
             detail="Failed to reject booking",
+            context={"error_type": "database"}
         )

@@ -1,11 +1,15 @@
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, status
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
-from app.core.dependencies import DbSession, CurrentUser, RequireAdmin
+from app.core.dependencies import DbSession, CurrentUser, RequireStaff
 from app.core.enums import UserRole
+from app.core.exceptions import (
+    PermissionDeniedError,
+    StudentNotFoundError,
+)
 from app.models.student import StudentProfile
 from app.models.booking import Booking
 from app.schemas.user import StudentProfileRead, StudentProfileUpdate
@@ -20,14 +24,14 @@ router = APIRouter()
 async def get_my_profile(current_user: CurrentUser, db: DbSession):
     """Return the logged-in student's profile."""
     if current_user.role != UserRole.STUDENT:
-        raise HTTPException(status_code=403, detail="Only students can access this")
+        raise PermissionDeniedError(detail="Only students can access this")
 
     result = await db.execute(
         select(StudentProfile).where(StudentProfile.user_id == current_user.id)
     )
     profile = result.scalar_one_or_none()
     if not profile:
-        raise HTTPException(status_code=404, detail="Student profile not found")
+        raise StudentNotFoundError(student_id=str(current_user.id))
     return profile
 
 
@@ -39,14 +43,14 @@ async def update_my_profile(
 ):
     """Update the logged-in student's bio and avatar."""
     if current_user.role != UserRole.STUDENT:
-        raise HTTPException(status_code=403, detail="Only students can access this")
+        raise PermissionDeniedError(detail="Only students can access this")
 
     result = await db.execute(
         select(StudentProfile).where(StudentProfile.user_id == current_user.id)
     )
     profile = result.scalar_one_or_none()
     if not profile:
-        raise HTTPException(status_code=404, detail="Student profile not found")
+        raise StudentNotFoundError(student_id=str(current_user.id))
 
     if body.bio is not None:
         profile.bio = body.bio
@@ -64,7 +68,7 @@ async def update_my_profile(
 async def get_my_bookings(current_user: CurrentUser, db: DbSession):
     """Return all bookings for the logged-in student with teacher and subject details."""
     if current_user.role != UserRole.STUDENT:
-        raise HTTPException(status_code=403, detail="Only students can access this")
+        raise PermissionDeniedError(detail="Only students can access this")
 
     from sqlalchemy.orm import selectinload
     from app.models.teacher import TeacherProfile
@@ -82,7 +86,7 @@ async def get_my_bookings(current_user: CurrentUser, db: DbSession):
     return list(result.scalars().all())
 
 
-# ── Public profile (viewable by teachers and admins) ─────────────────────────
+# ── Public profile (viewable by teachers and staff) ────────────────────────────
 
 @router.get("/{student_id}", response_model=StudentProfileRead)
 async def get_student_profile(
@@ -92,21 +96,21 @@ async def get_student_profile(
 ):
     """
     Fetch a student's public profile.
-    Accessible by the student themselves, teachers they have bookings with, and admins.
+    Accessible by the student themselves, teachers they have bookings with, and staff.
     """
     result = await db.execute(
         select(StudentProfile).where(StudentProfile.user_id == student_id)
     )
     profile = result.scalar_one_or_none()
     if not profile:
-        raise HTTPException(status_code=404, detail="Student not found")
+        raise StudentNotFoundError(student_id=str(student_id))
 
     # Student can view their own profile
     if current_user.id == student_id:
         return profile
 
-    # Admin can view any profile
-    if current_user.role == UserRole.ADMIN:
+    # Staff can view any profile
+    if current_user.role == UserRole.STAFF:
         return profile
 
     # Teacher can only view if they have a shared booking with this student
@@ -120,4 +124,4 @@ async def get_student_profile(
         if booking_result.scalar_one_or_none():
             return profile
 
-    raise HTTPException(status_code=403, detail="Not authorised to view this profile")
+    raise PermissionDeniedError(detail="Cannot view this student profile")

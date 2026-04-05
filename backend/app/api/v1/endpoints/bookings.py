@@ -2,11 +2,21 @@ from uuid import UUID
 from datetime import datetime, timezone, timedelta
 from decimal import Decimal
 import logging
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Request
 from sqlalchemy import select
 
 from app.core.dependencies import DbSession, CurrentUser
 from app.core.enums import BookingStatus, UserRole, SessionStatus
+from app.core.exceptions import (
+    PermissionDeniedError,
+    SubjectNotFoundError,
+    BookingNotFoundError,
+    InvalidStatusTransitionError,
+    BookingConflictError,
+    ExternalServiceError,
+    LiveKitError,
+    ValidationError,
+)
 from app.models.booking import Booking, Session
 from app.models.subject import Subject
 from app.schemas.booking import (
@@ -48,7 +58,7 @@ async def create_booking_request(
     Booking starts in PENDING_APPROVAL status awaiting teacher approval.
     """
     if current_user.role != UserRole.STUDENT:
-        raise HTTPException(status_code=403, detail="Only students can create booking requests")
+        raise PermissionDeniedError(detail="Only students can create booking requests")
 
     # Verify subject exists
     subject_result = await db.execute(
@@ -56,7 +66,7 @@ async def create_booking_request(
     )
     subject = subject_result.scalar_one_or_none()
     if not subject:
-        raise HTTPException(status_code=404, detail="Subject not found")
+        raise SubjectNotFoundError(subject_id=str(body.subject_id))
 
     total_amount = body.rate_per_session * Decimal(body.total_sessions)
 
@@ -89,19 +99,20 @@ async def approve_booking_request(
     Sessions are created on-demand when both parties start a session.
     """
     if current_user.role != UserRole.TEACHER:
-        raise HTTPException(status_code=403, detail="Only teachers can approve bookings")
+        raise PermissionDeniedError(detail="Only teachers can approve bookings")
 
     result = await db.execute(select(Booking).where(Booking.id == booking_id))
     booking = result.scalar_one_or_none()
     if not booking:
-        raise HTTPException(status_code=404, detail="Booking not found")
+        raise BookingNotFoundError(booking_id=str(booking_id))
 
     if booking.teacher_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Not your booking to approve")
+        raise PermissionDeniedError(detail="Cannot approve booking you don't own")
 
     if booking.status != BookingStatus.PENDING_APPROVAL:
-        raise HTTPException(
-            status_code=400, detail=f"Booking cannot be approved in status {booking.status.value}"
+        raise InvalidStatusTransitionError(
+            detail=f"Booking cannot be approved in status {booking.status.value}",
+            context={"current_status": booking.status.value, "required_status": "PENDING_APPROVAL"}
         )
 
     booking.status = BookingStatus.PENDING_PAYMENT
@@ -122,19 +133,20 @@ async def initiate_payment(booking_id: UUID, current_user: CurrentUser, db: DbSe
     Sessions are created on-demand; no pre-scheduling required.
     """
     if current_user.role != UserRole.STUDENT:
-        raise HTTPException(status_code=403, detail="Only students can pay for bookings")
+        raise PermissionDeniedError(detail="Only students can pay for bookings")
 
     result = await db.execute(select(Booking).where(Booking.id == booking_id))
     booking = result.scalar_one_or_none()
     if not booking:
-        raise HTTPException(status_code=404, detail="Booking not found")
+        raise BookingNotFoundError(booking_id=str(booking_id))
 
     if booking.student_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Not your booking")
+        raise PermissionDeniedError(detail="Cannot pay for booking you didn't create")
 
     if booking.status != BookingStatus.PENDING_PAYMENT:
-        raise HTTPException(
-            status_code=400, detail=f"Booking cannot be paid in status {booking.status.value}"
+        raise InvalidStatusTransitionError(
+            detail=f"Booking cannot be paid in status {booking.status.value}",
+            context={"current_status": booking.status.value, "required_status": "PENDING_PAYMENT"}
         )
 
     # Return eSewa payment init params (this would call eSewa API)
@@ -195,19 +207,20 @@ async def request_session(booking_id: UUID, current_user: CurrentUser, db: DbSes
     """
     # ── Step 1: Verify teacher and booking ──
     if current_user.role != UserRole.TEACHER:
-        raise HTTPException(status_code=403, detail="Only teachers can request sessions")
+        raise PermissionDeniedError(detail="Only teachers can request sessions")
 
     result = await db.execute(select(Booking).where(Booking.id == booking_id))
     booking = result.scalar_one_or_none()
     if not booking:
-        raise HTTPException(status_code=404, detail="Booking not found")
+        raise BookingNotFoundError(booking_id=str(booking_id))
 
     if booking.teacher_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Not your booking")
+        raise PermissionDeniedError(detail="Cannot request sessions for booking you don't own")
 
     if booking.status != BookingStatus.ACTIVE:
-        raise HTTPException(
-            status_code=400, detail=f"Booking must be ACTIVE to request sessions (current: {booking.status.value})"
+        raise InvalidStatusTransitionError(
+            detail=f"Booking must be ACTIVE to request sessions (current: {booking.status.value})",
+            context={"current_status": booking.status.value, "required_status": "ACTIVE"}
         )
     
     # ── Check if a session is already in progress ──
@@ -218,9 +231,9 @@ async def request_session(booking_id: UUID, current_user: CurrentUser, db: DbSes
         )
     )
     if in_progress_session.scalar_one_or_none():
-        raise HTTPException(
-            status_code=409,
-            detail="A session is already in progress for this booking. Use /sync to reconnect."
+        raise BookingConflictError(
+            detail="A session is already in progress for this booking. Use /sync to reconnect.",
+            context={"booking_id": str(booking_id), "conflict_type": "session_in_progress"}
         )
     
     # ── Step 2: Check completed sessions ──
@@ -231,8 +244,9 @@ async def request_session(booking_id: UUID, current_user: CurrentUser, db: DbSes
     completed = sum(1 for s in sessions if s.status in (SessionStatus.COMPLETED, SessionStatus.CANCELLED_BY_STUDENT, SessionStatus.CANCELLED_BY_TEACHER))
     
     if completed >= booking.total_sessions:
-        raise HTTPException(
-            status_code=400, detail=f"All {booking.total_sessions} sessions have been completed"
+        raise InvalidStatusTransitionError(
+            detail=f"All {booking.total_sessions} sessions have been completed",
+            context={"completed_sessions": completed, "total_sessions": booking.total_sessions}
         )
     # ── Step 3: Check student presence (PRESENCE CHECK) ──
     student_online = await is_user_online(booking.student_id, use_redis=True)
@@ -256,10 +270,11 @@ async def request_session(booking_id: UUID, current_user: CurrentUser, db: DbSes
             f"Teacher={current_user.id}, Student={booking.student_id}, Booking={booking_id}"
         )
         
-        # Return 480 Subscriber Offline
-        raise HTTPException(
-            status_code=480,
-            detail="Student is currently offline. Please try again when they are online."
+        # Return 480 Subscriber Offline with custom exception
+        from app.core.exceptions import ExternalServiceError
+        raise ExternalServiceError(
+            detail="Student is currently offline. Please try again when they are online.",
+            status_code=480
         )
 
 
@@ -350,23 +365,24 @@ async def accept_session_request(
     to support cross-device connections (MacBook, iPad, etc.)
     """
     if current_user.role != UserRole.STUDENT:
-        raise HTTPException(status_code=403, detail="Only students can accept sessions")
+        raise PermissionDeniedError(detail="Only students can accept sessions")
 
     result = await db.execute(select(Booking).where(Booking.id == booking_id))
     booking = result.scalar_one_or_none()
     if not booking:
-        raise HTTPException(status_code=404, detail="Booking not found")
+        raise BookingNotFoundError(booking_id=str(booking_id))
 
     if booking.student_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Not your booking")
+        raise PermissionDeniedError(detail="Cannot accept sessions for booking you don't own")
 
     # ── Check Redis key (60-second handshake window) ──
     pending = await get_pending_session_key(str(booking_id))
     if not pending:
         # Redis key expired — student took >60 seconds to accept
-        raise HTTPException(
-            status_code=410,
-            detail="Session acceptance window expired. Teacher must request again."
+        from app.core.exceptions import ExternalServiceError
+        raise ExternalServiceError(
+            detail="Session acceptance window expired. Teacher must request again.",
+            status_code=410
         )
     
     # ── CREATE Session record NOW (on acceptance) ──
@@ -378,8 +394,9 @@ async def accept_session_request(
     completed = sum(1 for s in sessions if s.status in (SessionStatus.COMPLETED, SessionStatus.CANCELLED_BY_STUDENT, SessionStatus.CANCELLED_BY_TEACHER) )
     
     if completed >= booking.total_sessions:
-        raise HTTPException(
-            status_code=400, detail=f"All {booking.total_sessions} sessions have been completed"
+        raise InvalidStatusTransitionError(
+            detail=f"All {booking.total_sessions} sessions have been completed",
+            context={"completed_sessions": completed, "total_sessions": booking.total_sessions}
         )
 
     # Calculate next session number
@@ -426,10 +443,8 @@ async def accept_session_request(
         )
         # Rollback the session creation since room creation failed
         await db.rollback()
-        raise HTTPException(
-            status_code=503,
-            detail="Unable to create video room. Please try again in a moment."
-        )
+        from app.core.exceptions import LiveKitError
+        raise LiveKitError(cause=e)
     
     # ── Schedule cleanup task for when session expires ──
     # Room will be deleted after: session_duration_minutes + leniency buffer
@@ -584,23 +599,23 @@ async def reject_session_request(booking_id: UUID, current_user: CurrentUser, db
         410: Session rejection window expired (>60 seconds)
     """
     if current_user.role != UserRole.STUDENT:
-        raise HTTPException(status_code=403, detail="Only students can reject sessions")
+        raise PermissionDeniedError(detail="Only students can reject sessions")
 
     result = await db.execute(select(Booking).where(Booking.id == booking_id))
     booking = result.scalar_one_or_none()
     if not booking:
-        raise HTTPException(status_code=404, detail="Booking not found")
+        raise BookingNotFoundError(booking_id=str(booking_id))
 
     if booking.student_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Not your booking")
+        raise PermissionDeniedError(detail="Not your booking")
 
     # ── Check Redis key (60-second rejection window) ──
     pending = await get_pending_session_key(str(booking_id))
     if not pending:
         # Redis key expired — student took >60 seconds to reject
-        raise HTTPException(
-            status_code=410,
-            detail="Session rejection window expired. Teacher must request again."
+        raise ExternalServiceError(
+            detail="Session rejection window expired. Teacher must request again.",
+            status_code=410
         )
     
     # ── Update message status to REJECTED (Case 3) ──
@@ -616,7 +631,10 @@ async def reject_session_request(booking_id: UUID, current_user: CurrentUser, db
     )
     request_message = message_result.scalar_one_or_none()
     if not request_message:
-        raise HTTPException(status_code=404, detail="Session request message not found")
+        raise ExternalServiceError(
+            detail="Session request message not found",
+            status_code=404
+        )
     
     request_message.status = MessageStatus.REJECTED
     await db.flush()
@@ -661,7 +679,7 @@ async def list_my_bookings(current_user: CurrentUser, db: DbSession):
             select(Booking).where(Booking.teacher_id == current_user.id).order_by(Booking.created_at.desc())
         )
     else:
-        raise HTTPException(status_code=403, detail="Not authorized")
+        raise PermissionDeniedError(detail="Not authorized")
 
     bookings = result.scalars().all()
     return bookings
@@ -673,10 +691,10 @@ async def get_booking(booking_id: UUID, current_user: CurrentUser, db: DbSession
     result = await db.execute(select(Booking).where(Booking.id == booking_id))
     booking = result.scalar_one_or_none()
     if not booking:
-        raise HTTPException(status_code=404, detail="Booking not found")
+        raise BookingNotFoundError(booking_id=str(booking_id))
 
     if current_user.id not in (booking.student_id, booking.teacher_id):
-        raise HTTPException(status_code=403, detail="Not your booking")
+        raise PermissionDeniedError(detail="Not your booking")
 
     return booking
 
@@ -717,17 +735,17 @@ async def sync_session(booking_id: UUID, current_user: CurrentUser, db: DbSessio
     booking_result = await db.execute(select(Booking).where(Booking.id == booking_id))
     booking = booking_result.scalar_one_or_none()
     if not booking:
-        raise HTTPException(status_code=404, detail="Booking not found")
+        raise BookingNotFoundError(booking_id=str(booking_id))
     
     # Verify user is part of this booking
     if current_user.id not in (booking.student_id, booking.teacher_id):
-        raise HTTPException(status_code=403, detail="Not your booking")
+        raise PermissionDeniedError(detail="Not your booking")
     
     # Verify booking is ACTIVE
     if booking.status != BookingStatus.ACTIVE:
-        raise HTTPException(
-            status_code=410,
-            detail=f"Booking is no longer active. Status: {booking.status.value}"
+        raise ExternalServiceError(
+            detail=f"Booking is no longer active. Status: {booking.status.value}",
+            status_code=410
         )
     
     # Find the current session for this booking
@@ -740,24 +758,27 @@ async def sync_session(booking_id: UUID, current_user: CurrentUser, db: DbSessio
     session = session_result.scalar_one_or_none()
     
     if not session:
-        raise HTTPException(status_code=410, detail="No session found")
+        raise ExternalServiceError(
+            detail="No session found",
+            status_code=410
+        )
     
     # Check if session is still active (IN_PROGRESS)
     # If session is COMPLETED or CANCELLED_BY_*, deny access
     if session.status == SessionStatus.COMPLETED:
-        raise HTTPException(
-            status_code=410,
-            detail="Session has been completed"
+        raise ExternalServiceError(
+            detail="Session has been completed",
+            status_code=410
         )
     elif session.status in (SessionStatus.CANCELLED_BY_TEACHER, SessionStatus.CANCELLED_BY_STUDENT):
-        raise HTTPException(
-            status_code=410,
-            detail=f"Session was cancelled by {session.status.value.split('_')[2]}"
+        raise ExternalServiceError(
+            detail=f"Session was cancelled by {session.status.value.split('_')[2]}",
+            status_code=410
         )
     elif session.status not in (SessionStatus.IN_PROGRESS, SessionStatus.READY):
-        raise HTTPException(
-            status_code=410,
-            detail=f"Session is not in progress or ready. Current status: {session.status.value}"
+        raise ExternalServiceError(
+            detail=f"Session is not in progress or ready. Current status: {session.status.value}",
+            status_code=410
         )
     
     # Session is READY or IN_PROGRESS - calculate leniency buffer for time-based access control
@@ -788,8 +809,7 @@ async def sync_session(booking_id: UUID, current_user: CurrentUser, db: DbSessio
             # Check if current time is within window + leniency
             now = datetime.now(tz=timezone.utc)
             if now > allowed_end_time:
-                raise HTTPException(
-                    status_code=403,
+                raise PermissionDeniedError(
                     detail=f"Session window expired. Window closed at {allowed_end_time.isoformat()}"
                 )
     
@@ -833,14 +853,14 @@ async def cancel_booking(
     result = await db.execute(select(Booking).where(Booking.id == booking_id))
     booking = result.scalar_one_or_none()
     if not booking:
-        raise HTTPException(status_code=404, detail="Booking not found")
+        raise BookingNotFoundError(booking_id=str(booking_id))
     if current_user.id not in (booking.student_id, booking.teacher_id):
-        raise HTTPException(status_code=403, detail="Not your booking")
+        raise PermissionDeniedError(detail="Not your booking")
     
     if booking.status in (BookingStatus.COMPLETED, BookingStatus.CANCELLED_BY_STUDENT, BookingStatus.CANCELLED_BY_TEACHER):
-        raise HTTPException(
-            status_code=400, 
-            detail=f"Cannot cancel booking in status {booking.status.value}"
+        raise ValidationError(
+            detail=f"Cannot cancel booking in status {booking.status.value}",
+            context={"current_status": booking.status.value}
         )
     # Only trigger refund if booking was ACTIVE (money was already taken)
     if booking.status == BookingStatus.ACTIVE:

@@ -2,7 +2,7 @@ import logging
 from datetime import datetime, timezone
 from uuid import UUID
 
-from fastapi import APIRouter, Header, HTTPException, Request
+from fastapi import APIRouter, Header, Request
 from livekit.api import WebhookReceiver, TokenVerifier
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
@@ -10,6 +10,7 @@ from sqlalchemy.orm import joinedload
 from app.core.config import settings
 from app.core.dependencies import DbSession
 from app.core.enums import SessionStatus, BookingStatus
+from app.core.exceptions import InvalidTokenError
 from app.models.booking import Session, Booking
 
 logger = logging.getLogger(__name__)
@@ -68,7 +69,7 @@ async def livekit_webhook(
     try:
         event = _receiver.receive(body.decode(), authorization)
     except Exception:
-        raise HTTPException(status_code=401, detail="Invalid LiveKit webhook signature")
+        raise InvalidTokenError(detail="Invalid LiveKit webhook signature")
 
     now = datetime.now(tz=timezone.utc)
 
