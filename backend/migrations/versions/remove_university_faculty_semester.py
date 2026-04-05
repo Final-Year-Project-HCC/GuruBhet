@@ -27,54 +27,65 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Remove university, faculty, and semester models; simplify subject."""
-    # Drop semesters table (depends on faculties)
-    op.drop_table('semesters')
     
-    # Drop faculties table (depends on universities)
-    op.drop_table('faculties')
+    # Drop constraints and columns from subjects table
+    # Check if columns exist before dropping
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    
+    # Get existing columns in subjects table
+    columns = [col['name'] for col in inspector.get_columns('subjects')]
+    
+    # Drop foreign keys if they exist
+    if 'university_id' in columns:
+        with op.batch_alter_table('subjects', schema=None) as batch_op:
+            batch_op.drop_column('university_id')
+    
+    if 'faculty_id' in columns:
+        with op.batch_alter_table('subjects', schema=None) as batch_op:
+            batch_op.drop_column('faculty_id')
+    
+    # Drop columns if they exist
+    if 'is_active' in columns:
+        with op.batch_alter_table('subjects', schema=None) as batch_op:
+            batch_op.drop_column('is_active')
+    
+    if 'semester_number' in columns:
+        with op.batch_alter_table('subjects', schema=None) as batch_op:
+            batch_op.drop_column('semester_number')
+    
+    if 'class_name' in columns:
+        with op.batch_alter_table('subjects', schema=None) as batch_op:
+            batch_op.drop_column('class_name')
+    
+    # Drop old indexes if they exist
+    try:
+        op.drop_index('ix_subject_faculty_semester', table_name='subjects')
+    except:
+        pass  # Index might not exist
+    
+    try:
+        op.drop_index('ix_subject_semester', table_name='subjects')
+    except:
+        pass  # Index might not exist
+    
+    # Drop semesters table
+    try:
+        op.drop_table('semesters')
+    except:
+        pass  # Table might not exist
+    
+    # Drop faculties table
+    try:
+        op.drop_table('faculties')
+    except:
+        pass  # Table might not exist
     
     # Drop universities table
-    op.drop_table('universities')
-    
-    # Remove foreign keys and columns from subjects
-    # Drop is_active column
-    op.drop_column('subjects', 'is_active')
-    
-    # Drop semester_number column
-    op.drop_column('subjects', 'semester_number')
-    
-    # Drop university_id foreign key
-    op.drop_constraint(
-        'subjects_university_id_fkey',
-        'subjects',
-        type_='foreignkey'
-    )
-    op.drop_column('subjects', 'university_id')
-    
-    # Drop faculty_id foreign key
-    op.drop_constraint(
-        'subjects_faculty_id_fkey',
-        'subjects',
-        type_='foreignkey'
-    )
-    op.drop_column('subjects', 'faculty_id')
-    
-    # Drop class_name column
-    op.drop_column('subjects', 'class_name')
-    
-    # Drop old indexes
-    op.drop_index('ix_subject_faculty_semester', table_name='subjects')
-    op.drop_index('ix_subject_semester', table_name='subjects')
-    
-    # Drop old unique constraint
-    op.drop_constraint(
-        'uq_subject_per_faculty_semester',
-        'subjects',
-        type_='unique'
-    )
-    
-    # Add unique constraint on name only (should already exist, but ensure it)
-    op.create_unique_constraint('uq_subject_name', 'subjects', ['name'])
+    try:
+        op.drop_table('universities')
+    except:
+        pass  # Table might not exist
 
 
 def downgrade() -> None:
