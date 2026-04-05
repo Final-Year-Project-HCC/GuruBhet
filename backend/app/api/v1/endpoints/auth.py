@@ -155,7 +155,7 @@ async def login(body: LoginRequest, db: DbSession, response: Response, request: 
 
     # Validate subdomain matches user role
     host = request.headers.get("host")
-    validate_subdomain_matches_role(host, user.role)
+    validate_subdomain_matches_role(request, user.role)
 
     access = create_access_token(str(user.id), user.role.value)
     refresh = create_refresh_token(str(user.id))
@@ -211,7 +211,7 @@ async def refresh(db: DbSession, response: Response, request: Request, x_refresh
 
     # Validate subdomain matches user role
     host = request.headers.get("host")
-    validate_subdomain_matches_role(host, user.role)
+    validate_subdomain_matches_role(request, user.role)
 
     # Rotation: blacklist current refresh token jti until its expiry
     exp = payload.get("exp")
