@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import apiClient from "@/lib/api";
 import { toast } from "react-toastify";
 import { MessageCircle, CheckCircle, XCircle, AlertCircle } from "lucide-react";
@@ -20,7 +20,7 @@ const BookingCard = ({
   statusColor,
   statusLabel,
 }: BookingCardProps) => {
-  const router = useRouter();
+  const queryClient = useQueryClient();
   const [isApproving, setIsApproving] = useState(false);
   const [isDeclining, setIsDeclining] = useState(false);
 
@@ -31,8 +31,13 @@ const BookingCard = ({
     },
     onSuccess: () => {
       toast.success("Booking approved!");
+      // Immediately remove from cache to show disappearance instantly
+      queryClient.setQueryData(["teacherBookings"], (old: Booking[]) => 
+        old.filter((b) => b.id !== booking.id)
+      );
+      // Then invalidate to refetch for consistency
+      queryClient.invalidateQueries({ queryKey: ["teacherBookings"] });
       setIsApproving(false);
-      router.refresh();
     },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     onError: (error: any) => {
@@ -50,8 +55,13 @@ const BookingCard = ({
     },
     onSuccess: () => {
       toast.success("Booking declined");
+      // Immediately remove from cache to show disappearance instantly
+      queryClient.setQueryData(["teacherBookings"], (old: Booking[]) => 
+        old.filter((b) => b.id !== booking.id)
+      );
+      // Then invalidate to refetch for consistency
+      queryClient.invalidateQueries({ queryKey: ["teacherBookings"] });
       setIsDeclining(false);
-      router.refresh();
     },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     onError: (error: any) => {
@@ -82,8 +92,14 @@ const BookingCard = ({
     }
   };
 
+  const isRefetching = approveMutation.isPending || declineMutation.isPending;
+
   return (
-    <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all hover:shadow-md">
+    <div
+      className={`overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all hover:shadow-md ${
+        isRefetching ? "opacity-50 pointer-events-none" : ""
+      }`}
+    >
       {/* Header Section */}
       <div className="border-b border-border bg-muted/30 p-5">
         {/* Student Info */}
@@ -215,10 +231,19 @@ const BookingCard = ({
         )}
 
         {booking.status === "PENDING_PAYMENT" && (
-          <button className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary text-primary-foreground px-4 py-2.5 font-medium transition-opacity hover:opacity-90">
-            <MessageCircle className="h-4 w-4" />
-            Message Student
-          </button>
+          <div className="flex gap-3">
+            <button className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-primary text-primary-foreground px-4 py-2.5 font-medium transition-opacity hover:opacity-90">
+              <MessageCircle className="h-4 w-4" />
+              Message
+            </button>
+            <button
+              onClick={handleDecline}
+              disabled={isDeclining || declineMutation.isPending}
+              className="flex-1 rounded-lg border border-destructive bg-transparent px-4 py-2.5 font-medium text-destructive transition-opacity hover:opacity-80 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isDeclining ? "Declining..." : "Decline"}
+            </button>
+          </div>
         )}
 
         {booking.status === "ACTIVE" && (
