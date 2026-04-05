@@ -71,8 +71,10 @@ def create_application() -> FastAPI:
         CORSMiddleware,
         allow_origins=settings.ALLOWED_ORIGINS,
         allow_credentials=True,
-        allow_methods=["*"],
+        allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"],
         allow_headers=["*"],
+        expose_headers=["*"],
+        max_age=3600,
     )
 
     # Middleware to copy HttpOnly auth cookies into headers for existing

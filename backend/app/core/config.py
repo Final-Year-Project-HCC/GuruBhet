@@ -52,7 +52,7 @@ class Settings(BaseSettings):
         "http://localhost:3002", 
 
         # --- PRODUCTION (Azure VPS) ---
-        "https://gurubhet.tech",
+        "https://gurubhet.tech",           # Student (root domain)
         "https://api.gurubhet.tech",
         "https://teacher.gurubhet.tech",
         "https://staff.gurubhet.tech",
