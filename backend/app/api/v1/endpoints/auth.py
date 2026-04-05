@@ -33,38 +33,25 @@ router = APIRouter()
 
 # ── Subdomain Role Validation Helper ──────────────────────────────────────────
 
-def get_subdomain_from_host(host: str | None) -> str | None:
-    """
-    Extract subdomain from Host header.
+from urllib.parse import urlparse
+
+def get_subdomain_from_origin(origin: str | None) -> str | None:
+    if not origin:
+        return ""
     
-    Returns:
-    - None: for localhost/127.0.0.1 (development bypass)
-    - "": for root domain like gurubhet.tech (no subdomain)
-    - subdomain name: for subdomains like teacher.gurubhet.tech
+    # Parse the URL (e.g., https://teacher.gurubhet.tech)
+    parsed = urlparse(origin)
+    host = parsed.netloc  # returns 'teacher.gurubhet.tech'
     
-    Examples:
-      'localhost:3000' → None
-      '127.0.0.1:3000' → None
-      'gurubhet.tech' → ""
-      'teacher.gurubhet.tech' → 'teacher'
-      'api.gurubhet.tech' → 'api'
-    """
-    if not host:
+    # Reuse your existing logic or simplify
+    if not host or any(h in host for h in ('localhost', '127.0.0.1')):
         return None
-    
-    # Remove port if present
-    host_without_port = host.split(':')[0]
-    
-    # Localhost and 127.0.0.1 bypass subdomain check (development)
-    if host_without_port in ('localhost', '127.0.0.1'):
-        return None
-    
-    # Extract subdomain from domain
-    parts = host_without_port.split('.')
-    if len(parts) >= 3:  # Has subdomain (e.g., teacher.gurubhet.tech)
+        
+    parts = host.split('.')
+    # If using guruhet.tech, parts are ['gurubhet', 'tech'] (len 2)
+    # If using teacher.gurubhet.tech, parts are ['teacher', 'gurubhet', 'tech'] (len 3)
+    if len(parts) >= 3:
         return parts[0]
-    
-    # Root domain with no subdomain (e.g., gurubhet.tech)
     return ""
 
 
