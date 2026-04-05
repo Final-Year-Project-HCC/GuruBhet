@@ -76,7 +76,7 @@ async def guru_bhet_exception_handler(
     
     return JSONResponse(
         status_code=exc.status_code,
-        content={"error": error_response.model_dump(exclude_none=True)},
+        content={"error": error_response.model_dump(mode='json', exclude_none=True)},
     )
 
 
@@ -121,7 +121,7 @@ async def validation_error_handler(
     
     return JSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-        content={"error": error_response.model_dump()},
+        content={"error": error_response.model_dump(mode='json')},
     )
 
 
@@ -185,7 +185,7 @@ async def integrity_error_handler(
     
     return JSONResponse(
         status_code=status_code,
-        content={"error": error_response.model_dump()},
+        content={"error": error_response.model_dump(mode='json')},
     )
 
 
@@ -219,7 +219,7 @@ async def sqlalchemy_error_handler(
     
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        content={"error": error_response.model_dump()},
+        content={"error": error_response.model_dump(mode='json')},
     )
 
 
@@ -261,7 +261,7 @@ async def generic_exception_handler(
     
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        content={"error": error_response.model_dump()},
+        content={"error": error_response.model_dump(mode='json')},
     )
 
 
