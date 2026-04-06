@@ -1,22 +1,64 @@
 /**
  * Academic Domain Hierarchy
- * University -> Faculty -> Semester(s) -> Subject(s)
+ * StudyLevel -> Board -> Faculty -> Subject
  */
 
-export interface University {
+export type UnitType = 'GRADE' | 'SEMESTER' | 'YEAR';
+
+export interface StudyLevel {
   id: string;
   name: string;
   description?: string;
-  createdAt?: string;
-  updatedAt?: string;
+  is_active: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface Board {
+  id: string;
+  name: string;
+  description?: string;
+  is_active: boolean;
+  study_levels?: StudyLevel[];
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface Faculty {
   id: string;
-  universityId: string;
+  board_id: string;
+  study_level_id: string;
   name: string;
   description?: string;
-  numberOfSemesters: number;
+  unit_type: UnitType;
+  total_units: number;
+  is_active: boolean;
+  board?: Board;
+  study_level?: StudyLevel;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface Subject {
+  id: string;
+  name: string;
+  study_level_id: string;
+  board_id: string;
+  faculty_id: string;
+  unit_value: number;
+  is_active: boolean;
+  study_level?: StudyLevel;
+  board?: Board;
+  faculty?: Faculty;
+  created_at?: string;
+  updated_at?: string;
+}
+
+// Legacy types (kept for backward compatibility)
+export interface University {
+  id: string;
+  name: string;
+  description?: string;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -30,25 +72,34 @@ export interface Semester {
   updatedAt?: string;
 }
 
-export interface Subject {
-  id: string;
-  universityId: string;
-  facultyId: string;
-  semesterNumber: number;
-  className?: string;
-  name: string;
-  description?: string;
-  isActive: boolean;
-  createdAt?: string;
-  updatedAt?: string;
-}
-
 /**
  * User & Authentication
  */
 
-export type UserRole = 'ADMIN' | 'STAFF' | 'MODERATOR';
+export type UserRole = 'ADMIN' | 'STAFF' | 'MODERATOR' | 'STUDENT' | 'TEACHER';
 export type VerificationStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+export type Permission = 
+  | 'staff:manage' 
+  | 'teacher:verify' 
+  | 'teacher:view_sensitive'
+  | 'academic_domains:manage';
+
+export interface CurrentUser {
+  id: string;
+  email: string;
+  first_name: string;
+  middle_name?: string;
+  last_name: string;
+  phone?: string;
+  role: UserRole;
+  is_email_verified: boolean;
+  is_active: boolean;
+  is_banned: boolean;
+  is_superuser: boolean;
+  mfa_enabled: boolean;
+  permissions: Permission[];
+  created_at: string;
+}
 
 export interface User {
   id: string;
@@ -330,7 +381,7 @@ export interface AuditLog {
   action: string;
   resourceType: string;
   resourceId: string;
-  changes?: Record<string, any>;
+  changes?: Record<string, string | number | boolean | null | undefined>;
   ipAddress?: string;
   createdAt?: string;
 }

@@ -48,14 +48,13 @@ async def create_study_level(
     """
     [STAFF] Create a new StudyLevel.
 
-    Examples: Grade 1-10, Grade 11, +2, Bachelor, Master, PhD
+    Examples: Grade 1-10, +2, Bachelor, Master, PhD
 
     Example Request:
     ```json
     {
       "name": "Bachelor",
       "description": "University Undergraduate Degree",
-      "is_active": true
     }
     ```
 

@@ -1,24 +1,10 @@
-"use client";
-
-// import axios from "axios";
-// function buildUrl(path: string) {
-//   const base = process.env.NEXT_PUBLIC_API_BASE_URL || "";
-//   return base ? `${base}${path}` : path;
-// }
-// async function fetchDetail(id: string) {
-//   const url = buildUrl(`/staff/teachers/${id}`);
-//   const { data } = await axios.get(url);
-//   return data;
-// }
-
 import { useParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import { toast } from "react-toastify";
 import ImagePreviewModal from "@/components/ImagePreviewModal";
 import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import axios from "axios";
-import { buildUrl } from "@/lib/utils";
+import apiClient from "@/lib/api";
 
 type TeacherDetail = {
   id: string;
@@ -34,8 +20,7 @@ type TeacherDetail = {
 };
 
 async function fetchDetail(id: string): Promise<TeacherDetail> {
-  const url = buildUrl(`/staff/teachers/${id}`);
-  const { data } = await axios.get(url);
+  const { data } = await apiClient.get(`/staff/teachers/${id}`);
   return data;
 }
 
@@ -48,8 +33,7 @@ export default function TeacherDetail() {
 
   const verifyMutation = useMutation({
     mutationFn: async () => {
-      const url = buildUrl(`/staff/teachers/${id}/verify`);
-      const { data } = await axios.post(url);
+      const { data } = await apiClient.post(`/staff/teachers/${id}/verify`);
       return data;
     },
     onSuccess: () => {
@@ -61,8 +45,7 @@ export default function TeacherDetail() {
 
   const discardMutation = useMutation({
     mutationFn: async () => {
-      const url = buildUrl(`/staff/teachers/${id}/discard`);
-      const { data } = await axios.post(url);
+      const { data } = await apiClient.post(`/staff/teachers/${id}/discard`);
       return data;
     },
     onSuccess: () => {

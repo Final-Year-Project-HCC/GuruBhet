@@ -50,6 +50,12 @@ export default function StudentNavbar() {
             Search Teacher
           </Link>
           <Link
+            href="/bookings"
+            className="rounded-md px-3 py-2 text-base text-foreground hover:bg-muted"
+          >
+            Bookings
+          </Link>
+          <Link
             href="/sessions"
             className="rounded-md px-3 py-2 text-base text-foreground hover:bg-muted"
           >

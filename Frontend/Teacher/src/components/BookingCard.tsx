@@ -32,8 +32,8 @@ const BookingCard = ({
     onSuccess: () => {
       toast.success("Booking approved!");
       // Immediately remove from cache to show disappearance instantly
-      queryClient.setQueryData(["teacherBookings"], (old: Booking[]) => 
-        old.filter((b) => b.id !== booking.id)
+      queryClient.setQueryData(["teacherBookings"], (old: Booking[]) =>
+        old.filter((b) => b.id !== booking.id),
       );
       // Then invalidate to refetch for consistency
       queryClient.invalidateQueries({ queryKey: ["teacherBookings"] });
@@ -56,8 +56,8 @@ const BookingCard = ({
     onSuccess: () => {
       toast.success("Booking declined");
       // Immediately remove from cache to show disappearance instantly
-      queryClient.setQueryData(["teacherBookings"], (old: Booking[]) => 
-        old.filter((b) => b.id !== booking.id)
+      queryClient.setQueryData(["teacherBookings"], (old: Booking[]) =>
+        old.filter((b) => b.id !== booking.id),
       );
       // Then invalidate to refetch for consistency
       queryClient.invalidateQueries({ queryKey: ["teacherBookings"] });
@@ -185,10 +185,10 @@ const BookingCard = ({
               Amount
             </p>
             <p className="mt-1 text-lg font-bold text-foreground">
-              ₹{booking.totalAmount.toLocaleString("en-IN")}
+              Rs {booking.totalAmount.toLocaleString("en-IN")}
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
-              ₹{booking.ratePerSession.toLocaleString("en-IN")}/session
+              Rs {booking.ratePerSession.toLocaleString("en-IN")}/session
             </p>
           </div>
 

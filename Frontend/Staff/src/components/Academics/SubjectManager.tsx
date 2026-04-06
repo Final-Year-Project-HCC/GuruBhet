@@ -1,75 +1,61 @@
 "use client";
 
 import { useState } from "react";
-import {
-  useFetchUniversities,
-  useFetchFacultiesByUniversity,
-  useBulkCreateSubject,
-} from "@/lib/useAcademicDomains";
-import { FiPlus, FiTrash2 } from "react-icons/fi";
-
-interface SubjectInput {
-  tempId: number;
-  name: string;
-  className?: string;
-}
+import { useFetchStudyLevels, useFetchBoardsByStudyLevel } from "@/lib/useAcademics";
+import { useFetchFacultiesByHierarchy, useFetchSubjectsByHierarchy, useCreateSubject } from "@/lib/useAcademics";
+import { Subject, StudyLevel, Board, Faculty } from "@/lib/types";
+import { FiAlertCircle } from "react-icons/fi";
 
 export default function SubjectManager() {
-  const [selectedUniversityId, setSelectedUniversityId] = useState("");
-  const [selectedFacultyId, setSelectedFacultyId] = useState("");
-  const [semesterNumber, setSemesterNumber] = useState("");
-  const [newSubjectName, setNewSubjectName] = useState("");
-  const [newClassName, setNewClassName] = useState("");
-  const [subjects, setSubjects] = useState<SubjectInput[]>([]);
-  const [nextTempId, setNextTempId] = useState(1);
+  const [showForm, setShowForm] = useState(false);
+  const [selectedStudyLevelId, setSelectedStudyLevelId] = useState<string>("");
+  const [selectedBoardId, setSelectedBoardId] = useState<string>("");
+  const [selectedFacultyId, setSelectedFacultyId] = useState<string>("");
+  const [newName, setNewName] = useState("");
+  const [unitValue, setUnitValue] = useState("1");
 
-  const { data: universities, isLoading: unisLoading } = useFetchUniversities();
-  const { data: faculties, isLoading: facLoading } = useFetchFacultiesByUniversity(
-    selectedUniversityId || null
+  const { data: levels, isLoading: levelsLoading } = useFetchStudyLevels();
+  const { data: boards, isLoading: boardsLoading } = useFetchBoardsByStudyLevel(
+    selectedStudyLevelId
   );
-  const bulkCreateSubjectMutation = useBulkCreateSubject();
+  const { data: faculties, isLoading: facultiesLoading } = useFetchFacultiesByHierarchy(
+    selectedStudyLevelId || null,
+    selectedBoardId || null
+  );
+  const { data: subjects, isLoading: subjectsLoading, isError: subjectsError } =
+    useFetchSubjectsByHierarchy(
+      selectedStudyLevelId || null,
+      selectedBoardId || null,
+      selectedFacultyId || null
+    );
 
-  const selectedUniversity = universities?.find((u) => u.id === selectedUniversityId);
-  const selectedFaculty = faculties?.find((f) => f.id === selectedFacultyId);
-  const maxSemesters = selectedFaculty?.numberOfSemesters || 0;
+  const createMutation = useCreateSubject();
 
   const handleAddSubject = () => {
-    if (newSubjectName.trim() && semesterNumber && selectedFacultyId) {
-      setSubjects([
-        ...subjects,
-        {
-          tempId: nextTempId,
-          name: newSubjectName,
-          className: newClassName || undefined,
-        },
-      ]);
-      setNextTempId(nextTempId + 1);
-      setNewSubjectName("");
-      setNewClassName("");
-    }
-  };
-
-  const handleRemoveSubject = (tempId: number) => {
-    setSubjects(subjects.filter((s) => s.tempId !== tempId));
-  };
-
-  const handleSaveAllSubjects = () => {
-    if (subjects.length > 0 && selectedUniversityId && selectedFacultyId && semesterNumber) {
-      bulkCreateSubjectMutation.mutate({
-        subjects: subjects.map((s) => ({
-          universityId: selectedUniversityId,
-          facultyId: selectedFacultyId,
-          semesterNumber: parseInt(semesterNumber),
-          name: s.name,
-          className: s.className,
-        })),
+    if (
+      newName.trim() &&
+      selectedStudyLevelId &&
+      selectedBoardId &&
+      selectedFacultyId &&
+      unitValue &&
+      parseInt(unitValue) >= 1
+    ) {
+      createMutation.mutate({
+        name: newName,
+        study_level_id: selectedStudyLevelId,
+        board_id: selectedBoardId,
+        faculty_id: selectedFacultyId,
+        unit_value: parseInt(unitValue),
       });
-      setSubjects([]);
-      setNewSubjectName("");
-      setNewClassName("");
-      setSemesterNumber("");
+      setNewName("");
+      setUnitValue("1");
     }
   };
+
+  const selectedFaculty = faculties?.find((f) => f.id === selectedFacultyId);
+  const maxUnits = selectedFaculty?.total_units || 1;
+
+  const isLoading = levelsLoading || boardsLoading || facultiesLoading || subjectsLoading;
 
   return (
     <div className="space-y-6">
@@ -77,180 +63,237 @@ export default function SubjectManager() {
       <div>
         <h2 className="text-2xl font-bold text-foreground">Subjects</h2>
         <p className="text-muted-foreground mt-1">
-          Select university and faculty, specify a semester number, then add multiple subjects at once.
+          Create subjects by selecting a study level, board, and faculty. Then specify the unit value (grade/semester/year number).
         </p>
       </div>
 
-      {/* University Selection */}
-      <div className="space-y-2">
-        <label className="block text-sm font-medium text-foreground">
-          Select University *
-        </label>
-        <select
-          value={selectedUniversityId}
-          onChange={(e) => {
-            setSelectedUniversityId(e.target.value);
-            setSelectedFacultyId("");
-            setSemesterNumber("");
-          }}
-          disabled={unisLoading}
-          className="w-full px-4 py-2.5 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
-        >
-          <option value="">
-            {unisLoading ? "Loading..." : "Choose a university..."}
-          </option>
-          {universities?.map((uni) => (
-            <option key={uni.id} value={uni.id}>
-              {uni.name}
-            </option>
-          ))}
-        </select>
-      </div>
+      {/* Step 1: Select Hierarchy */}
+      <div className="border border-border rounded-lg p-4 bg-card space-y-4">
+        <h3 className="text-lg font-semibold text-foreground">Step 1: Select Hierarchy</h3>
 
-      {/* Faculty Selection */}
-      <div className="space-y-2">
-        <label className="block text-sm font-medium text-foreground">
-          Select Faculty *
-        </label>
-        <select
-          value={selectedFacultyId}
-          onChange={(e) => {
-            setSelectedFacultyId(e.target.value);
-            setSemesterNumber("");
-          }}
-          disabled={!selectedUniversityId || facLoading}
-          className="w-full px-4 py-2.5 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
-        >
-          <option value="">
-            {!selectedUniversityId ? "Select a university first..." : facLoading ? "Loading..." : "Choose a faculty..."}
-          </option>
-          {faculties?.map((fac) => (
-            <option key={fac.id} value={fac.id}>
-              {fac.name} ({fac.numberOfSemesters} semesters)
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {/* Semester Number Selection */}
-      {selectedFaculty && (
-        <div className="space-y-2">
-          <label className="block text-sm font-medium text-foreground">
-            Select Semester Number (1 to {maxSemesters}) *
-          </label>
-          <select
-            value={semesterNumber}
-            onChange={(e) => setSemesterNumber(e.target.value)}
-            className="w-full px-4 py-2.5 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-          >
-            <option value="">Choose a semester...</option>
-            {Array.from({ length: maxSemesters }, (_, i) => i + 1).map((sem) => (
-              <option key={sem} value={sem.toString()}>
-                Semester {sem}
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
-
-      {/* Add Subject Form */}
-      {selectedFaculty && semesterNumber && (
-        <div className="border border-border rounded-lg p-6 bg-blue-50 dark:bg-blue-950 space-y-4">
-          <div className="text-sm text-blue-900 dark:text-blue-100">
-            <p className="font-semibold">
-              {selectedUniversity?.name} → {selectedFaculty?.name} → Semester {semesterNumber}
-            </p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Study Level */}
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-1">
+              Study Level *
+            </label>
+            <select
+              value={selectedStudyLevelId}
+              onChange={(e) => {
+                setSelectedStudyLevelId(e.target.value);
+                setSelectedBoardId("");
+                setSelectedFacultyId("");
+              }}
+              className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              <option value="">Select a study level...</option>
+              {levels?.map((level) => (
+                <option key={level.id} value={level.id}>
+                  {level.name}
+                </option>
+              ))}
+            </select>
           </div>
 
-          <div className="border-t border-blue-200 dark:border-blue-800 pt-4 space-y-4">
-            <h3 className="font-semibold text-foreground">Add Subjects</h3>
+          {/* Board */}
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-1">
+              Board *
+            </label>
+            <select
+              value={selectedBoardId}
+              onChange={(e) => {
+                setSelectedBoardId(e.target.value);
+                setSelectedFacultyId("");
+              }}
+              disabled={!selectedStudyLevelId || !boards || boards.length === 0}
+              className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <option value="">Select a board...</option>
+              {boards?.map((board) => (
+                <option key={board.id} value={board.id}>
+                  {board.name}
+                </option>
+              ))}
+            </select>
+          </div>
 
-            <div className="space-y-4">
+          {/* Faculty */}
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-1">
+              Faculty *
+            </label>
+            <select
+              value={selectedFacultyId}
+              onChange={(e) => setSelectedFacultyId(e.target.value)}
+              disabled={!selectedBoardId || !faculties || faculties.length === 0}
+              className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <option value="">Select a faculty...</option>
+              {faculties?.map((faculty) => (
+                <option key={faculty.id} value={faculty.id}>
+                  {faculty.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* Step 2: Add Subject Form */}
+      {selectedStudyLevelId && selectedBoardId && selectedFacultyId && selectedFaculty && (
+        <>
+          {!showForm ? (
+            <button
+              onClick={() => setShowForm(true)}
+              className="px-4 py-2.5 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors"
+            >
+              + Add Subject
+            </button>
+          ) : (
+            <div className="border border-border rounded-lg p-4 bg-card space-y-4">
+              <h3 className="text-lg font-semibold text-foreground">Step 2: Create New Subject</h3>
+
+              <div className="text-sm text-muted-foreground space-y-1">
+                <p>
+                  <strong>Faculty:</strong> {selectedFaculty.name}
+                </p>
+                <p>
+                  <strong>Unit Type:</strong> {selectedFaculty.unit_type} (1 to {maxUnits})
+                </p>
+              </div>
+
+              {/* Subject Name */}
               <div>
-                <label className="block text-sm font-medium text-foreground mb-2">
+                <label className="block text-sm font-medium text-foreground mb-1">
                   Subject Name *
                 </label>
                 <input
                   type="text"
-                  value={newSubjectName}
-                  onChange={(e) => setNewSubjectName(e.target.value)}
-                  placeholder="e.g., Advanced Calculus"
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  placeholder="e.g., Mathematics, Chemistry, Data Structures"
                   className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                 />
               </div>
 
+              {/* Unit Value */}
               <div>
-                <label className="block text-sm font-medium text-foreground mb-2">
-                  Class Name (Optional)
+                <label className="block text-sm font-medium text-foreground mb-1">
+                  Unit Value (1 to {maxUnits}) *
                 </label>
                 <input
-                  type="text"
-                  value={newClassName}
-                  onChange={(e) => setNewClassName(e.target.value)}
-                  placeholder="e.g., BScCSIT-4A"
+                  type="number"
+                  value={unitValue}
+                  onChange={(e) => setUnitValue(e.target.value)}
+                  min="1"
+                  max={maxUnits}
+                  placeholder={`e.g., 5 (for semester 5 or year 5, etc.)`}
                   className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                 />
+                <p className="text-xs text-muted-foreground mt-1">
+                  The {selectedFaculty.unit_type.toLowerCase()} number for this subject
+                </p>
               </div>
 
-              <button
-                onClick={handleAddSubject}
-                disabled={!newSubjectName.trim()}
-                className="w-full px-4 py-2 bg-primary text-primary-foreground rounded-md font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              >
-                <FiPlus size={18} />
-                Add to List
-              </button>
+              {/* Actions */}
+              <div className="flex gap-2">
+                <button
+                  onClick={handleAddSubject}
+                  disabled={
+                    createMutation.isPending ||
+                    !newName.trim() ||
+                    !unitValue ||
+                    parseInt(unitValue) < 1 ||
+                    parseInt(unitValue) > maxUnits
+                  }
+                  className="px-4 py-2 bg-primary text-primary-foreground rounded-md font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {createMutation.isPending ? "Creating..." : "Create"}
+                </button>
+                <button
+                  onClick={() => {
+                    setShowForm(false);
+                    setNewName("");
+                    setUnitValue("1");
+                  }}
+                  className="px-4 py-2 bg-muted text-foreground rounded-md font-medium hover:bg-muted/80 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          )}
 
-      {/* Subjects List */}
-      {subjects.length > 0 && (
-        <div className="space-y-3">
-          <h3 className="text-lg font-semibold text-foreground">
-            Subjects to Add ({subjects.length})
-          </h3>
+          {/* Subjects List */}
+          <div className="space-y-3">
+            <h3 className="text-lg font-semibold text-foreground">
+              {subjects?.length || 0} Subject{(subjects?.length || 0) !== 1 ? "s" : ""}
+            </h3>
 
-          <div className="border border-border rounded-lg overflow-hidden">
-            <table className="w-full text-sm">
-              <thead className="bg-muted border-b border-border">
-                <tr>
-                  <th className="px-4 py-3 text-left font-semibold text-foreground">Subject Name</th>
-                  <th className="px-4 py-3 text-left font-semibold text-foreground">Class Name</th>
-                  <th className="px-4 py-3 text-right font-semibold text-foreground">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {subjects.map((subject, idx) => (
-                  <tr key={subject.tempId} className={idx % 2 === 0 ? "bg-background" : "bg-muted/50"}>
-                    <td className="px-4 py-3 text-foreground">{subject.name}</td>
-                    <td className="px-4 py-3 text-foreground text-muted-foreground">
-                      {subject.className || "—"}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <button
-                        onClick={() => handleRemoveSubject(subject.tempId)}
-                        className="inline-flex items-center justify-center w-8 h-8 rounded-md text-destructive hover:bg-destructive/10 transition-colors"
-                      >
-                        <FiTrash2 size={18} />
-                      </button>
-                    </td>
-                  </tr>
+            {isLoading && (
+              <div className="flex items-center justify-center py-8">
+                <div className="text-muted-foreground">Loading subjects...</div>
+              </div>
+            )}
+
+            {subjectsError && (
+              <div className="p-4 bg-destructive/15 border border-destructive rounded-lg flex items-center gap-3">
+                <FiAlertCircle className="text-destructive" size={20} />
+                <span className="text-destructive">Failed to load subjects</span>
+              </div>
+            )}
+
+            {!isLoading && !subjectsError && subjects && subjects.length === 0 && (
+              <div className="p-8 text-center border border-dashed border-border rounded-lg">
+                <p className="text-muted-foreground">
+                  No subjects yet in {selectedFaculty.name}
+                </p>
+              </div>
+            )}
+
+            {!isLoading && subjects && subjects.length > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {subjects.map((subject) => (
+                  <SubjectCard key={subject.id} subject={subject} />
                 ))}
-              </tbody>
-            </table>
+              </div>
+            )}
           </div>
+        </>
+      )}
 
-          <button
-            onClick={handleSaveAllSubjects}
-            disabled={bulkCreateSubjectMutation.isPending}
-            className="w-full px-4 py-3 bg-primary text-primary-foreground rounded-lg font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {bulkCreateSubjectMutation.isPending ? "Saving..." : "Save All Subjects"}
-          </button>
+      {/* Info Banner */}
+      {selectedStudyLevelId && selectedBoardId && selectedFacultyId && (
+        <div className="p-4 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg">
+          <p className="text-sm text-blue-900 dark:text-blue-100">
+            💡 <strong>Complete!</strong> Subjects are the final level in the hierarchy. Teachers can now select these subjects to offer.
+          </p>
         </div>
       )}
+    </div>
+  );
+}
+
+function SubjectCard({ subject }: { subject: Subject }) {
+  return (
+    <div className="border border-border rounded-lg p-4 bg-card hover:border-primary transition-colors">
+      <div className="space-y-2">
+        <h4 className="font-semibold text-foreground">{subject.name}</h4>
+        <div className="text-xs text-muted-foreground space-y-1">
+          {subject.faculty && (
+            <p>
+              <strong>Faculty:</strong> {subject.faculty.name}
+            </p>
+          )}
+          <p>
+            <strong>Unit Value:</strong> {subject.unit_value}
+          </p>
+        </div>
+        {!subject.is_active && (
+          <p className="text-xs text-destructive">Inactive</p>
+        )}
+      </div>
     </div>
   );
 }

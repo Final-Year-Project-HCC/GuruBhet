@@ -1,57 +1,43 @@
 "use client";
+
 import Link from "next/link";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { getAccessibleRoutes } from "@/lib/routes";
 
-// You will need to implement a useAuth hook or grab the permissions from context/cookies
-import { useAuth } from "@/hooks/useAuth"; // Placeholder
+export default function Sidebar() {
+  const { data: user, isLoading, isError } = useCurrentUser();
 
-type Permission = "staff:manage" | "teacher:verify" | "academic_domains:manage";
+  if (isLoading) {
+    return (
+      <nav className="flex flex-col gap-4 p-4 border-r border-border">
+        <div className="text-sm text-muted-foreground">Loading...</div>
+      </nav>
+    );
+  }
 
-interface SidebarItem {
-  label: string;
-  href: string;
-  requiredPermission: Permission;
-}
+  if (isError || !user) {
+    return (
+      <nav className="flex flex-col gap-4 p-4 border-r border-border">
+        <div className="text-sm text-destructive">Failed to load navigation</div>
+      </nav>
+    );
+  }
 
-const MENU_ITEMS: SidebarItem[] = [
-  {
-    label: "Staff Users",
-    href: "/management",
-    requiredPermission: "staff:manage",
-  },
-  {
-    label: "Pending Teachers",
-    href: "/approvals",
-    requiredPermission: "teacher:verify",
-  },
-  {
-    label: "Universities & Faculties",
-    href: "/academics",
-    requiredPermission: "academic_domains:manage",
-  },
-];
-
-export default function PermissionSidebar() {
-  const { user } = useAuth(); // Assume this returns { role, is_superuser, permissions: string[] }
-
-  const hasAccess = (requiredPermission: Permission) => {
-    if (user?.is_superuser) return true;
-    return user?.permissions?.includes(requiredPermission);
-  };
+  const accessibleRoutes = getAccessibleRoutes(user.permissions, user.is_superuser);
 
   return (
-    <nav className="flex flex-col gap-4 p-4 border-r border-gray-200">
-      {MENU_ITEMS.map(
-        (item) =>
-          hasAccess(item.requiredPermission) && (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="hover:text-blue-600 transition-colors"
-            >
-              {item.label}
-            </Link>
-          ),
-      )}
+    <nav className="flex flex-col gap-2 p-4 border-r border-border bg-card">
+      {accessibleRoutes.map((route) => (
+        <Link
+          key={route.path}
+          href={route.path}
+          className="px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-colors"
+          title={route.description}
+        >
+          {route.icon && <span className="mr-2">{route.icon}</span>}
+          {route.label}
+        </Link>
+      ))}
     </nav>
   );
 }

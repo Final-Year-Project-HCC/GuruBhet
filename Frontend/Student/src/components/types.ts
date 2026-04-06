@@ -1,47 +1,75 @@
 
 /**
- * Academic Domain Hierarchy
- * University -> Faculty -> Semester(s) -> Subject(s)
+ * Academic Domain Hierarchy (4-Level)
+ * StudyLevel -> Board -> Faculty -> Subject -> Unit Value
  */
 
-export interface University {
+export interface StudyLevel {
   id: string;
   name: string;
   description?: string;
-  createdAt?: string;
-  updatedAt?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface BoardStudyLevelAssociation {
+  id: string;
+  board_id: string;
+  study_level_id: string;
+}
+
+export interface Board {
+  id: string;
+  name: string;
+  study_levels?: StudyLevel[];
+  description?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface Faculty {
   id: string;
-  universityId: string;
   name: string;
+  board: Board;
+  board_id: string;
   description?: string;
-  numberOfSemesters: number;
-  createdAt?: string;
-  updatedAt?: string;
+  unit_type: UnitType; // GRADE, SEMESTER, YEAR, etc.
+  total_units: number;
+  created_at?: string;
+  updated_at?: string;
 }
 
-export interface Semester {
-  id: string;
-  universityId: string;
-  facultyId: string;
-  semesterNumber: number;
-  createdAt?: string;
-  updatedAt?: string;
+export enum UnitType {
+  SEMESTER = 'SEMESTER',
+  GRADE = 'GRADE',
+  YEAR = 'YEAR',
+  MONTH = 'MONTH',
 }
 
 export interface Subject {
   id: string;
-  universityId: string;
-  facultyId: string;
-  semesterNumber: number;
-  className?: string;
   name: string;
-  description?: string;
-  isActive: boolean;
-  createdAt?: string;
-  updatedAt?: string;
+  study_level: StudyLevel;
+  study_level_id: string;
+  board: Board;
+  board_id: string;
+  faculty: Faculty;
+  faculty_id: string;
+  unit_value: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface SubjectWithContext extends Subject {
+  full_context: string; // e.g., "Bachelor > Tribhuvan University > CSIT > Semester 5"
+  context_dict: {
+    study_level: string;
+    board: string;
+    faculty: string;
+    unit_value: number;
+    unit_type: string;
+    total_units: number;
+  };
 }
 
 /**
@@ -50,7 +78,29 @@ export interface Subject {
 
 export type UserRole = 'STUDENT' | 'TEACHER' | 'ADMIN';
 export type VerificationStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
-export type SubjectLevel = '10' | '11-12' | 'Bachelor' | 'Master' | 'Diploma';
+
+// For backward compatibility with components that reference SubjectLevel
+export type SubjectLevel = string;
+
+export interface Teacher {
+  id: string;
+  name: string;
+  email?: string;
+  phoneNumber?: string;
+  subject?: string;
+  image?: string;
+  rating?: number;
+  popularity?: string;
+  tagline?: string;
+  ratePerSession?: number;
+  levelExpertise?: string[];
+  verificationStatus?: VerificationStatus;
+  bio?: string;
+  qualification?: string;
+  yearsOfExperience?: number;
+  totalReviews?: number;
+  isAvailable?: boolean;
+}
 
 export interface User {
   id: string;
@@ -61,17 +111,17 @@ export interface User {
   userType: UserRole;
   isActive: boolean;
   emailVerified: boolean;
-  createdAt?: string;
-  updatedAt?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface StudentProfile {
   id: string;
   userId: string;
-  educationalLevel?: SubjectLevel;
+  educationalLevel?: string;
   profilePictureUrl?: string;
-  createdAt?: string;
-  updatedAt?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 /**
@@ -83,48 +133,40 @@ export interface TeacherProfile {
   userId: string;
   bio?: string;
   qualification?: string;
-  yearsOfExperience: number;
-  profilePictureUrl?: string;
-  verificationStatus: VerificationStatus;
-  rating?: number;
-  totalReviews?: number;
-  isAvailable: boolean;
-  createdAt?: string;
-  updatedAt?: string;
+  years_of_experience: number;
+  profile_picture_url?: string;
+  verification_status: VerificationStatus;
+  avg_rating?: number;
+  rating_count?: number;
+  is_available: boolean;
+  created_at?: string;
+  updated_at?: string;
 }
 
-export interface TeacherSubject {
-  id?: string;
-  teacherId: string;
-  subjectId: string;
-  subject?: Subject;
-  ratePerSession: number;
-  yearsOfExperience: number;
-  avgRating?: number;
-  totalReviews?: number;
-  isActive: boolean;
-  createdAt?: string;
-  updatedAt?: string;
+export interface TeacherSubjectRead {
+  teacher_id: string;
+  subject_id: string;
+  rate_per_session: number;
+  years_of_experience: number;
+  total_sessions_completed: number;
+  avg_rating: number;
+  rating_count: number;
+  is_active: boolean;
+  subject: Subject;
 }
 
-export interface Teacher {
-  id: string;
-  name: string;
-  email?: string;
-  phoneNumber?: string;
-  subject: string;
-  image: string;
-  rating?: number;
-  popularity?: string;
-  tagline?: string;
-  ratePerSession: number;
-  levelExpertise: SubjectLevel[];
-  verificationStatus: VerificationStatus;
-  bio?: string;
-  qualification?: string;
-  yearsOfExperience?: number;
-  totalReviews?: number;
-  isAvailable?: boolean;
+export interface TeacherSearchResult {
+  teacher_id: string;
+  subject_id: string;
+  rate_per_session: number;
+  years_of_experience: number;
+  avg_rating: number;
+  rating_count: number;
+  total_sessions_completed: number;
+  teacher_name: string;
+  teacher_headline?: string;
+  teacher_avatar_url?: string;
+  subject: Subject;
 }
 
 /**

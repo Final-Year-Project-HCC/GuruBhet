@@ -1,65 +1,62 @@
 "use client";
 
 import { useState } from "react";
-import {
-  useFetchUniversities,
-  useBulkCreateFaculty,
-} from "@/lib/useAcademicDomains";
-import { FiTrash2, FiPlus } from "react-icons/fi";
+import { useFetchStudyLevels, useFetchBoardsByStudyLevel } from "@/lib/useAcademics";
+import { useFetchFacultiesByHierarchy, useCreateFaculty } from "@/lib/useAcademics";
+import { Faculty, UnitType } from "@/lib/types";
+import { FiAlertCircle } from "react-icons/fi";
 
-interface FacultyInput {
-  tempId: number;
-  name: string;
-  numberOfSemesters: number;
-}
+const UNIT_TYPES: { value: UnitType; label: string; description: string }[] = [
+  { value: "GRADE", label: "Grade", description: "For school education (Grade 1-12)" },
+  { value: "SEMESTER", label: "Semester", description: "For university programs (e.g., 8 semesters)" },
+  { value: "YEAR", label: "Year", description: "For multi-year programs (e.g., 4 years)" },
+];
 
 export default function FacultyManager() {
-  const [selectedUniversityId, setSelectedUniversityId] = useState<string>("");
+  const [showForm, setShowForm] = useState(false);
+  const [selectedStudyLevelId, setSelectedStudyLevelId] = useState<string>("");
+  const [selectedBoardId, setSelectedBoardId] = useState<string>("");
   const [newName, setNewName] = useState("");
-  const [newSemesters, setNewSemesters] = useState("");
-  const [faculties, setFaculties] = useState<FacultyInput[]>([]);
-  const [nextTempId, setNextTempId] = useState(1);
+  const [newDescription, setNewDescription] = useState("");
+  const [selectedUnitType, setSelectedUnitType] = useState<UnitType>("SEMESTER");
+  const [totalUnits, setTotalUnits] = useState("8");
 
-  const { data: universities, isLoading: unisLoading } = useFetchUniversities();
-  const bulkCreateMutation = useBulkCreateFaculty();
+  const { data: levels, isLoading: levelsLoading } = useFetchStudyLevels();
+  const { data: boards, isLoading: boardsLoading } = useFetchBoardsByStudyLevel(
+    selectedStudyLevelId
+  );
+  const { data: faculties, isLoading: facultiesLoading, isError: facultiesError } =
+    useFetchFacultiesByHierarchy(selectedStudyLevelId || null, selectedBoardId || null);
 
-  const selectedUniversity = universities?.find((u) => u.id === selectedUniversityId);
+  const createMutation = useCreateFaculty();
 
   const handleAddFaculty = () => {
-    if (newName.trim() && selectedUniversityId) {
-      setFaculties([
-        ...faculties,
-        {
-          tempId: nextTempId,
-          name: newName,
-          numberOfSemesters: parseInt(newSemesters),
-        },
-      ]);
-      setNextTempId(nextTempId + 1);
-      setNewName("");
-      setNewSemesters("4");
-    }
-  };
-
-  const handleRemove = (tempId: number) => {
-    setFaculties(faculties.filter((f) => f.tempId !== tempId));
-  };
-
-  const handleSaveAll = () => {
-    if (faculties.length > 0 && selectedUniversityId) {
-      bulkCreateMutation.mutate({
-        faculties: faculties.map((f) => ({
-          universityId: selectedUniversityId,
-          name: f.name,
-          numberOfSemesters: f.numberOfSemesters,
-        })),
+    if (
+      newName.trim() &&
+      selectedStudyLevelId &&
+      selectedBoardId &&
+      totalUnits &&
+      parseInt(totalUnits) >= 1
+    ) {
+      createMutation.mutate({
+        board_id: selectedBoardId,
+        study_level_id: selectedStudyLevelId,
+        name: newName,
+        description: newDescription || undefined,
+        unit_type: selectedUnitType,
+        total_units: parseInt(totalUnits),
       });
-      setFaculties([]);
       setNewName("");
-      setNewSemesters("");
-      setSelectedUniversityId("");
+      setNewDescription("");
+      setTotalUnits("8");
+      setSelectedUnitType("SEMESTER");
     }
   };
+
+  const selectedLevel = levels?.find((l) => l.id === selectedStudyLevelId);
+  const selectedBoard = boards?.find((b) => b.id === selectedBoardId);
+
+  const isLoading = levelsLoading || boardsLoading || facultiesLoading;
 
   return (
     <div className="space-y-6">
@@ -67,132 +64,248 @@ export default function FacultyManager() {
       <div>
         <h2 className="text-2xl font-bold text-foreground">Faculties</h2>
         <p className="text-muted-foreground mt-1">
-          Select a university and add multiple faculties with their semester count, then save all at once.
+          Create faculties (streams/specializations) under boards. Example: CSIT, Science, Management, General
         </p>
       </div>
 
-      {/* University Selection */}
-      <div className="space-y-2">
-        <label className="block text-sm font-medium text-foreground">
-          Select University *
-        </label>
-        <select
-          value={selectedUniversityId}
-          onChange={(e) => setSelectedUniversityId(e.target.value)}
-          disabled={unisLoading}
-          className="w-full px-4 py-2.5 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
-        >
-          <option value="">
-            {unisLoading ? "Loading universities..." : "Choose a university..."}
-          </option>
-          {universities?.map((uni) => (
-            <option key={uni.id} value={uni.id}>
-              {uni.name}
-            </option>
-          ))}
-        </select>
-        {!selectedUniversityId && !unisLoading && universities && universities.length === 0 && (
-          <p className="text-sm text-destructive">⚠️ No universities found. Create one first.</p>
-        )}
-      </div>
+      {/* Step 1: Select Study Level and Board */}
+      <div className="border border-border rounded-lg p-4 bg-card space-y-4">
+        <h3 className="text-lg font-semibold text-foreground">Step 1: Select Study Level & Board</h3>
 
-      {/* Add Faculty Form */}
-      <div className="border border-border rounded-lg p-6 bg-card space-y-4">
-        <h3 className="font-semibold text-foreground">
-          {selectedUniversity ? `Add Faculties to ${selectedUniversity.name}` : "Add Faculties"}
-        </h3>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Study Level Selector */}
           <div>
-            <label className="block text-sm font-medium text-foreground mb-2">
-              Faculty Name *
-            </label>
-            <input
-              type="text"
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              disabled={!selectedUniversityId}
-              placeholder="e.g., Faculty of Engineering"
-              className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-2">
-              Total Semesters *
+            <label className="block text-sm font-medium text-foreground mb-1">
+              Study Level *
             </label>
             <select
-              value={newSemesters}
-              onChange={(e) => setNewSemesters(e.target.value)}
-              disabled={!selectedUniversityId}
-              className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
+              value={selectedStudyLevelId}
+              onChange={(e) => {
+                setSelectedStudyLevelId(e.target.value);
+                setSelectedBoardId(""); // Reset board when level changes
+              }}
+              className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
             >
-              <option value="">Select semesters...</option>
-              {Array.from({ length: 12 }, (_, i) => i + 1).map((num) => (
-                <option key={num} value={num}>
-                  {num} Semester{num !== 1 ? "s" : ""}
+              <option value="">Select a study level...</option>
+              {levels?.map((level) => (
+                <option key={level.id} value={level.id}>
+                  {level.name}
                 </option>
               ))}
             </select>
           </div>
 
-          <div className="flex items-end">
-            <button
-              onClick={handleAddFaculty}
-              disabled={!newName.trim() || !selectedUniversityId || !newSemesters}
-              className="w-full px-4 py-2 bg-primary text-primary-foreground rounded-md font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          {/* Board Selector */}
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-1">
+              Board *
+            </label>
+            <select
+              value={selectedBoardId}
+              onChange={(e) => setSelectedBoardId(e.target.value)}
+              disabled={!selectedStudyLevelId || !boards || boards.length === 0}
+              className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <FiPlus size={18} />
-              Add to List
-            </button>
+              <option value="">Select a board...</option>
+              {boards?.map((board) => (
+                <option key={board.id} value={board.id}>
+                  {board.name}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
+
+        {selectedLevel && (
+          <p className="text-sm text-muted-foreground">
+            Showing faculties for <strong>{selectedLevel.name}</strong>
+            {selectedBoard && ` > ${selectedBoard.name}`}
+          </p>
+        )}
       </div>
 
-      {/* Faculties List */}
-      {faculties.length > 0 && (
-        <div className="space-y-3">
-          <h3 className="text-lg font-semibold text-foreground">
-            Faculties to Add ({faculties.length})
-          </h3>
+      {/* Step 2: Add Faculty Form */}
+      {selectedStudyLevelId && selectedBoardId && (
+        <>
+          {!showForm ? (
+            <button
+              onClick={() => setShowForm(true)}
+              className="px-4 py-2.5 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors"
+            >
+              + Add Faculty
+            </button>
+          ) : (
+            <div className="border border-border rounded-lg p-4 bg-card space-y-4">
+              <h3 className="text-lg font-semibold text-foreground">Step 2: Create New Faculty</h3>
 
-          <div className="border border-border rounded-lg overflow-hidden">
-            <table className="w-full text-sm">
-              <thead className="bg-muted border-b border-border">
-                <tr>
-                  <th className="px-4 py-3 text-left font-semibold text-foreground">Faculty Name</th>
-                  <th className="px-4 py-3 text-left font-semibold text-foreground">Semesters</th>
-                  <th className="px-4 py-3 text-right font-semibold text-foreground">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {faculties.map((faculty, idx) => (
-                  <tr key={faculty.tempId} className={idx % 2 === 0 ? "bg-background" : "bg-muted/50"}>
-                    <td className="px-4 py-3 text-foreground">{faculty.name}</td>
-                    <td className="px-4 py-3 text-foreground">{faculty.numberOfSemesters}</td>
-                    <td className="px-4 py-3 text-right">
-                      <button
-                        onClick={() => handleRemove(faculty.tempId)}
-                        className="inline-flex items-center justify-center w-8 h-8 rounded-md text-destructive hover:bg-destructive/10 transition-colors"
-                      >
-                        <FiTrash2 size={18} />
-                      </button>
-                    </td>
-                  </tr>
+              {/* Faculty Name */}
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1">
+                  Faculty Name *
+                </label>
+                <input
+                  type="text"
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  placeholder="e.g., CSIT, Science, Management, General"
+                  className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1">
+                  Description (Optional)
+                </label>
+                <textarea
+                  value={newDescription}
+                  onChange={(e) => setNewDescription(e.target.value)}
+                  placeholder="Brief description of this faculty"
+                  rows={2}
+                  className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+
+              {/* Unit Type and Total Units */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">
+                    Unit Type *
+                  </label>
+                  <select
+                    value={selectedUnitType}
+                    onChange={(e) => setSelectedUnitType(e.target.value as UnitType)}
+                    className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                  >
+                    {UNIT_TYPES.map((type) => (
+                      <option key={type.value} value={type.value}>
+                        {type.label}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {UNIT_TYPES.find((t) => t.value === selectedUnitType)?.description}
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">
+                    Total Units *
+                  </label>
+                  <input
+                    type="number"
+                    value={totalUnits}
+                    onChange={(e) => setTotalUnits(e.target.value)}
+                    min="1"
+                    placeholder="e.g., 8 for 8 semesters"
+                    className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Number of {selectedUnitType.toLowerCase()}s in this program
+                  </p>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-2">
+                <button
+                  onClick={handleAddFaculty}
+                  disabled={
+                    createMutation.isPending ||
+                    !newName.trim() ||
+                    !totalUnits ||
+                    parseInt(totalUnits) < 1
+                  }
+                  className="px-4 py-2 bg-primary text-primary-foreground rounded-md font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {createMutation.isPending ? "Creating..." : "Create"}
+                </button>
+                <button
+                  onClick={() => {
+                    setShowForm(false);
+                    setNewName("");
+                    setNewDescription("");
+                    setTotalUnits("8");
+                    setSelectedUnitType("SEMESTER");
+                  }}
+                  className="px-4 py-2 bg-muted text-foreground rounded-md font-medium hover:bg-muted/80 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Faculties List */}
+          <div className="space-y-3">
+            <h3 className="text-lg font-semibold text-foreground">
+              {faculties?.length || 0} Facult{(faculties?.length || 0) !== 1 ? "ies" : "y"}
+            </h3>
+
+            {isLoading && (
+              <div className="flex items-center justify-center py-8">
+                <div className="text-muted-foreground">Loading faculties...</div>
+              </div>
+            )}
+
+            {facultiesError && (
+              <div className="p-4 bg-destructive/15 border border-destructive rounded-lg flex items-center gap-3">
+                <FiAlertCircle className="text-destructive" size={20} />
+                <span className="text-destructive">Failed to load faculties</span>
+              </div>
+            )}
+
+            {!isLoading && !facultiesError && faculties && faculties.length === 0 && (
+              <div className="p-8 text-center border border-dashed border-border rounded-lg">
+                <p className="text-muted-foreground">
+                  No faculties yet for {selectedLevel?.name} {" > "} {selectedBoard?.name}
+                </p>
+              </div>
+            )}
+
+            {!isLoading && faculties && faculties.length > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {faculties.map((faculty) => (
+                  <FacultyCard key={faculty.id} faculty={faculty} />
                 ))}
-              </tbody>
-            </table>
+              </div>
+            )}
           </div>
+        </>
+      )}
 
-          <button
-            onClick={handleSaveAll}
-            disabled={bulkCreateMutation.isPending}
-            className="w-full px-4 py-3 bg-primary text-primary-foreground rounded-lg font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {bulkCreateMutation.isPending ? "Saving..." : "Save All Faculties"}
-          </button>
+      {/* Info Banner */}
+      {selectedStudyLevelId && selectedBoardId && (
+        <div className="p-4 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg">
+          <p className="text-sm text-blue-900 dark:text-blue-100">
+            💡 <strong>Next Step:</strong> After creating faculties, add subjects under the faculties.
+          </p>
         </div>
       )}
+    </div>
+  );
+}
+
+function FacultyCard({ faculty }: { faculty: Faculty }) {
+  return (
+    <div className="border border-border rounded-lg p-4 bg-card hover:border-primary transition-colors">
+      <div className="space-y-2">
+        <h4 className="font-semibold text-foreground">{faculty.name}</h4>
+        {faculty.description && (
+          <p className="text-sm text-muted-foreground">{faculty.description}</p>
+        )}
+        <div className="text-xs text-muted-foreground space-y-1">
+          <p>
+            <strong>Unit Type:</strong> {faculty.unit_type}
+          </p>
+          <p>
+            <strong>Total Units:</strong> {faculty.total_units}
+          </p>
+        </div>
+        {!faculty.is_active && (
+          <p className="text-xs text-destructive">Inactive</p>
+        )}
+      </div>
     </div>
   );
 }

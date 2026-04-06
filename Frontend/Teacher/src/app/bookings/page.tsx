@@ -90,7 +90,7 @@ export default function BookingsPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">
-                  Pending Requests
+                  PENDING REQUESTS
                 </p>
                 <p className="mt-2 text-3xl font-bold text-foreground">
                   {requestBookings.length}
@@ -106,7 +106,7 @@ export default function BookingsPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">
-                  Ongoing Sessions
+                  ONGOING SESSIONS
                 </p>
                 <p className="mt-2 text-3xl font-bold text-foreground">
                   {ongoingBookings.length}
@@ -122,10 +122,11 @@ export default function BookingsPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">
-                  Total Earned
+                  TOTAL EARNED
                 </p>
                 <p className="mt-2 text-3xl font-bold text-foreground">
-                  ₹{totalEarned.toLocaleString("en-IN", {
+                  
+Rs {totalEarned.toLocaleString("en-IN", {
                     minimumFractionDigits: 0,
                     maximumFractionDigits: 0,
                   })}
@@ -205,13 +206,13 @@ export default function BookingsPage() {
           <div className="flex h-64 items-center justify-center rounded-2xl border border-border bg-muted/30">
             <div className="text-center">
               <div className="mb-4 inline-block animate-spin">
-                <div className="h-8 w-8 rounded-full border-4 border-border border-t-primary"></div>
+                <div className="h-8 w-8 rounded-full border-4 border-border border-t-foreground"></div>
               </div>
               <p className="text-sm text-muted-foreground">Loading bookings...</p>
             </div>
           </div>
         ) : error ? (
-          <div className="flex h-64 items-center justify-center rounded-2xl border border-destructive bg-destructive/10">
+          <div className="flex h-64 items-center justify-center rounded-2xl border border-destructive bg-destructive/15">
             <div className="text-center">
               <p className="font-medium text-destructive">Failed to load bookings</p>
               <p className="mt-2 text-sm text-muted-foreground">

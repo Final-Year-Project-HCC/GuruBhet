@@ -4,10 +4,6 @@
   /* Core */
   --background: #ffffff;
   --foreground: #171717;
-  --surface: #ffffff;
-  --surface-muted: #f8fafc;
-  --subtle: #f1f5f9;
-  --subtle-foreground: #94a3b8;
 
   /* UI layers */
   --muted: #f5f5f5;
@@ -18,16 +14,10 @@
 
   /* Actions */
   --primary: #171717;
-  --primary-hover: #262626;
   --primary-foreground: #ffffff;
-  --primary-hover-foreground: #ffffff;
-  --accent: #2563eb;
-  --accent-foreground: #ffffff;
 
   /* Feedback */
-  --success: #16a34a;
-  --warning: #facc15;
-  --destructive: #dc2626;
+  --destructive: #262626;
   --destructive-foreground: #ffffff;
 }
 
@@ -35,40 +25,23 @@
   /* Colors */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --color-surface: var(--surface);
-  --color-surface-muted: var(--surface-muted);
-  --color-subtle: var(--subtle);
-  --color-subtle-foreground: var(--subtle-foreground);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-primary: var(--primary);
-  --color-primary-hover: var(--primary-hover);
   --color-primary-foreground: var(--primary-foreground);
-  --color-primary-hover-foreground: var(--primary-hover-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-success: var(--success);
-  --color-warning: var(--warning);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
 
   /* Fonts */
-  --font-sans: var(--font-poppins);
-  /* --font-sans: var(--font-geist-sans); */
+  --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
-
-
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
     --foreground: #ededed;
-    --surface: #171717;
-    --surface-muted: #111111;
-    --subtle: #1c1c1c;
-    --subtle-foreground: #a3a3a3;
 
     --muted: #141414;
     --muted-foreground: #a3a3a3;
@@ -77,15 +50,9 @@
     --input: #262626;
 
     --primary: #ededed;
-    --primary-hover: #d4d4d4;
     --primary-foreground: #0a0a0a;
-    --primary-hover-foreground: #0a0a0a;
-    --accent: #60a5fa;
-    --accent-foreground: #0a0a0a;
 
-    --success: #4ade80;
-    --warning: #facc15;
-    --destructive: #ef4444;
+    --destructive: #404040;
     --destructive-foreground: #ededed;
   }
 }
@@ -93,7 +60,7 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-poppins), sans-serif;
+  font-family: Arial, Helvetica, sans-serif;
 }
 
 /* Smoother transitions */

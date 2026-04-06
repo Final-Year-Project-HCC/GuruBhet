@@ -1,0 +1,279 @@
+'use client';
+
+import React, { useState, useMemo } from 'react';
+import {
+  useStudyLevels,
+  useBoards,
+  useFaculties,
+  useTeachersBySubject,
+  useSubjects,
+} from '@/lib/hooks/useAcademics';
+import { Subject, TeacherSearchResult } from '@/components/types';
+import { DropdownSkeleton, TeacherCardSkeletonGrid, HierarchicalSidebarSkeleton } from './SkeletonLoaders';
+
+interface HierarchicalSidebarProps {
+  onTeachersFound?: (teachers: TeacherSearchResult[], subject: Subject) => void;
+}
+
+const HierarchicalSidebar: React.FC<HierarchicalSidebarProps> = ({ onTeachersFound }) => {
+  // Selected values at each level
+  const [selectedStudyLevel, setSelectedStudyLevel] = useState<string | null>(null);
+  const [selectedBoard, setSelectedBoard] = useState<string | null>(null);
+  const [selectedFaculty, setSelectedFaculty] = useState<string | null>(null);
+  const [selectedUnit, setSelectedUnit] = useState<number | null>(null);
+
+  // Fetch data at each level
+  const { data: studyLevels = [], isLoading: studyLevelsLoading } = useStudyLevels();
+  const { data: boards = [], isLoading: boardsLoading } = useBoards(selectedStudyLevel);
+  const { data: faculties = [], isLoading: facultiesLoading } = useFaculties(selectedBoard);
+  const { data: allSubjects = [] } = useSubjects();
+  
+  // Get the selected faculty details
+  const selectedFacultyDetails = useMemo(
+    () => faculties.find((f) => f.id === selectedFaculty) || null,
+    [faculties, selectedFaculty]
+  );
+
+  // Generate unit options (1 to total_units)
+  const unitOptions = useMemo(() => {
+    if (!selectedFacultyDetails) return [];
+    const options = [];
+    for (let i = 1; i <= selectedFacultyDetails.total_units; i++) {
+      options.push(i);
+    }
+    return options;
+  }, [selectedFacultyDetails]);
+
+  // Find the subject that matches the current selection
+  const selectedSubject = useMemo(() => {
+    if (!selectedStudyLevel || !selectedBoard || !selectedFaculty || !selectedUnit) {
+      return null;
+    }
+    return allSubjects.find(
+      (s) =>
+        s.study_level_id === selectedStudyLevel &&
+        s.board_id === selectedBoard &&
+        s.faculty_id === selectedFaculty &&
+        s.unit_value === selectedUnit
+    ) || null;
+  }, [allSubjects, selectedStudyLevel, selectedBoard, selectedFaculty, selectedUnit]);
+
+  // Fetch teachers for the selected subject
+  const { data: teachers = [], isLoading: teachersLoading } = useTeachersBySubject(
+    selectedSubject?.id || null
+  );
+
+  // Reset dependent selections when parent level changes
+  const handleStudyLevelChange = (levelId: string) => {
+    setSelectedStudyLevel(levelId);
+    setSelectedBoard(null);
+    setSelectedFaculty(null);
+    setSelectedUnit(null);
+  };
+
+  const handleBoardChange = (boardId: string) => {
+    setSelectedBoard(boardId);
+    setSelectedFaculty(null);
+    setSelectedUnit(null);
+  };
+
+  const handleFacultyChange = (facultyId: string) => {
+    setSelectedFaculty(facultyId);
+    setSelectedUnit(null);
+  };
+
+  const handleUnitChange = (unit: number) => {
+    setSelectedUnit(unit);
+  };
+
+  // Notify parent when teachers are found
+  React.useEffect(() => {
+    if (selectedSubject && teachers.length > 0 && onTeachersFound) {
+      onTeachersFound(teachers, selectedSubject);
+    }
+  }, [teachers, selectedSubject, onTeachersFound]);
+
+  const getUnitTypeLabel = () => {
+    if (!selectedFacultyDetails) return 'Select Unit';
+    const unitType = selectedFacultyDetails.unit_type;
+    const singular = unitType.toLowerCase();
+    return `Select ${singular.charAt(0).toUpperCase() + singular.slice(1)}`;
+  };
+
+  return (
+    <>
+      {studyLevelsLoading && studyLevels.length === 0 ? (
+        <HierarchicalSidebarSkeleton />
+      ) : (
+        <div className="bg-surface border border-border rounded-2xl p-6 shadow-lg">
+          <h2 className="text-xl font-bold text-foreground mb-6">Filter by Subject Hierarchy</h2>
+
+          <div className="space-y-6">
+        {/* Level 1: Study Level */}
+        <div>
+          <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-3 px-1">
+            Study Level
+          </label>
+          {studyLevelsLoading ? (
+            <DropdownSkeleton />
+          ) : (
+            <select
+              value={selectedStudyLevel || ''}
+              onChange={(e) => handleStudyLevelChange(e.target.value)}
+              className="w-full bg-surface border border-border rounded-2xl px-5 py-4 text-sm font-semibold focus:border-primary outline-none cursor-pointer appearance-none transition-colors"
+            >
+              <option value="">Select a Study Level</option>
+              {studyLevels.map((level) => (
+                <option key={level.id} value={level.id}>
+                  {level.name}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+
+        {/* Level 2: Board */}
+        <div>
+          <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-3 px-1">
+            Board
+          </label>
+          {boardsLoading ? (
+            <DropdownSkeleton />
+          ) : (
+            <select
+              value={selectedBoard || ''}
+              onChange={(e) => handleBoardChange(e.target.value)}
+              disabled={!selectedStudyLevel}
+              className={`w-full bg-surface border border-border rounded-2xl px-5 py-4 text-sm font-semibold focus:border-primary outline-none cursor-pointer appearance-none transition-colors ${
+                !selectedStudyLevel ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
+            >
+              <option value="">Select a Board</option>
+              {boards.map((board) => (
+                <option key={board.id} value={board.id}>
+                  {board.name}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+
+        {/* Level 3: Faculty */}
+        <div>
+          <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-3 px-1">
+            Faculty / Stream
+          </label>
+          {facultiesLoading ? (
+            <DropdownSkeleton />
+          ) : (
+            <select
+              value={selectedFaculty || ''}
+              onChange={(e) => handleFacultyChange(e.target.value)}
+              disabled={!selectedBoard}
+              className={`w-full bg-surface border border-border rounded-2xl px-5 py-4 text-sm font-semibold focus:border-primary outline-none cursor-pointer appearance-none transition-colors ${
+                !selectedBoard ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
+            >
+              <option value="">Select a Faculty</option>
+              {faculties.map((faculty) => (
+                <option key={faculty.id} value={faculty.id}>
+                  {faculty.name}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+
+        {/* Level 4: Unit Value (Dynamic based on Faculty.total_units) */}
+        {selectedFaculty && (
+          <div>
+            <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-3 px-1">
+              {getUnitTypeLabel()}
+            </label>
+            <div className="grid grid-cols-4 gap-2">
+              {unitOptions.map((unit) => (
+                <button
+                  key={unit}
+                  onClick={() => handleUnitChange(unit)}
+                  className={`py-3 rounded-xl font-semibold text-sm transition-colors ${
+                    selectedUnit === unit
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-subtle border border-border text-foreground hover:bg-subtle-foreground/10'
+                  }`}
+                >
+                  {selectedFacultyDetails?.unit_type || 'Unit'} {unit}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Selected Subject Info */}
+        {selectedSubject && (
+          <div className="bg-subtle rounded-xl p-4 border border-border">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+              Selected Subject
+            </p>
+            <p className="font-bold text-foreground mb-1">{selectedSubject.name}</p>
+            <p className="text-xs text-muted-foreground">
+              {`${selectedFacultyDetails?.unit_type || 'Unit'} ${selectedUnit}`}
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Teachers Results Section */}
+      {selectedSubject && (
+        <div className="mt-8 border-t border-border pt-8">
+          <h3 className="text-lg font-bold text-foreground mb-6">
+            Available Teachers ({teachers.length})
+          </h3>
+
+          {teachersLoading ? (
+            <TeacherCardSkeletonGrid count={3} />
+          ) : teachers.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-96 overflow-y-auto pr-2">
+              {teachers.map((teacher) => (
+                <div
+                  key={teacher.teacher_id}
+                  className="bg-subtle border border-border rounded-xl p-4 hover:bg-subtle/80 transition-colors cursor-pointer"
+                >
+                  <div className="flex gap-3 mb-3">
+                    {teacher.teacher_avatar_url && (
+                      <div className="w-12 h-12 rounded-full bg-subtle shrink-0 text-xs flex items-center justify-center font-bold text-muted-foreground">
+                        {teacher.teacher_name.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-foreground truncate">{teacher.teacher_name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {teacher.years_of_experience} year{teacher.years_of_experience !== 1 ? 's' : ''} exp.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-between items-center text-sm">
+                    <div className="flex items-center gap-1">
+                      <span className="text-yellow-500">★</span>
+                      <span className="font-semibold">{teacher.avg_rating.toFixed(1)}</span>
+                      <span className="text-xs text-muted-foreground">({teacher.rating_count})</span>
+                    </div>
+                    <p className="font-bold text-primary">₨{teacher.rate_per_session}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              No teachers available for this subject
+            </div>
+          )}
+        </div>
+      )}
+        </div>
+      )}
+    </>
+  );
+};
+
+export default HierarchicalSidebar;

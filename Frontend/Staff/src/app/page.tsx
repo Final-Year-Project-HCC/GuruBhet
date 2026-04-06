@@ -1,8 +1,38 @@
+"use client";
+
 import Link from "next/link";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { getAccessibleRoutes } from "@/lib/routes";
 
 export default function Home() {
+  const { data: user, isLoading, isError } = useCurrentUser();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-linear-to-b from-background to-muted">
+        <div className="mx-auto max-w-6xl px-4 py-16">
+          <p className="text-center text-muted-foreground">Loading user permissions...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isError || !user) {
+    return (
+      <div className="min-h-screen bg-linear-to-b from-background to-muted">
+        <div className="mx-auto max-w-6xl px-4 py-16">
+          <p className="text-center text-destructive">Failed to load permissions. Please refresh.</p>
+        </div>
+      </div>
+    );
+  }
+
+  const accessibleRoutes = getAccessibleRoutes(user.permissions, user.is_superuser).filter(
+    (route) => route.path !== "/" && route.description
+  );
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-muted">
+    <div className="min-h-screen bg-linear-to-b from-background to-muted">
       <div className="mx-auto max-w-6xl px-4 py-16">
         <div className="space-y-8">
           {/* Main Heading */}
@@ -15,44 +45,39 @@ export default function Home() {
 
           {/* Quick Actions Grid */}
           <div className="grid md:grid-cols-2 gap-6 pt-8">
-            {/* Teachers Management */}
-            <Link
-              href="/teachers"
-              className="group relative overflow-hidden rounded-lg border border-border bg-card p-6 hover:border-primary transition-all hover:shadow-lg hover:shadow-primary/10"
-            >
-              <div className="space-y-4">
-                <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center text-primary text-xl">
-                  👥
+            {accessibleRoutes.map((route) => (
+              <Link
+                key={route.path}
+                href={route.path}
+                className="group relative overflow-hidden rounded-lg border border-border bg-card p-6 hover:border-primary transition-all hover:shadow-lg hover:shadow-primary/10"
+              >
+                <div className="space-y-4">
+                  {route.icon && (
+                    <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center text-primary text-xl">
+                      {route.icon}
+                    </div>
+                  )}
+                  <div>
+                    <h2 className="text-2xl font-bold text-foreground mb-2">{route.label}</h2>
+                    <p className="text-muted-foreground">
+                      {route.description}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h2 className="text-2xl font-bold text-foreground mb-2">Teachers</h2>
-                  <p className="text-muted-foreground">
-                    Review and verify pending teacher submissions.
-                  </p>
-                </div>
-              </div>
-              <div className="absolute inset-0 -z-10 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-            </Link>
-
-            {/* Academic Setup */}
-            <Link
-              href="/academic-setup"
-              className="group relative overflow-hidden rounded-lg border border-border bg-card p-6 hover:border-primary transition-all hover:shadow-lg hover:shadow-primary/10"
-            >
-              <div className="space-y-4">
-                <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center text-primary text-xl">
-                  🎓
-                </div>
-                <div>
-                  <h2 className="text-2xl font-bold text-foreground mb-2">Academic Setup</h2>
-                  <p className="text-muted-foreground">
-                    Create and manage universities, faculties, semesters, and subjects.
-                  </p>
-                </div>
-              </div>
-              <div className="absolute inset-0 -z-10 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-            </Link>
+                <div className="absolute inset-0 -z-10 bg-linear-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+              </Link>
+            ))}
           </div>
+
+          {/* Empty State if no accessible routes */}
+          {accessibleRoutes.length === 0 && (
+            <div className="rounded-lg border border-border bg-card p-8 text-center">
+              <h2 className="text-2xl font-bold text-foreground mb-2">No Available Actions</h2>
+              <p className="text-muted-foreground">
+                You don&apos;t have permissions to access any features yet. Contact your administrator.
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </div>
