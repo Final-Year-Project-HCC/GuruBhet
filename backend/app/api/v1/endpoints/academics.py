@@ -78,7 +78,7 @@ async def create_study_level(
         await db.flush()
         await db.refresh(study_level)
 
-        return StudyLevelRead.from_attributes(study_level)
+        return StudyLevelRead.model_validate(study_level)
 
     except DuplicateResourceError:
         raise
@@ -99,7 +99,7 @@ async def list_study_levels(
     stmt = stmt.where(StudyLevel.is_active == is_active)
     stmt = stmt.order_by(StudyLevel.name)
     result = await db.execute(stmt)
-    return [StudyLevelRead.from_attributes(sl) for sl in result.scalars().all()]
+    return [StudyLevelRead.model_validate(sl) for sl in result.scalars().all()]
 
 
 @router.get("/study-levels/{study_level_id}", response_model=StudyLevelRead)
@@ -120,7 +120,7 @@ async def get_study_level(
     if not study_level:
         raise ResourceNotFoundError(detail="StudyLevel not found")
 
-    return StudyLevelRead.from_attributes(study_level)
+    return StudyLevelRead.model_validate(study_level)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -183,7 +183,7 @@ async def create_board(
         # Refresh to get relationships
         await db.refresh(board)
 
-        return BoardRead.from_attributes(board)
+        return BoardRead.model_validate(board)
 
     except ResourceNotFoundError:
         raise
@@ -212,7 +212,7 @@ async def list_boards(
     stmt = stmt.order_by(Board.name)
 
     result = await db.execute(stmt)
-    return [BoardRead.from_attributes(b) for b in result.scalars().all()]
+    return [BoardRead.model_validate(b) for b in result.scalars().all()]
 
 
 @router.get("/boards/{board_id}", response_model=BoardRead)
@@ -233,7 +233,7 @@ async def get_board(
     if not board:
         raise ResourceNotFoundError(detail="Board not found")
 
-    return BoardRead.from_attributes(board)
+    return BoardRead.model_validate(board)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -294,7 +294,7 @@ async def create_faculty(
         await db.flush()
         await db.refresh(faculty)
 
-        return FacultyRead.from_attributes(faculty)
+        return FacultyRead.model_validate(faculty)
 
     except ResourceNotFoundError:
         raise
@@ -333,7 +333,7 @@ async def list_faculties(
     stmt = stmt.order_by(Faculty.name)
 
     result = await db.execute(stmt)
-    return [FacultyRead.from_attributes(f) for f in result.scalars().all()]
+    return [FacultyRead.model_validate(f) for f in result.scalars().all()]
 
 
 @router.get("/faculties/{faculty_id}", response_model=FacultyRead)
@@ -354,7 +354,7 @@ async def get_faculty(
     if not faculty:
         raise ResourceNotFoundError(detail="Faculty not found")
 
-    return FacultyRead.from_attributes(faculty)
+    return FacultyRead.model_validate(faculty)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -421,11 +421,9 @@ async def create_subject(
         service = SubjectService(db)
         subject = await service.create_subject(body)
 
-        return SubjectWithContextRead(
-            **subject.__dict__,
-            full_context=subject.get_full_context(),
-            context_dict=subject.get_full_context_dict()
-        )
+        subject.full_context = subject.get_full_context()
+        subject.context_dict = subject.get_full_context_dict()
+        return SubjectWithContextRead.model_validate(subject)
 
     except ResourceNotFoundError:
         raise
@@ -470,7 +468,7 @@ async def list_subjects(
 
     stmt = stmt.order_by(Subject.name)
     result = await db.execute(stmt)
-    return [SubjectRead.from_attributes(s) for s in result.scalars().all()]
+    return [SubjectRead.model_validate(s) for s in result.scalars().all()]
 
 
 @router.get("/subjects/{subject_id}", response_model=SubjectWithContextRead)
@@ -488,11 +486,9 @@ async def get_subject(
     if not subject or subject.is_active != is_active:
         raise ResourceNotFoundError(detail="Subject not found")
 
-    return SubjectWithContextRead(
-        **subject.__dict__,
-        full_context=subject.get_full_context(),
-        context_dict=subject.get_full_context_dict()
-    )
+    subject.full_context = subject.get_full_context()
+    subject.context_dict = subject.get_full_context_dict()
+    return SubjectWithContextRead.model_validate(subject)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
