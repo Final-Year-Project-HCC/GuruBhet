@@ -128,3 +128,13 @@ class RoomStatus(str, Enum):
     CREATED = "CREATED"
     IN_PROGRESS = "IN_PROGRESS"
     ENDED = "ENDED"
+class AuditActionType(str, Enum):
+    CREATE = "CREATE"
+    UPDATE = "UPDATE"
+    DELETE = "DELETE"
+    READ = "READ"
+    LOGIN = "LOGIN"
+    LOGOUT = "LOGOUT"
+    VERIFY = "VERIFY"
+    BAN = "BAN"
+    OTHER = "OTHER"

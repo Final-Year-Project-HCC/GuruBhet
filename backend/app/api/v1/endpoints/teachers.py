@@ -17,6 +17,7 @@ from app.models.teacher import TeacherProfile
 from app.models.student import StudentProfile
 from app.models.booking import Booking
 from app.models.teacher_subject import TeacherSubject
+from app.models.subject import Subject
 from app.repositories.teacher_subject_repo import TeacherSubjectRepository
 from app.schemas.user import TeacherProfileRead, TeacherProfileUpdate
 from app.schemas.subject import TeacherSearchResult, TeacherSubjectCreate, TeacherSubjectRead
@@ -69,6 +70,71 @@ async def search_teachers(
         limit=limit,
         offset=offset,
     )
+    return [
+        TeacherSearchResult(
+            teacher_id=ts.teacher_id,
+            subject_id=ts.subject_id,
+            rate_per_session=ts.rate_per_session,
+            years_of_experience=ts.years_of_experience,
+            avg_rating=ts.avg_rating,
+            rating_count=ts.rating_count,
+            total_sessions_completed=ts.total_sessions_completed,
+            teacher_name=f"{ts.teacher.user.first_name} {ts.teacher.user.last_name}",
+            teacher_headline=ts.teacher.headline,
+            teacher_avatar_url=ts.teacher.avatar_url,
+            subject=ts.subject,
+        )
+        for ts in results
+    ]
+
+
+@router.get("/{subject_id}/search", response_model=list[TeacherSearchResult])
+async def search_teachers_by_subject(
+    subject_id: UUID,
+    db: DbSession,
+    min_rating: float = Query(default=0.0, ge=0.0, le=5.0),
+    min_years_of_experience: int = Query(default=0, ge=0),
+    min_rate_per_session: Decimal | None = Query(default=None),
+    max_rate_per_session: Decimal | None = Query(default=None),
+    limit: int = Query(default=20, le=50),
+    offset: int = Query(default=0, ge=0),
+):
+    """
+    Search for teachers that teach a specific subject.
+    Results are ordered by recommendation score:
+      score = (avg_rating × 0.6) + (log(sessions_completed + 1) × 0.4)
+    """
+    repo = TeacherSubjectRepository(db)
+    
+    # We will need to update the TeacherSubjectRepository search method or build the query directly here
+    stmt = (
+        select(TeacherSubject)
+        .options(
+            selectinload(TeacherSubject.teacher).selectinload(TeacherProfile.user),
+            selectinload(TeacherSubject.subject).selectinload(Subject.study_level),
+            selectinload(TeacherSubject.subject).selectinload(Subject.board),
+            selectinload(TeacherSubject.subject).selectinload(Subject.faculty)
+        )
+        .where(TeacherSubject.subject_id == subject_id)
+        .where(TeacherSubject.is_active == True)
+        .where(TeacherSubject.avg_rating >= min_rating)
+        .where(TeacherSubject.years_of_experience >= min_years_of_experience)
+    )
+
+    if min_rate_per_session is not None:
+        stmt = stmt.where(TeacherSubject.rate_per_session >= min_rate_per_session)
+    if max_rate_per_session is not None:
+        stmt = stmt.where(TeacherSubject.rate_per_session <= max_rate_per_session)
+
+    # Simplified scoring function using SQL math: (avg_rating * 0.6) + ln(total_sessions_completed + 1) * 0.4
+    import sqlalchemy as sa
+    score_expr = (TeacherSubject.avg_rating * 0.6) + (sa.func.ln(TeacherSubject.total_sessions_completed + 1) * 0.4)
+    stmt = stmt.order_by(score_expr.desc())
+    stmt = stmt.limit(limit).offset(offset)
+    
+    result = await db.execute(stmt)
+    results = result.scalars().all()
+    
     return [
         TeacherSearchResult(
             teacher_id=ts.teacher_id,

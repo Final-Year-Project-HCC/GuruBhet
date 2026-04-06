@@ -25,7 +25,7 @@ from app.repositories.user_repo import UserRepository
 from app.db.redis import blacklist_jti, is_jti_blacklisted
 from datetime import datetime, timezone
 from jose import JWTError
-from app.schemas.auth import RegisterRequest, LoginRequest, RefreshRequest
+from app.schemas.auth import RegisterRequest, LoginRequest, RefreshRequest, LoginResponse, RefreshResponse
 from app.schemas.user import UserRead
 
 router = APIRouter()
@@ -144,7 +144,7 @@ async def register(body: RegisterRequest, db: DbSession):
     return user
 
 
-@router.post("/login")
+@router.post("/login", response_model=LoginResponse)
 async def login(body: LoginRequest, db: DbSession, response: Response, request: Request):
     repo = UserRepository(db)
     user = await repo.get_by_email(body.email)
@@ -181,10 +181,10 @@ async def login(body: LoginRequest, db: DbSession, response: Response, request: 
         max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
         path="/api/v1/auth",
     )
-    return {"message":"Logged in succesfully"}
+    return {"message": "Logged in succesfully", "user": user}
 
 
-@router.post("/refresh")
+@router.post("/refresh", response_model=RefreshResponse)
 async def refresh(db: DbSession, response: Response, request: Request, x_refresh_token: str = Header(None, alias="x-refresh-token")):
     if not x_refresh_token:
         raise MissingTokenError()
@@ -240,7 +240,7 @@ async def refresh(db: DbSession, response: Response, request: Request, x_refresh
         max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
         path="/api/v1/auth",
     )
-    return {"message": "tokens rotated"}
+    return {"message": "tokens rotated", "user": user}
 
 
 @router.post("/logout")

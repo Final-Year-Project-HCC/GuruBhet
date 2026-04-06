@@ -1,6 +1,16 @@
 from uuid import UUID
 from fastapi import APIRouter, status
+import hashlib
+import secrets
+from datetime import datetime, timedelta, timezone
+
+from fastapi import HTTPException
 from sqlalchemy import select
+
+from app.models.invitation import StaffInvitation
+from app.core.security import hash_password
+from app.schemas.staff import StaffAcceptInviteSchema
+from app.tasks.notification_tasks import send_staff_invite_email
 
 from app.core.dependencies import DbSession, RequireStaffManage, RequireTeacherVerify
 from app.core.exceptions import PermissionDeniedError, ResourceNotFoundError
@@ -28,8 +38,87 @@ async def invite_staff(
     if "staff:manage" in body.permissions and not current_staff.is_superuser:
         raise PermissionDeniedError(detail="Only a Superuser can grant the 'staff:manage' permission.")
 
-    # TODO: Logic to generate secure unique JWT/Token, save to db, and email the user goes here.
-    return {"message": "Staff invitation feature is under constructon.", "email": body.email}
+    # Check if user already exists
+    existing_user = await db.scalar(select(User).where(User.email == body.email))
+    if existing_user:
+        raise HTTPException(status_code=400, detail="User with this email already exists.")
+
+    # Generate a secure 32-character token
+    raw_token = secrets.token_urlsafe(32)
+    token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
+
+    # Determine Superuser inheritance rule
+    grant_superuser = current_staff.is_superuser and "superuser" in body.permissions
+    cleaned_permissions = [p for p in body.permissions if p != "superuser"]
+
+    # Store invitation
+    invitation = StaffInvitation(
+        email=body.email,
+        token_hash=token_hash,
+        permissions=cleaned_permissions,
+        is_superuser=grant_superuser,
+        expires_at=datetime.now(timezone.utc) + timedelta(days=7),
+        invited_by_id=current_staff.id
+    )
+    db.add(invitation)
+
+    # Auditing
+    audit_log = AuditLog(
+        actor_id=current_staff.id,
+        action_type=AuditActionType.CREATE,
+        description=f"Generated staff invite for {body.email}"
+    )
+    db.add(audit_log)
+    await db.commit()
+
+    # Send `raw_token` via Email asynchronously
+    send_staff_invite_email.delay(email_to=body.email, raw_token=raw_token)
+    
+    return {"message": "Invite generated successfully", "email": body.email, "invite_token": raw_token}
+
+@router.post("/accept-invite", status_code=status.HTTP_201_CREATED, response_model=StaffRead)
+async def accept_staff_invite(body: StaffAcceptInviteSchema, db: DbSession):
+    """
+    Public endpoint for staff to accept their invitation using the single-use token.
+    """
+    token_hash = hashlib.sha256(body.token.encode()).hexdigest()
+    
+    # Find active invitation
+    invitation = await db.scalar(
+        select(StaffInvitation).where(
+            StaffInvitation.token_hash == token_hash,
+            StaffInvitation.is_used == False,
+            StaffInvitation.expires_at > datetime.now(timezone.utc)
+        )
+    )
+    
+    if not invitation:
+        raise HTTPException(status_code=400, detail="Invalid or expired invitation token.")
+        
+    # Check if email was taken in the meantime
+    existing_user = await db.scalar(select(User).where(User.email == invitation.email))
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Email is already registered.")
+
+    # Create the Staff User
+    new_staff = User(
+        first_name=body.first_name,
+        last_name=body.last_name,
+        email=invitation.email,
+        password_hash=hash_password(body.password),
+        role=UserRole.STAFF,
+        is_email_verified=True,  # Implies verified since it came via email invite
+        is_superuser=invitation.is_superuser,
+        permissions=invitation.permissions
+    )
+    
+    # Mark token as used
+    invitation.is_used = True
+    
+    db.add(new_staff)
+    await db.commit()
+    await db.refresh(new_staff)
+    return new_staff
 
 @router.put("/management/{target_id}", response_model=StaffRead)
 async def update_staff_permissions(

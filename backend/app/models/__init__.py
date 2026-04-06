@@ -14,6 +14,8 @@ from app.models.booking import Booking, Session  # noqa: F401
 from app.models.rating import TeacherRating  # noqa: F401
 from app.models.payment import Transaction, Payout  # noqa: F401
 from app.models.moderation import Report, UserBan  # noqa: F401
+from app.models.invitation import StaffInvitation  # noqa: F401
+from app.models.audit_log import AuditLog  # noqa: F401
 
 __all__ = [
     "Base",
@@ -31,4 +33,5 @@ __all__ = [
     "Payout",
     "Report",
     "UserBan",
+    "StaffInvitation",
 ]

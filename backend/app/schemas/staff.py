@@ -9,11 +9,14 @@ from .base import SharedConfig
 
 
 class StaffInviteSchema(SharedConfig):
+    email: EmailStr
+    permissions: list[str] = []
+
+class StaffAcceptInviteSchema(SharedConfig):
+    token: str
     first_name: str
     last_name: str
-    email: EmailStr
-    phone: str | None = None
-    permissions: list[str] = []
+    password: str
 
 class StaffUpdateSchema(SharedConfig):
     permissions: list[str] | None = None

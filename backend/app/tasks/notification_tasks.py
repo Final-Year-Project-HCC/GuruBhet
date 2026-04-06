@@ -268,3 +268,63 @@ def send_session_complete_notification(self, session_id: str, booking_id: str):
         logger.error(f"Error sending session complete notification: {exc}", exc_info=True)
         raise self.retry(exc=exc, countdown=60)
 
+import smtplib
+from email.message import EmailMessage
+from app.core.config import settings
+
+@celery_app.task(
+    name="app.tasks.notification_tasks.send_staff_invite_email",
+    bind=True,
+    max_retries=3,
+    default_retry_delay=60,
+)
+def send_staff_invite_email(self, email_to: str, raw_token: str):
+    """
+    Sends an SMTP email with the staff invitation magic link.
+    Runs asynchronously in the background via Celery.
+    """
+    try:
+        msg = EmailMessage()
+        msg["Subject"] = "You have been invited to join GuruBhet Staff"
+        msg["From"] = getattr(settings, "EMAILS_FROM_EMAIL", "noreply@gurubhet.com")
+        msg["To"] = email_to
+        
+        # Configurable frontend URL
+        frontend_url = getattr(settings, "STAFF_FRONTEND_URL", "http://localhost:3000")
+        invite_url = f"{frontend_url}/accept-invite?token={raw_token}"
+        
+        html_content = f"""
+        <html>
+            <body style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
+                <h2 style="color: #2c3e50;">Welcome to GuruBhet!</h2>
+                <p>You have been invited to join the GuruBhet administrative staff team.</p>
+                <p>Click the link below to securely set up your account, provide your details, and set a password:</p>
+                <p>
+                    <a href="{invite_url}" style="display: inline-block; padding: 10px 20px; color: #fff; background-color: #3498db; text-decoration: none; border-radius: 5px;">Accept Invitation</a>
+                </p>
+                <p>If the button doesn't work, copy and paste this URL into your browser:</p>
+                <p><em>{invite_url}</em></p>
+                <p style="color: #7f8c8d; font-size: 0.9em;">This invitation will expire securely in 7 days.</p>
+            </body>
+        </html>
+        """
+        
+        # Set plain text fallback, then HTML version
+        msg.set_content(f"Please use a mail client that supports HTML.\\n\\nYour invite link is: {invite_url}")
+        msg.add_alternative(html_content, subtype="html")
+        
+        # Send securely over TLS
+        if settings.SMTP_HOST and settings.SMTP_USER:
+            with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
+                server.ehlo()
+                server.starttls()
+                server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+                server.send_message(msg)
+            logger.info(f"Successfully sent staff invite email to {email_to}")
+        else:
+            logger.warning(f"SMTP credentials not configured! Mock sending invite email to {email_to}. Token: {raw_token}")
+            
+    except Exception as e:
+        logger.error(f"Failed to send staff invite email to {email_to}: {e}")
+        # Retry the task upon SMTP failures
+        raise self.retry(exc=e)

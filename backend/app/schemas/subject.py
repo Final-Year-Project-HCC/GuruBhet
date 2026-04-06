@@ -180,6 +180,16 @@ class SubjectCreate(SharedConfig):
         return v
 
 
+class SubjectSearchResponse(SharedConfig):
+    id: UUID
+    name: str
+    unit_value: int
+    study_level_name: str
+    board_name: str
+    faculty_name: str
+    unit_type: UnitType
+
+
 class SubjectUpdate(SharedConfig):
     """
     Request schema for updating a Subject.

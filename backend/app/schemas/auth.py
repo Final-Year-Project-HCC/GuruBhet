@@ -2,6 +2,7 @@ from pydantic import EmailStr, field_validator
 import re
 
 from .base import SharedConfig
+from .user import UserRead
 
 
 class RegisterRequest(SharedConfig):
@@ -38,8 +39,13 @@ class LoginRequest(SharedConfig):
     email: EmailStr
     password: str
 
+class LoginResponse(SharedConfig):
+    message: str
+    user: UserRead
 
-
+class RefreshResponse(SharedConfig):
+    message: str
+    user: UserRead
 
 class RefreshRequest(SharedConfig):
 

@@ -5,9 +5,33 @@ from app.core.exceptions import ResourceNotFoundError, InvalidRequestError
 
 from app.core.dependencies import DbSession
 from app.models.subject import Subject
-from app.schemas.subject import SubjectRead, SubjectCreate, BulkSubjectCreateRequest
+from app.schemas.subject import SubjectRead, SubjectCreate, BulkSubjectCreateRequest, SubjectSearchResponse
 
 router = APIRouter()
+
+@router.get("/search", response_model=list[SubjectSearchResponse])
+async def search_subjects(
+    db: DbSession,
+    name: str = Query(..., min_length=1, description="Prefix match for subject name"),
+    limit: int = Query(default=50, le=200),
+):
+    """Search subjects by name prefix and return flattened contextual details."""
+    stmt = select(Subject).where(Subject.name.ilike(f"{name}%")).limit(limit)
+    result = await db.execute(stmt)
+    subjects = result.scalars().all()
+    
+    return [
+        {
+            "id": s.id,
+            "name": s.name,
+            "unit_value": s.unit_value,
+            "study_level_name": s.study_level.name if s.study_level else "",
+            "board_name": s.board.name if s.board else "",
+            "faculty_name": s.faculty.name if s.faculty else "",
+            "unit_type": s.faculty.unit_type if s.faculty else "GRADE",  # Fallback if somehow missing
+        }
+        for s in subjects
+    ]
 
 
 @router.get("/", response_model=list[SubjectRead])

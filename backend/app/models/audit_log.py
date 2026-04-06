@@ -58,7 +58,7 @@ class AuditLog(Base):
     # ── Context ─────────────────────────────────────────────────────────
     ip_address: Mapped[str | None] = mapped_column(String(50), nullable=True)
     user_agent: Mapped[str | None] = mapped_column(String(500), nullable=True)
-    metadata: Mapped[dict[str, Any] | None] = mapped_column(
+    action_metadata: Mapped[dict[str, Any] | None] = mapped_column(
         JSON, nullable=True
     )  # Additional context (e.g., old values vs new values for updates)
 

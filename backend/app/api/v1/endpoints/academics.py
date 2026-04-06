@@ -41,8 +41,8 @@ router = APIRouter(prefix="/academics", tags=["Academics (Staff Only)"])
 @router.post("/study-levels", response_model=StudyLevelRead, status_code=201)
 async def create_study_level(
     body: StudyLevelCreate,
-    db: DbSession
-    # _=RequireAcademicsManage  # TODO: Re-enable STAFF requirement for production
+    db: DbSession,
+    _ = RequireAcademicsManage
 ) -> StudyLevelRead:
     """
     [STAFF] Create a new StudyLevel.
@@ -121,8 +121,8 @@ async def get_study_level(
 @router.post("/boards", response_model=BoardRead, status_code=201)
 async def create_board(
     body: BoardCreate,
-    db: DbSession
-    # _=RequireAcademicsManage  # TODO: Re-enable STAFF requirement for production
+    db: DbSession,
+    _ = RequireAcademicsManage
 ) -> BoardRead:
     """
     [STAFF] Create a new Board for multiple StudyLevels.
@@ -228,8 +228,8 @@ async def get_board(
 @router.post("/faculties", response_model=FacultyRead, status_code=201)
 async def create_faculty(
     body: FacultyCreate,
-    db: DbSession
-    # _=RequireAcademicsManage  # TODO: Re-enable STAFF requirement for production
+    db: DbSession,
+    _ = RequireAcademicsManage
 ) -> FacultyRead:
     """
     [STAFF] Create a new Faculty under a Board.
@@ -323,8 +323,8 @@ async def get_faculty(
 @router.post("/class-levels", response_model=ClassLevelRead, status_code=201)
 async def create_class_level(
     body: ClassLevelCreate,
-    db: DbSession
-    # _=RequireAcademicsManage  # TODO: Re-enable STAFF requirement for production
+    db: DbSession,
+    _ = RequireAcademicsManage
 ) -> ClassLevelRead:
     """
     [STAFF] Create a ClassLevel (for reference/display only).
@@ -417,8 +417,8 @@ async def get_class_level(
 @router.post("/subjects", response_model=SubjectWithContextRead, status_code=201)
 async def create_subject(
     body: SubjectCreate,
-    db: DbSession
-    # _=RequireAcademicsManage  # TODO: Re-enable STAFF requirement for production
+    db: DbSession,
+    _ = RequireAcademicsManage
 ) -> SubjectWithContextRead:
     """
     [STAFF] Create a new Subject with numeric unit_value.
