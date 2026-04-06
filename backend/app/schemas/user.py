@@ -40,6 +40,9 @@ class UserRead(UserBase):
     is_email_verified: bool
     is_active: bool
     is_banned: bool
+    is_superuser: bool
+    mfa_enabled: bool
+    permissions: list[str] = []
     created_at: datetime
 
 
