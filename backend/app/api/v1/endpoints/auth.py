@@ -76,9 +76,9 @@ def validate_subdomain_matches_role(request: Request, user_role: UserRole) -> No
     if subdomain is None:
         return
     
-    # IMPORTANT: We only allow the 'api' bypass IF there was no Origin header.
-    # If a browser is used, Origin will be 'teacher.gurubhet.tech', NOT 'api'.
-    if subdomain == 'api' and not request.headers.get("origin"):
+    # IMPORTANT: We allow the 'api' bypass for Swagger UI and server-to-server calls.
+    # If a generic browser is used on a real frontend, Origin will be 'teacher.gurubhet.tech' etc.
+    if subdomain == 'api':
         return
     
     # Normalized role string (e.g., 'teacher', 'student', 'staff')
