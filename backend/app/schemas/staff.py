@@ -8,27 +8,31 @@ from pydantic import EmailStr
 from .base import SharedConfig
 
 
-class StaffCreateRequest(SharedConfig):
-
+class StaffInviteSchema(SharedConfig):
     first_name: str
     last_name: str
     email: EmailStr
     phone: str | None = None
-    password: str
-    staff_role: str  # Staff role value
+    permissions: list[str] = []
 
-
-class StaffUpdateRequest(SharedConfig):
-
-    staff_role: str | None = None  # Staff role value
+class StaffUpdateSchema(SharedConfig):
+    permissions: list[str] | None = None
     is_active: bool | None = None
 
-
 class StaffRead(SharedConfig):
-
     id: UUID
-
+    first_name: str
+    last_name: str
+    email: EmailStr
+    permissions: list[str]
+    is_active: bool
+    is_superuser: bool
 
 class AuditLogRead(SharedConfig):
-
     id: UUID
+    action_type: str
+    description: str | None
+    actor_id: UUID
+    target_user_id: UUID | None
+    created_at: datetime
+

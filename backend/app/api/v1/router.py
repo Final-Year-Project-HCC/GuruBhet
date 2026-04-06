@@ -14,6 +14,7 @@ from app.api.v1.endpoints import (
     staff,
     livekit,
     media,
+    academics,
 )
 
 api_router = APIRouter()
@@ -28,6 +29,7 @@ api_router.include_router(sessions.router,         prefix="/sessions",   tags=["
 api_router.include_router(payments.router,         prefix="/payments",   tags=["Payments"])
 api_router.include_router(ratings.router,          prefix="/ratings",    tags=["Ratings"])
 api_router.include_router(moderation.router,       prefix="/moderation", tags=["Moderation"])
+api_router.include_router(academics.router,        prefix="",            tags=["Academics"])
 api_router.include_router(staff.router,            prefix="/staff",      tags=["Staff"])
 api_router.include_router(livekit.router,          prefix="/livekit",    tags=["LiveKit"])
 api_router.include_router(media.router,            prefix="/media",      tags=["Media"])

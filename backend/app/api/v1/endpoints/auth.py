@@ -156,7 +156,7 @@ async def login(body: LoginRequest, db: DbSession, response: Response, request: 
     # Validate subdomain matches user role
     validate_subdomain_matches_role(request, user.role)
 
-    access = create_access_token(str(user.id), user.role.value)
+    access = create_access_token(user_id=str(user.id), role=user.role.value, permissions=user.permissions, is_superuser=user.is_superuser)
     refresh = create_refresh_token(str(user.id))
 
 
@@ -217,7 +217,7 @@ async def refresh(db: DbSession, response: Response, request: Request, x_refresh
         await blacklist_jti(jti, int(exp))
 
     # Issue new pair
-    access = create_access_token(str(user.id), user.role.value)
+    access = create_access_token(user_id=str(user.id), role=user.role.value, permissions=user.permissions, is_superuser=user.is_superuser)
     refresh = create_refresh_token(str(user.id))
 
     sameSitePolicy = "lax" if (settings.ENVIRONMENT=="production" or settings.ENVIRONMENT == "development2") else "none"

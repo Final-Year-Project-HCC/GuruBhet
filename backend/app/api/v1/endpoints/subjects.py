@@ -1,6 +1,7 @@
 from uuid import UUID
-from fastapi import APIRouter, Query, HTTPException
+from fastapi import APIRouter, Query
 from sqlalchemy import select
+from app.core.exceptions import ResourceNotFoundError, InvalidRequestError
 
 from app.core.dependencies import DbSession
 from app.models.subject import Subject
@@ -43,7 +44,7 @@ async def bulk_create_subjects(
     """Bulk create subjects."""
     subjects_data = body.subjects
     if not subjects_data:
-        raise HTTPException(status_code=400, detail="No subjects provided")
+        raise InvalidRequestError(detail="No subjects provided")
     
     created_subjects = []
     
@@ -71,16 +72,16 @@ async def get_subject(subject_id: UUID, db: DbSession):
     result = await db.execute(select(Subject).where(Subject.id == subject_id))
     subject = result.scalar_one_or_none()
     if not subject:
-        raise HTTPException(status_code=404, detail="Subject not found")
+        raise ResourceNotFoundError(detail="Subject not found")
     return subject
 
 
 @router.delete("/{subject_id}", status_code=204)
-async def deactivate_subject(subject_id: UUID, db: DbSession):
-    """Deactivate a subject from the catalog."""
+async def delete_subject(subject_id: UUID, db: DbSession):
+    """Hard-delete a subject from the catalog (if not referenced)."""
     result = await db.execute(select(Subject).where(Subject.id == subject_id))
     subject = result.scalar_one_or_none()
     if not subject:
-        raise HTTPException(status_code=404, detail="Subject not found")
-    subject.is_active = False
+        raise ResourceNotFoundError(detail="Subject not found")
+    await db.delete(subject)
     await db.flush()

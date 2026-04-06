@@ -31,11 +31,17 @@ def _create_token(subject: str, expires_delta: timedelta, extra: dict[str, Any] 
     return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
 
-def create_access_token(user_id: str, role: str) -> str:
+def create_access_token(user_id: str, role: str, permissions: list[str] | None = None, is_superuser: bool = False) -> str:
+    extra = {
+        "role": role,
+        "type": "access",
+        "permissions": permissions or [],
+        "is_superuser": is_superuser
+    }
     return _create_token(
         subject=user_id,
         expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
-        extra={"role": role, "type": "access"},
+        extra=extra,
     )
 
 

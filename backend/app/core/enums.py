@@ -21,6 +21,13 @@ class DocumentType(str, Enum):
     SELFIE_WITH_CITIZENSHIP = "selfie_with_citizenship"
 
 
+class UnitType(str, Enum):
+    """Unit type for Subject hierarchies (Board/Faculty level)."""
+    GRADE = "GRADE"        # For school-level education (Grade 1-12)
+    SEMESTER = "SEMESTER"  # For university programs (1-8 semesters)
+    YEAR = "YEAR"          # For multi-year programs (Year 1-4)
+
+
 class StudyLevel(str, Enum):
     CLASS_8 = "CLASS_8"
     CLASS_9 = "CLASS_9"
