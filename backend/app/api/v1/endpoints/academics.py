@@ -5,34 +5,35 @@ This module provides STAFF role endpoints to create and manage:
   1. StudyLevel (e.g., Grade 10, Bachelor)
   2. Board (e.g., NEB, Tribhuvan University)
   3. Faculty (e.g., CSIT, Science)
-  4. ClassLevel (e.g., Grade 10, Semester 5) - for display/reference only
-  5. Subject (with unit_value replacing discrete ClassLevel)
-
-ClassLevels are now for reference/display only since Subject uses numeric unit_value.
-However, they can still be created and used in reports or historical references.
+  4. Subject (with unit_value replacing discrete ClassLevel)
 
 All endpoints require STAFF role.
 """
 
 from uuid import UUID
-from fastapi import APIRouter, status, Depends
+from fastapi import APIRouter, status, Depends, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.dependencies import DbSession, RequireAcademicsManage
+from app.core.dependencies import DbSession, RequireAcademicsManage, get_current_user, HasPermission
 from app.core.exceptions import InvalidRequestError, ResourceNotFoundError, DuplicateResourceError
-from app.models.subject import StudyLevel, Board, Faculty, ClassLevel, Subject
+from app.models.subject import StudyLevel, Board, Faculty, Subject, board_study_levels
 from app.services.subject_service import SubjectService
 from app.schemas.subject import (
     StudyLevelCreate, StudyLevelRead,
     BoardCreate, BoardRead,
     FacultyCreate, FacultyRead,
-    ClassLevelCreate, ClassLevelRead,
     SubjectCreate, SubjectRead, SubjectWithContextRead,
 )
 
 router = APIRouter(prefix="/academics", tags=["Academics (Staff Only)"])
 
+async def verify_inactive_access(is_active: bool, db: DbSession, request: Request):
+    if not is_active:
+        token = request.headers.get("x-access-token")
+        user = await get_current_user(db, token)
+        checker = HasPermission("academic_domains:manage")
+        checker(user)
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # STUDY LEVEL ENDPOINTS
@@ -88,11 +89,15 @@ async def create_study_level(
 
 @router.get("/study-levels", response_model=list[StudyLevelRead])
 async def list_study_levels(
-    db: DbSession
-    # _=RequireAcademicsManage  # TODO: Re-enable STAFF requirement for production
+    request: Request,
+    is_active: bool = True,
+    db: DbSession = None
 ) -> list[StudyLevelRead]:
     """[STAFF] List all StudyLevels."""
-    stmt = select(StudyLevel).order_by(StudyLevel.name)
+    await verify_inactive_access(is_active, db, request)
+    stmt = select(StudyLevel)
+    stmt = stmt.where(StudyLevel.is_active == is_active)
+    stmt = stmt.order_by(StudyLevel.name)
     result = await db.execute(stmt)
     return [StudyLevelRead.from_attributes(sl) for sl in result.scalars().all()]
 
@@ -100,11 +105,15 @@ async def list_study_levels(
 @router.get("/study-levels/{study_level_id}", response_model=StudyLevelRead)
 async def get_study_level(
     study_level_id: UUID,
-    db: DbSession
-    # _=RequireAcademicsManage  # TODO: Re-enable STAFF requirement for production
+    request: Request,
+    is_active: bool = True,
+    db: DbSession = None
 ) -> StudyLevelRead:
     """[STAFF] Get a specific StudyLevel by ID."""
+    await verify_inactive_access(is_active, db, request)
     stmt = select(StudyLevel).where(StudyLevel.id == study_level_id)
+    stmt = stmt.where(StudyLevel.is_active == is_active)
+    
     result = await db.execute(stmt)
     study_level = result.scalar_one_or_none()
 
@@ -150,6 +159,9 @@ async def create_board(
       403 Forbidden: User is not STAFF
     """
     try:
+        if not body.study_level_ids:
+            raise InvalidRequestError(detail="A board must be associated with at least one StudyLevel (study_level_ids cannot be empty).")
+
         # Verify all StudyLevels exist
         stmt = select(StudyLevel).where(StudyLevel.id.in_(body.study_level_ids))
         result = await db.execute(stmt)
@@ -182,21 +194,20 @@ async def create_board(
 
 @router.get("/boards", response_model=list[BoardRead])
 async def list_boards(
-    study_level_id: UUID | None = None,
+    study_level_id: UUID,
+    request: Request,
+    is_active: bool = True,
     db: DbSession = None
-    # _=RequireAcademicsManage  # TODO: Re-enable STAFF requirement for production
 ) -> list[BoardRead]:
     """
-    [STAFF] List all Boards, optionally filtered by StudyLevel.
-    
-    Query Parameters:
-      - study_level_id: Filter boards that serve a specific StudyLevel (many-to-many)
+    [STAFF] List Boards associated with a specific StudyLevel.
     """
-    stmt = select(Board)
-    
-    if study_level_id:
-        # Filter boards that have the specified study_level in their study_levels collection
-        stmt = stmt.where(Board.study_levels.any(StudyLevel.id == study_level_id))
+    await verify_inactive_access(is_active, db, request)
+    stmt = select(Board).join(board_study_levels).where(
+        board_study_levels.c.study_level_id == study_level_id,
+        board_study_levels.c.is_active == is_active
+    )
+    stmt = stmt.where(Board.is_active == is_active)
     
     stmt = stmt.order_by(Board.name)
 
@@ -207,11 +218,15 @@ async def list_boards(
 @router.get("/boards/{board_id}", response_model=BoardRead)
 async def get_board(
     board_id: UUID,
-    db: DbSession
-    # _=RequireAcademicsManage  # TODO: Re-enable STAFF requirement for production
+    request: Request,
+    is_active: bool = True,
+    db: DbSession = None
 ) -> BoardRead:
     """[STAFF] Get a specific Board by ID."""
+    await verify_inactive_access(is_active, db, request)
     stmt = select(Board).where(Board.id == board_id)
+    stmt = stmt.where(Board.is_active == is_active)
+
     result = await db.execute(stmt)
     board = result.scalar_one_or_none()
 
@@ -261,12 +276,17 @@ async def create_faculty(
       403 Forbidden: User is not STAFF
     """
     try:
-        # Verify Board exists
-        stmt = select(Board).where(Board.id == body.board_id)
-        result = await db.execute(stmt)
+        # Verify Board and StudyLevel relation exists
+        assoc_stmt = select(Board).join(board_study_levels).where(
+            Board.id == body.board_id,
+            board_study_levels.c.study_level_id == body.study_level_id,
+            board_study_levels.c.is_active == True,
+            Board.is_active == True
+        )
+        result = await db.execute(assoc_stmt)
         if not result.scalar_one_or_none():
             raise ResourceNotFoundError(
-                detail=f"Board with ID {body.board_id} not found"
+                detail=f"Association between Board '{body.board_id}' and StudyLevel '{body.study_level_id}' not found"
             )
 
         faculty = Faculty(**body.model_dump())
@@ -285,14 +305,31 @@ async def create_faculty(
 
 @router.get("/faculties", response_model=list[FacultyRead])
 async def list_faculties(
-    board_id: UUID | None = None,
+    study_level_id: UUID,
+    board_id: UUID,
+    request: Request,
+    is_active: bool = True,
     db: DbSession = None
-    # _=RequireAcademicsManage  # TODO: Re-enable STAFF requirement for production
 ) -> list[FacultyRead]:
-    """[STAFF] List all Faculties, optionally filtered by Board."""
+    """[STAFF] List Faculties strictly filtering by StudyLevel and Board."""
+    await verify_inactive_access(is_active, db, request)
+
+    # Verify Board and StudyLevel relation exists
+    assoc_stmt = select(Board).join(board_study_levels).where(
+        Board.id == board_id,
+        board_study_levels.c.study_level_id == study_level_id,
+        board_study_levels.c.is_active == is_active
+    )
+    assoc_result = await db.execute(assoc_stmt)
+    if not assoc_result.scalar_one_or_none():
+        raise ResourceNotFoundError(
+            detail=f"Association between Board '{board_id}' and StudyLevel '{study_level_id}' not found"
+        )
+
     stmt = select(Faculty)
-    if board_id:
-        stmt = stmt.where(Faculty.board_id == board_id)
+    stmt = stmt.where(Faculty.is_active == is_active)
+    stmt = stmt.where(Faculty.board_id == board_id)
+    stmt = stmt.where(Faculty.study_level_id == study_level_id)
     stmt = stmt.order_by(Faculty.name)
 
     result = await db.execute(stmt)
@@ -302,11 +339,15 @@ async def list_faculties(
 @router.get("/faculties/{faculty_id}", response_model=FacultyRead)
 async def get_faculty(
     faculty_id: UUID,
-    db: DbSession
-    # _=RequireAcademicsManage  # TODO: Re-enable STAFF requirement for production
+    request: Request,
+    is_active: bool = True,
+    db: DbSession = None
 ) -> FacultyRead:
     """[STAFF] Get a specific Faculty by ID."""
+    await verify_inactive_access(is_active, db, request)
     stmt = select(Faculty).where(Faculty.id == faculty_id)
+    stmt = stmt.where(Faculty.is_active == is_active)
+        
     result = await db.execute(stmt)
     faculty = result.scalar_one_or_none()
 
@@ -314,100 +355,6 @@ async def get_faculty(
         raise ResourceNotFoundError(detail="Faculty not found")
 
     return FacultyRead.from_attributes(faculty)
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# CLASS LEVEL ENDPOINTS (Reference/Display only - not directly used by Subject)
-# ═══════════════════════════════════════════════════════════════════════════════
-
-@router.post("/class-levels", response_model=ClassLevelRead, status_code=201)
-async def create_class_level(
-    body: ClassLevelCreate,
-    db: DbSession,
-    _ = RequireAcademicsManage
-) -> ClassLevelRead:
-    """
-    [STAFF] Create a ClassLevel (for reference/display only).
-
-    IMPORTANT: ClassLevels are no longer directly used by Subjects.
-    Subjects now use numeric unit_value constrained by their parent (Board/Faculty).
-
-    ClassLevels can still be created for:
-      - Display purposes (show "Grade 10" instead of just "10")
-      - Historical references
-      - Reports and statistics
-      - UI label generation
-
-    Example Request:
-    ```json
-    {
-      "study_level_id": "uuid",
-      "name": "Grade 10",
-      "display_name": "10th Grade",
-      "level_order": 10,
-      "is_active": true
-    }
-    ```
-
-    Responses:
-      201 Created: ClassLevel created successfully
-      400 Bad Request: Validation failed or StudyLevel not found
-      403 Forbidden: User is not STAFF
-    """
-    try:
-        # Verify StudyLevel exists
-        stmt = select(StudyLevel).where(StudyLevel.id == body.study_level_id)
-        result = await db.execute(stmt)
-        if not result.scalar_one_or_none():
-            raise ResourceNotFoundError(
-                detail=f"StudyLevel with ID {body.study_level_id} not found"
-            )
-
-        class_level = ClassLevel(**body.model_dump())
-        db.add(class_level)
-        await db.flush()
-        await db.refresh(class_level)
-
-        return ClassLevelRead.from_attributes(class_level)
-
-    except ResourceNotFoundError:
-        raise
-    except Exception as e:
-        await db.rollback()
-        raise InvalidRequestError(detail=str(e))
-
-
-@router.get("/class-levels", response_model=list[ClassLevelRead])
-async def list_class_levels(
-    study_level_id: UUID | None = None,
-    db: DbSession = None
-    # _=RequireAcademicsManage  # TODO: Re-enable STAFF requirement for production
-) -> list[ClassLevelRead]:
-    """[STAFF] List all ClassLevels, optionally filtered by StudyLevel."""
-    stmt = select(ClassLevel)
-    if study_level_id:
-        stmt = stmt.where(ClassLevel.study_level_id == study_level_id)
-    stmt = stmt.order_by(ClassLevel.level_order)
-
-    result = await db.execute(stmt)
-    return [ClassLevelRead.from_attributes(cl) for cl in result.scalars().all()]
-
-
-@router.get("/class-levels/{class_level_id}", response_model=ClassLevelRead)
-async def get_class_level(
-    class_level_id: UUID,
-    db: DbSession
-    # _=RequireAcademicsManage  # TODO: Re-enable STAFF requirement for production
-) -> ClassLevelRead:
-    """[STAFF] Get a specific ClassLevel by ID."""
-    stmt = select(ClassLevel).where(ClassLevel.id == class_level_id)
-    result = await db.execute(stmt)
-    class_level = result.scalar_one_or_none()
-
-    if not class_level:
-        raise ResourceNotFoundError(detail="ClassLevel not found")
-
-    return ClassLevelRead.from_attributes(class_level)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -491,28 +438,35 @@ async def create_subject(
 
 @router.get("/subjects", response_model=list[SubjectRead])
 async def list_subjects(
-    study_level_id: UUID | None = None,
-    board_id: UUID | None = None,
-    faculty_id: UUID | None = None,
+    study_level_id: UUID,
+    board_id: UUID,
+    faculty_id: UUID,
+    request: Request,
+    is_active: bool = True,
     db: DbSession = None
-    # _=RequireAcademicsManage  # TODO: Re-enable STAFF requirement for production
 ) -> list[SubjectRead]:
     """
-    [STAFF] List Subjects with optional filtering.
-
-    Query Parameters:
-      - study_level_id: Filter by StudyLevel
-      - board_id: Filter by Board
-      - faculty_id: Filter by Faculty
+    [STAFF] List Subjects strictly filtered by hierarchy.
     """
-    stmt = select(Subject)
+    await verify_inactive_access(is_active, db, request)
 
-    if study_level_id:
-        stmt = stmt.where(Subject.study_level_id == study_level_id)
-    if board_id:
-        stmt = stmt.where(Subject.board_id == board_id)
-    if faculty_id:
-        stmt = stmt.where(Subject.faculty_id == faculty_id)
+    # Verify Board and StudyLevel relation exists
+    assoc_stmt = select(Board).join(board_study_levels).where(
+        Board.id == board_id,
+        board_study_levels.c.study_level_id == study_level_id,
+        board_study_levels.c.is_active == is_active
+    )
+    assoc_result = await db.execute(assoc_stmt)
+    if not assoc_result.scalar_one_or_none():
+        raise ResourceNotFoundError(
+            detail=f"Association between Board '{board_id}' and StudyLevel '{study_level_id}' not found"
+        )
+
+    stmt = select(Subject)
+    stmt = stmt.where(Subject.is_active == is_active)
+    stmt = stmt.where(Subject.study_level_id == study_level_id)
+    stmt = stmt.where(Subject.board_id == board_id)
+    stmt = stmt.where(Subject.faculty_id == faculty_id)
 
     stmt = stmt.order_by(Subject.name)
     result = await db.execute(stmt)
@@ -522,14 +476,16 @@ async def list_subjects(
 @router.get("/subjects/{subject_id}", response_model=SubjectWithContextRead)
 async def get_subject(
     subject_id: UUID,
-    db: DbSession
-    # _=RequireAcademicsManage  # TODO: Re-enable STAFF requirement for production
+    request: Request,
+    is_active: bool = True,
+    db: DbSession = None
 ) -> SubjectWithContextRead:
     """[STAFF] Get a specific Subject by ID with full context."""
+    await verify_inactive_access(is_active, db, request)
     service = SubjectService(db)
     subject = await service.get_subject(subject_id)
 
-    if not subject:
+    if not subject or subject.is_active != is_active:
         raise ResourceNotFoundError(detail="Subject not found")
 
     return SubjectWithContextRead(
@@ -607,9 +563,6 @@ async def get_hierarchy_summary(
             unit_type = faculty.unit_type.value
             unit_type_counts[unit_type] = unit_type_counts.get(unit_type, 0) + 1
 
-        boards_with_constraints = sum(1 for b in boards if b.unit_type and b.total_units)
-        boards_with_faculty = sum(1 for b in boards if not b.unit_type)
-
         subjects_without_faculty = sum(1 for s in subjects if not s.faculty_id)
         subjects_with_faculty = sum(1 for s in subjects if s.faculty_id)
 
@@ -622,9 +575,7 @@ async def get_hierarchy_summary(
                 ]
             },
             "boards": {
-                "total": len(boards),
-                "with_unit_constraints": boards_with_constraints,
-                "with_faculty_inheritance": boards_with_faculty
+                "total": len(boards)
             },
             "faculties": {
                 "total": len(faculties),

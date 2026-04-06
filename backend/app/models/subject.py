@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 from enum import Enum as PyEnum
-from sqlalchemy import String, ForeignKey, Integer, func, Enum as SQLEnum, Table, Column
+from sqlalchemy import String, ForeignKey, Integer, Boolean, func, Enum as SQLEnum, Table, Column
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
@@ -17,7 +17,8 @@ board_study_levels = Table(
     'board_study_levels',
     Base.metadata,
     Column('board_id', UUID(as_uuid=True), ForeignKey('boards.id', ondelete='CASCADE'), primary_key=True),
-    Column('study_level_id', UUID(as_uuid=True), ForeignKey('study_levels.id', ondelete='CASCADE'), primary_key=True)
+    Column('study_level_id', UUID(as_uuid=True), ForeignKey('study_levels.id', ondelete='CASCADE'), primary_key=True),
+    Column('is_active', Boolean, default=True, server_default='true', nullable=False)
 )
 
 
@@ -36,6 +37,7 @@ class StudyLevel(Base, UUIDPrimaryKeyMixin, TimestampMixin):
 
     name: Mapped[str] = mapped_column(String(100), nullable=False, unique=True, index=True)
     description: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default='true', nullable=False)
 
     # ── Relationships ─────────────────────────────────────────────────────────
     subjects: Mapped[list["Subject"]] = relationship(
@@ -46,50 +48,9 @@ class StudyLevel(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         back_populates="study_levels",
         lazy="noload"
     )
-    class_levels: Mapped[list["ClassLevel"]] = relationship(
-        back_populates="study_level", lazy="noload"
-    )
 
     def __repr__(self) -> str:
         return f"<StudyLevel {self.name}>"
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# CLASS LEVEL (Reference/Display Level within a StudyLevel)
-# ═══════════════════════════════════════════════════════════════════════════════
-
-class ClassLevel(Base, UUIDPrimaryKeyMixin, TimestampMixin):
-    """
-    Class Level: Display/reference name for a specific unit within a StudyLevel.
-    Examples: "Grade 10", "Semester 5", "Year 2", etc.
-    
-    NOTE: ClassLevels are for reference and display purposes only.
-    Subjects use numeric unit_value instead of discrete ClassLevel references.
-    
-    This model can be used for:
-      - UI label generation (show "Grade 10" instead of just "10")
-      - Reports and statistics
-      - Historical references
-      - Display formatting
-    """
-
-    __tablename__ = "class_levels"
-
-    study_level_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
-        ForeignKey("study_levels.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
-    name: Mapped[str] = mapped_column(String(100), nullable=False)
-    display_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
-    level_order: Mapped[int] = mapped_column(Integer, nullable=False)
-
-    # ── Relationships ─────────────────────────────────────────────────────────
-    study_level: Mapped["StudyLevel"] = relationship(back_populates="class_levels", lazy="joined")
-
-    def __repr__(self) -> str:
-        return f"<ClassLevel {self.display_name or self.name} (StudyLevel: {self.study_level.name if self.study_level else 'N/A'})>"
 
 
 
@@ -113,6 +74,7 @@ class Board(Base, UUIDPrimaryKeyMixin, TimestampMixin):
 
     name: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
     description: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default='true', nullable=False)
 
     # ── Relationships ─────────────────────────────────────────────────────────
     study_levels: Mapped[list["StudyLevel"]] = relationship(
@@ -163,8 +125,15 @@ class Faculty(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         nullable=False,
         index=True,
     )
+    study_level_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("study_levels.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
     name: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
     description: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default='true', nullable=False)
     
     # Unit structure (required if subject uses this faculty)
     unit_type: Mapped[UnitType] = mapped_column(
@@ -181,6 +150,7 @@ class Faculty(Base, UUIDPrimaryKeyMixin, TimestampMixin):
 
     # ── Relationships ─────────────────────────────────────────────────────────
     board: Mapped["Board"] = relationship(back_populates="faculties", lazy="joined")
+    study_level: Mapped["StudyLevel"] = relationship(lazy="joined")
     subjects: Mapped[list["Subject"]] = relationship(
         back_populates="faculty", lazy="noload"
     )
@@ -220,6 +190,7 @@ class Subject(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         nullable=False,
         index=True,
     )
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default='true', nullable=False)
 
     # ── Level 1: Study Level (Required) ───────────────────────────────────────
     study_level_id: Mapped[uuid.UUID] = mapped_column(
