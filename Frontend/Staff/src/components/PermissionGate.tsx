@@ -2,7 +2,7 @@
 
 import React from "react";
 import type { Permission } from "@/lib/types";
-import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { useUser } from "@/hooks/useCurrentUser";
 
 interface PermissionGateProps {
   children: React.ReactNode;
@@ -50,7 +50,7 @@ export function PermissionGate({
   requireAll,
   fallback,
 }: PermissionGateProps) {
-  const { data: user, isLoading, isError } = useCurrentUser();
+  const { data: user, isLoading, isError } = useUser();
 
   // Authentication check
   if (isLoading) {

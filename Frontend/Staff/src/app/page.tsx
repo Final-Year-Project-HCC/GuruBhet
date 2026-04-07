@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { useUser } from "@/hooks/useCurrentUser";
 import { getAccessibleRoutes } from "@/lib/routes";
 
 export default function Home() {
-  const { data: user, isLoading, isError } = useCurrentUser();
+  const { data: user, isLoading, isError } = useUser();
 
   if (isLoading) {
     return (

@@ -3,8 +3,7 @@ import { Geist, Geist_Mono, Poppins } from "next/font/google";
 import "./globals.css";
 import "react-toastify/dist/ReactToastify.css";
 import Providers from "./providers";
-import Footer from "../components/Footer";
-import StudentNavbar from "../components/StudentNavbar";
+import AuthLayout from "./AuthLayout";
 
 
 const poppins = Poppins({
@@ -39,13 +38,10 @@ export default function RootLayout({
         className={`${poppins.variable} ${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <Providers>
-          <div className="min-h-screen flex flex-col">
-            <StudentNavbar />
-            <main className="flex-1">{children}</main>
-            <Footer />
-          </div>
+          <AuthLayout>{children}</AuthLayout>
         </Providers>
       </body>
     </html>
   );
 }
+

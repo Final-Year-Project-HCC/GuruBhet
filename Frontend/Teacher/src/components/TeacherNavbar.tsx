@@ -6,10 +6,12 @@ import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import apiClient from "@/lib/api";
 import { Booking } from "@/lib/types";
+import { useLogout } from "@/hooks";
 
-export default function StudentNavbar() {
+export default function TeacherNavbar() {
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const { mutate: logout, isPending } = useLogout();
 
   // Fetch pending approval count
   const { data: bookings = [] } = useQuery<Booking[]>({
@@ -43,19 +45,24 @@ export default function StudentNavbar() {
   }, []);
 
   function handleLogout() {
-    try {
-      if (typeof window !== "undefined") {
-        localStorage.removeItem("token");
-        window.location.href = "/login";
-      }
-    } catch {
-      // no-op
-    }
+    logout();
+    setOpen(false);
   }
 
   return (
-    <header className="sticky top-0 z-30 border-b border-border bg-background/80 backdrop-blur">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
+    <>
+      {/* Global loading overlay during logout */}
+      {isPending && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="flex flex-col items-center gap-4">
+            <div className="h-12 w-12 animate-spin rounded-full border-4 border-gray-300 border-t-white dark:border-gray-600 dark:border-t-white" />
+            <p className="text-sm font-medium text-white">Logging out...</p>
+          </div>
+        </div>
+      )}
+
+      <header className="sticky top-0 z-30 border-b border-border bg-background/80 backdrop-blur">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
         <div className="flex items-center gap-2">
           <Link href="/">
             <Image
@@ -166,10 +173,11 @@ export default function StudentNavbar() {
                   Payment Method
                 </Link>
                 <button
-                  className="block w-full px-4 py-2 text-left text-base text-foreground hover:bg-muted"
+                  className="block w-full px-4 py-2 text-left text-base text-foreground hover:bg-muted disabled:opacity-50"
                   onClick={handleLogout}
+                  disabled={isPending}
                 >
-                  Logout
+                  {isPending ? "Logging out..." : "Logout"}
                 </button>
               </div>
             )}
@@ -177,5 +185,6 @@ export default function StudentNavbar() {
         </nav>
       </div>
     </header>
+    </>
   );
 }

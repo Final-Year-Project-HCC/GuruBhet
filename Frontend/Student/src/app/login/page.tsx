@@ -8,6 +8,7 @@ import axios from "axios";
 import { FiEye, FiEyeOff } from "react-icons/fi";
 import { validateEmail } from "@/lib/utils";
 import apiClient from "@/lib/api";
+import { useAuthRedirectToLanding } from "@/hooks";
 
 type LoginInput = {
   email: string;
@@ -15,6 +16,9 @@ type LoginInput = {
 };
 
 export default function LoginPage() {
+  // Redirect authenticated users to home page
+  useAuthRedirectToLanding("/");
+  
   const router = useRouter()
   
   const [form, setForm] = useState<LoginInput>({ email: "", password: "" });

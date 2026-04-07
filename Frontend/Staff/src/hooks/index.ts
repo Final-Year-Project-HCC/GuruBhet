@@ -1,3 +1,7 @@
-import { useCurrentUser, useHasPermission, useHasAnyPermission, useHasAllPermissions, useInvalidateCurrentUser } from "./useCurrentUser";
+import { useUser, useHasPermission, useHasAnyPermission, useHasAllPermissions, useInvalidateCurrentUser } from "./useCurrentUser";
+import { useLogout } from "./useLogout";
+import { useAuthFailureListener } from "./useAuthFailureListener";
+import { useAuthRedirectToLanding } from "./useAuthRedirectToLanding";
 
-export { useCurrentUser, useHasPermission, useHasAnyPermission, useHasAllPermissions, useInvalidateCurrentUser };
+export { useUser, useHasPermission, useHasAnyPermission, useHasAllPermissions, useInvalidateCurrentUser, useLogout, useAuthFailureListener, useAuthRedirectToLanding };
+

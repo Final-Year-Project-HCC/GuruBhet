@@ -2,12 +2,28 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import apiClient from "@/lib/api";
-import type { CurrentUser, Permission } from "@/lib/types";
+
+// Add CurrentUser type if not already in types
+export interface CurrentUserData {
+  id: string;
+  email: string;
+  first_name: string;
+  middle_name?: string;
+  last_name: string;
+  phone?: string;
+  role: string;
+  is_email_verified: boolean;
+  is_active: boolean;
+  is_banned: boolean;
+  is_superuser: boolean;
+  mfa_enabled: boolean;
+  permissions: string[];
+}
 
 const QUERY_KEY = ["auth", "current-user"];
 
-async function fetchCurrentUser(): Promise<CurrentUser> {
-  const { data } = await apiClient.get<CurrentUser>("/auth/me");
+async function fetchCurrentUser(): Promise<CurrentUserData> {
+  const { data } = await apiClient.get<CurrentUserData>("/auth/me");
   return data;
 }
 
@@ -29,33 +45,6 @@ export function useUser() {
     refetchOnWindowFocus: true, // Refetch on window focus for security
     retry: false, // Don't retry on 401 errors
   });
-}
-
-/**
- * Check if user has a specific permission
- */
-export function useHasPermission(permission: Permission) {
-  const { data: user } = useUser();
-  if (!user) return false;
-  return user.is_superuser || user.permissions.includes(permission);
-}
-
-/**
- * Check if user has any of the provided permissions
- */
-export function useHasAnyPermission(permissions: Permission[]) {
-  const { data: user } = useUser();
-  if (!user) return false;
-  return user.is_superuser || permissions.some((p) => user.permissions.includes(p));
-}
-
-/**
- * Check if user has all of the provided permissions
- */
-export function useHasAllPermissions(permissions: Permission[]) {
-  const { data: user } = useUser();
-  if (!user) return false;
-  return user.is_superuser || permissions.every((p) => user.permissions.includes(p));
 }
 
 /**
