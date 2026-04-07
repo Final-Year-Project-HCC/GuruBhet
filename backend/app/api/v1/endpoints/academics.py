@@ -193,19 +193,37 @@ async def create_board(
 
 @router.get("/boards", response_model=list[BoardRead])
 async def list_boards(
-    study_level_id: UUID,
     request: Request,
+    study_level_id: UUID | None = None,
     is_active: bool = True,
     db: DbSession = None
 ) -> list[BoardRead]:
     """
-    [STAFF] List Boards associated with a specific StudyLevel.
+    List Boards. Optionally filter by a specific StudyLevel.
+    Fetching all boards (without a study_level_id parameter) requires STAFF permission.
     """
     await verify_inactive_access(is_active, db, request)
-    stmt = select(Board).join(board_study_levels).where(
-        board_study_levels.c.study_level_id == study_level_id,
-        board_study_levels.c.is_active == is_active
-    )
+
+    if not study_level_id:
+        # Require specific permission when requesting all boards
+        token = request.headers.get("x-access-token")
+        user = await get_current_user(db, token)
+        checker = HasPermission("academic_domains:manage")
+        checker(user)
+    else:
+        # Validate that the StudyLevel actually exists when filtering
+        sl_stmt = select(StudyLevel).where(StudyLevel.id == study_level_id)
+        sl_result = await db.execute(sl_stmt)
+        if not sl_result.scalar_one_or_none():
+            raise ResourceNotFoundError(detail=f"StudyLevel '{study_level_id}' not found")
+    
+    stmt = select(Board)
+    if study_level_id:
+        stmt = stmt.join(board_study_levels).where(
+            board_study_levels.c.study_level_id == study_level_id,
+            board_study_levels.c.is_active == is_active
+        )
+        
     stmt = stmt.where(Board.is_active == is_active)
     
     stmt = stmt.order_by(Board.name)
