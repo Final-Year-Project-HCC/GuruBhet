@@ -110,12 +110,12 @@ async function performTokenRefresh(): Promise<void> {
 
 /**
  * Handle authentication failure:
- * - Clear TanStack Query cache
+ * - Update cache to indicate unauthenticated state to prevent infinite refetch loops
  * - Emit auth failure event (instead of redirecting directly)
  */
 function handleAuthFailure() {
   if (queryClient) {
-    queryClient.clear();
+    queryClient.setQueryData(["auth", "current-user"], null);
   }
 
   // Emit event instead of redirecting to prevent loops
@@ -127,7 +127,7 @@ function handleAuthFailure() {
  */
 export async function clearAuthOnLogout() {
   if (queryClient) {
-    queryClient.clear();
+    queryClient.setQueryData(["auth", "current-user"], null);
   }
 
   // Emit event for logout redirect

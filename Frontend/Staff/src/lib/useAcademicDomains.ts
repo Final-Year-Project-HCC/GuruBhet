@@ -72,11 +72,11 @@ export function useCreateFaculty() {
         `/academic/universities/${payload.universityId}/faculties`,
         payload
       );
-      return data;
+      return { faculty: data, universityId: payload.universityId };
     },
-    onSuccess: (data) => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({
-        queryKey: ["faculties", data.universityId],
+        queryKey: ["faculties", result.universityId],
       });
       toast.success("Faculty created successfully!");
     },
@@ -94,16 +94,18 @@ export function useBulkCreateFaculty() {
         "/academic/faculties/bulk",
         payload
       );
-      return data;
+      return { faculties: data, universityIds: payload.faculties.map(f => f.universityId) };
     },
-    onSuccess: (data) => {
-      if (data.length > 0) {
-        const universityId = data[0].universityId;
-        queryClient.invalidateQueries({
-          queryKey: ["faculties", universityId],
+    onSuccess: (result) => {
+      if (result.universityIds.length > 0) {
+        // Invalidate queries for all affected universities
+        result.universityIds.forEach(universityId => {
+          queryClient.invalidateQueries({
+            queryKey: ["faculties", universityId],
+          });
         });
       }
-      toast.success(`${data.length} faculties created successfully!`);
+      toast.success(`${result.faculties.length} faculties created successfully!`);
     },
     onError: () => {
       toast.error("Failed to create faculties");
@@ -140,11 +142,11 @@ export function useCreateSubject() {
         "/subjects",
         payload
       );
-      return data;
+      return { subject: data, universityId: payload.universityId, facultyId: payload.facultyId };
     },
-    onSuccess: (data) => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({
-        queryKey: ["subjects", data.universityId, data.facultyId],
+        queryKey: ["subjects", result.universityId, result.facultyId],
       });
       toast.success("Subject created successfully!");
     },
@@ -162,16 +164,24 @@ export function useBulkCreateSubject() {
         "/subjects/bulk",
         payload
       );
-      return data;
+      return { 
+        subjects: data, 
+        universityIds: [...new Set(payload.subjects.map(s => s.universityId))],
+        facultyIds: [...new Set(payload.subjects.map(s => s.facultyId))]
+      };
     },
-    onSuccess: (data) => {
-      if (data.length > 0) {
-        const item = data[0];
-        queryClient.invalidateQueries({
-          queryKey: ["subjects", item.universityId, item.facultyId],
+    onSuccess: (result) => {
+      if (result.universityIds.length > 0) {
+        // Invalidate queries for all affected universities and faculties
+        result.universityIds.forEach(universityId => {
+          result.facultyIds.forEach(facultyId => {
+            queryClient.invalidateQueries({
+              queryKey: ["subjects", universityId, facultyId],
+            });
+          });
         });
       }
-      toast.success(`${data.length} subjects created successfully!`);
+      toast.success(`${result.subjects.length} subjects created successfully!`);
     },
     onError: () => {
       toast.error("Failed to create subjects");

@@ -30,16 +30,16 @@ const SearchPage: React.FC<SearchPageProps> = ({ onViewProfile }) => {
       .filter((t) => {
         const matchesSearch =
           t.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          t.subject.toLowerCase().includes(searchTerm.toLowerCase());
+          (t.subject?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false);
         const matchesLevel =
-          selectedLevel === 'All' || t.levelExpertise.includes(selectedLevel as SubjectLevel);
-        const matchesPrice = t.ratePerSession <= maxPrice;
+          selectedLevel === 'All' || (t.levelExpertise?.includes(selectedLevel as SubjectLevel) ?? false);
+        const matchesPrice = (t.ratePerSession ?? Infinity) <= maxPrice;
         return matchesSearch && matchesLevel && matchesPrice;
       })
       .sort((a, b) => {
         if (sortBy === 'rating') return (b.rating || 0) - (a.rating || 0);
-        if (sortBy === 'price-low') return a.ratePerSession - b.ratePerSession;
-        if (sortBy === 'price-high') return b.ratePerSession - a.ratePerSession;
+        if (sortBy === 'price-low') return (a.ratePerSession || Infinity) - (b.ratePerSession || Infinity);
+        if (sortBy === 'price-high') return (b.ratePerSession || 0) - (a.ratePerSession || 0);
         return 0;
       });
   }, [allTeachers, searchTerm, selectedLevel, maxPrice, sortBy]);

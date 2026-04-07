@@ -22,7 +22,7 @@ const SearchTeacherCard: React.FC<SearchTeacherCardProps> = ({
       {/* Top Media Section */}
       <div className="relative aspect-16/11 overflow-hidden">
         <Image
-          src={teacher.image}
+          src={teacher.image || '/avatar-placeholder.png'}
           fill
           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
           className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
@@ -69,7 +69,7 @@ const SearchTeacherCard: React.FC<SearchTeacherCardProps> = ({
 
         {/* Expertise Tags */}
         <div className="flex flex-wrap gap-2 mb-8">
-          {teacher.levelExpertise.map((lvl) => (
+          {(teacher.levelExpertise || []).map((lvl) => (
             <span
               key={lvl}
               className="px-3 py-1.5 bg-subtle text-[10px] font-black text-subtle-foreground uppercase border border-border rounded-xl"

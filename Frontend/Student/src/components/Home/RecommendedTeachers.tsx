@@ -31,7 +31,7 @@ const RecommendedTeachers: React.FC = () => {
               <div className="flex gap-4 mb-4">
                 <div className="relative shrink-0">
                   <Image
-                    src={teacher.image} 
+                    src={teacher.image || '/avatar-placeholder.png'}
                     width={64}
                     height={64}
                     className="relative w-16 h-16 rounded-xl object-cover border border-border shadow-sm group-hover:scale-105 transition-transform duration-500"
@@ -74,7 +74,7 @@ const RecommendedTeachers: React.FC = () => {
 
               {/* Levels - Minimal Pills */}
               <div className="flex flex-wrap gap-1.5">
-                {teacher.levelExpertise.map((lvl) => (
+                {teacher.levelExpertise?.map((lvl) => (
                   <span key={lvl} className="px-2 py-1 bg-surface border border-border text-[9px] font-bold text-muted-foreground uppercase rounded-lg tracking-tight">
                     {lvl}
                   </span>

@@ -6,9 +6,19 @@ import type { CurrentUser, Permission } from "@/lib/types";
 
 const QUERY_KEY = ["auth", "current-user"];
 
-async function fetchCurrentUser(): Promise<CurrentUser> {
-  const { data } = await apiClient.get<CurrentUser>("/auth/me");
-  return data;
+async function fetchCurrentUser(): Promise<CurrentUser | null> {
+  try {
+    const { data } = await apiClient.get<CurrentUser>("/auth/me");
+    return data;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } catch (error: any) {
+    // If it's a 401 Unauthorized, return null so React Query stops retrying 
+    // and correctly caches the "unauthenticated" state
+    if (error?.response?.status === 401) {
+      return null;
+    }
+    throw error;
+  }
 }
 
 /**

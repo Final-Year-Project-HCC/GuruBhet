@@ -43,7 +43,7 @@ const TeacherDetailPage: React.FC<TeacherDetailPageProps> = ({ teacherId, onBack
               className="bg-surface border border-border rounded-[2.5rem] overflow-hidden shadow-xl"
             >
               <div className="aspect-square relative overflow-hidden">
-                <Image src={teacher.image} fill sizes="(max-width: 1024px) 100vw, 33vw" className="w-full h-full object-cover" alt={teacher.name} />
+                <Image src={teacher.image || '/avatar-placeholder.png'} fill sizes="(max-width: 1024px) 100vw, 33vw" className="w-full h-full object-cover" alt={teacher.name} />
                 <div className="absolute top-6 left-6">
                   {teacher.verificationStatus === 'APPROVED' && (
                     <div className="bg-accent text-accent-foreground p-2 rounded-full shadow-lg border border-background/20">
@@ -122,7 +122,7 @@ const TeacherDetailPage: React.FC<TeacherDetailPageProps> = ({ teacherId, onBack
             >
               <h2 className="text-xl font-black mb-6 uppercase tracking-widest text-muted-foreground">Expertise & Levels</h2>
               <div className="flex flex-wrap gap-3">
-                {teacher.levelExpertise.map((level) => (
+                {(teacher.levelExpertise || []).map((level) => (
                   <div key={level} className="bg-surface border border-border px-6 py-4 rounded-2xl flex items-center gap-3">
                     <div className="w-2 h-2 rounded-full bg-primary"></div>
                     <div>

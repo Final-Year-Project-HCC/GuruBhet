@@ -22,9 +22,17 @@ export interface CurrentUserData {
 
 const QUERY_KEY = ["auth", "current-user"];
 
-async function fetchCurrentUser(): Promise<CurrentUserData> {
-  const { data } = await apiClient.get<CurrentUserData>("/auth/me");
-  return data;
+async function fetchCurrentUser(): Promise<CurrentUserData | null> {
+  try {
+    const { data } = await apiClient.get<CurrentUserData>("/auth/me");
+    return data;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } catch (error: any) {
+    if (error?.response?.status === 401) {
+      return null;
+    }
+    throw error;
+  }
 }
 
 /**
