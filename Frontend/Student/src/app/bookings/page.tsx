@@ -40,11 +40,11 @@ function BookingStatsCards({
             <p className="mt-3 text-3xl font-bold text-foreground">
               {upcomingSessions}
             </p>
-            {paymentPending && paymentPending > 0 && (
+            {paymentPending && paymentPending > 0 ? (
               <p className="mt-2 text-xs text-warning">
                 {paymentPending} awaiting payment
               </p>
-            )}
+            ): ""}
           </div>
           <div className="flex h-12 w-12 items-center justify-center rounded-lg text-muted-foreground">
             <MdBook className="h-6 w-6" />
