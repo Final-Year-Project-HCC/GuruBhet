@@ -7,17 +7,8 @@ export function setAuthQueryClient(client: QueryClient) {
   queryClient = client;
 }
 
-// Custom event for auth failures to prevent redirect loops
-export const AUTH_FAILURE_EVENT = "auth:failure";
-
-export function emitAuthFailure() {
-  if (typeof window !== "undefined") {
-    window.dispatchEvent(new CustomEvent(AUTH_FAILURE_EVENT));
-  }
-}
-
 const apiClient = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || "https://localhost:8000",
+  baseURL: process.env.NEXT_PUBLIC_API_URL || "https://api.gurubhet.tech/api/v1",
   headers: {
     "Content-Type": "application/json",
   },
@@ -52,7 +43,6 @@ apiClient.interceptors.response.use(
           // Retry the original request
           return apiClient(originalRequest);
         } catch {
-          handleAuthFailure();
           return Promise.reject(error);
         }
       }
@@ -66,7 +56,6 @@ apiClient.interceptors.response.use(
         // Retry the original request
         return apiClient(originalRequest);
       } catch {
-        handleAuthFailure();
         return Promise.reject(error);
       } finally {
         isRefreshing = false;
@@ -85,7 +74,7 @@ apiClient.interceptors.response.use(
  */
 async function performTokenRefresh(): Promise<void> {
   try {
-    const baseURL = process.env.NEXT_PUBLIC_API_URL || "https://localhost:8000";
+    const baseURL = process.env.NEXT_PUBLIC_API_URL || "https://api.gurubhet.tech/api/v1";
     // Use axios.post directly without interceptors to avoid refresh loop
     const response = await axios.post(
       `${baseURL}/auth/refresh`,
@@ -105,31 +94,10 @@ async function performTokenRefresh(): Promise<void> {
     throw error;
   }
 }
-
-/**
- * Handle authentication failure:
- * - Update cache to indicate unauthenticated state to prevent infinite refetch loops
- * - Emit auth failure event (instead of redirecting directly)
- */
-function handleAuthFailure() {
-  if (queryClient) {
-    queryClient.setQueryData(["auth", "current-user"], null);
-  }
-
-  // Emit event instead of redirecting to prevent loops
-  emitAuthFailure();
-}
-
-/**
- * Clear auth on logout
- */
 export async function clearAuthOnLogout() {
   if (queryClient) {
     queryClient.setQueryData(["auth", "current-user"], null);
   }
-
-  // Emit event for logout redirect
-  emitAuthFailure();
 }
 
 export default apiClient;

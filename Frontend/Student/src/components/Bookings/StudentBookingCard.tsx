@@ -141,12 +141,9 @@ const StudentBookingCard = ({
         isProcessing ? "opacity-50 pointer-events-none" : ""
       }`}
     >
-      {/* Header: Teacher Info + Status */}
       <div className="border-b border-border bg-linear-to-r from-subtle to-surface-muted p-5">
         <div className="flex items-start justify-between gap-4 mb-4">
-          {/* Teacher Info */}
           <div className="flex gap-3 flex-1 min-w-0">
-            {/* Teacher Avatar */}
             <div className="h-14 w-14 shrink-0 overflow-hidden rounded-full border-2 border-accent">
               {booking.teacher?.profilePictureUrl ? (
                 <Image
@@ -163,7 +160,6 @@ const StudentBookingCard = ({
               )}
             </div>
 
-            {/* Teacher Name and Rating */}
             <div className="flex-1 min-w-0">
               <p className="font-bold text-foreground truncate text-sm md:text-base">
                 {teacherName}
@@ -188,7 +184,6 @@ const StudentBookingCard = ({
             </div>
           </div>
 
-          {/* Status Badge */}
           <span
             className={`shrink-0 inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wide whitespace-nowrap ${statusColor}`}
           >
@@ -211,15 +206,12 @@ const StudentBookingCard = ({
           </span>
         </div>
 
-        {/* Subject/Topic */}
         <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
           {booking.subject?.name || "Unknown Subject"}
         </p>
       </div>
 
-      {/* Main Content */}
       <div className="p-5 space-y-4">
-        {/* Session Schedule - PROMINENT for students */}
         <div className="rounded-xl bg-accent/10 border border-accent/20 p-4 space-y-3">
           <div className="flex items-center gap-3 text-sm">
             <MdSchedule className="h-4 w-4 text-accent shrink-0" />
@@ -242,7 +234,6 @@ const StudentBookingCard = ({
             </div>
           </div>
 
-          {/* Countdown Timer - if upcoming */}
           {booking.status === "ACTIVE" && diffMs > 0 && (
             <div className="pt-2 border-t border-accent/20">
               <p className="text-xs text-muted-foreground font-medium">
@@ -255,9 +246,7 @@ const StudentBookingCard = ({
           )}
         </div>
 
-        {/* Session Details Grid */}
         <div className="grid grid-cols-2 gap-3">
-          {/* Duration */}
           <div className="rounded-lg bg-subtle p-3">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
               Duration
@@ -267,7 +256,6 @@ const StudentBookingCard = ({
             </p>
           </div>
 
-          {/* Amount */}
           <div className="rounded-lg bg-subtle p-3">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
               Amount
@@ -281,7 +269,6 @@ const StudentBookingCard = ({
           </div>
         </div>
 
-        {/* Session Type & Details */}
         <div className="space-y-2">
           <div className="flex items-center gap-2 text-sm">
             <MdVideocam className="h-4 w-4 text-muted-foreground" />
@@ -300,7 +287,6 @@ const StudentBookingCard = ({
           )}
         </div>
 
-        {/* Progress Indicator */}
         {booking.totalSessions > 1 && (
           <div className="flex gap-1 pt-2">
             {Array.from({ length: booking.totalSessions }).map((_, i) => (
@@ -314,7 +300,6 @@ const StudentBookingCard = ({
           </div>
         )}
 
-        {/* Payment Status Indicator */}
         {booking.status === "PENDING_PAYMENT" && (
           <div className="rounded-lg bg-warning/10 border border-warning/20 p-3 flex items-center gap-2">
             <MdWarning className="h-4 w-4 text-warning shrink-0" />
@@ -334,7 +319,6 @@ const StudentBookingCard = ({
         )}
       </div>
 
-      {/* Footer Actions */}
       <div className="border-t border-border bg-surface-muted p-5 space-y-3">
         {booking.status === "PENDING_APPROVAL" && (
           <div className="space-y-2">
@@ -424,7 +408,6 @@ const StudentBookingCard = ({
         )}
       </div>
 
-      {/* Review Modal */}
       {showReviewModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-surface rounded-2xl shadow-xl max-w-md w-full p-6 space-y-4">
@@ -437,7 +420,6 @@ const StudentBookingCard = ({
               </p>
             </div>
 
-            {/* Rating Stars */}
             <div className="flex justify-center gap-2">
               {[1, 2, 3, 4, 5].map((star) => (
                 <button
@@ -456,7 +438,6 @@ const StudentBookingCard = ({
               ))}
             </div>
 
-            {/* Review Comment */}
             <textarea
               value={reviewComment}
               onChange={(e) => setReviewComment(e.target.value)}
@@ -465,7 +446,6 @@ const StudentBookingCard = ({
               rows={4}
             />
 
-            {/* Modal Actions */}
             <div className="flex gap-3">
               <button
                 onClick={() => setShowReviewModal(false)}

@@ -28,10 +28,8 @@ async function fetchCurrentUser(): Promise<CurrentUserData | null> {
     return data;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: any) {
-    if (error?.response?.status === 401) {
-      return null;
-    }
-    throw error;
+    // throw error;
+    return null;
   }
 }
 

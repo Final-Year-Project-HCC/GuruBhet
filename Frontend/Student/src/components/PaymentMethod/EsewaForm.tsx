@@ -15,44 +15,9 @@ export default function EsewaForm() {
   const [fullName, setFullName] = useState("");
 
   const MERCHANT_CODE = process.env.NEXT_PUBLIC_ESEWA_MERCHANT_CODE || "";
-  // Note: We no longer save directly to backend here to avoid confusion.
-  // Verification flow will redirect to eSewa, and backend should create/verify the method upon success.
 
   function handleVerify() {
-    //We will handle this later
-    
-    /*if (!isValidNepalMobile(walletMobile)) {
-      toast.error("Enter a valid eSewa mobile before verifying");
-      return;
-    }
-    if (!MERCHANT_CODE) {
-      toast.error("Merchant code not configured");
-      return;
-    }
-
-    // Minimal verification flow via Rs. 1 redirect
-    const amt = 1; // verification amount
-    const taxAmt = 0;
-    const psc = 0; // service charge
-    const pdc = 0; // delivery charge
-    const tAmt = amt + taxAmt + psc + pdc;
-    const pid = `verify-${Date.now()}`;
-    const su = `${window.location.origin}/payment-method?status=success&pid=${encodeURIComponent(pid)}`;
-    const fu = `${window.location.origin}/payment-method?status=failed&pid=${encodeURIComponent(pid)}`;
-
-    const params = new URLSearchParams({
-      amt: String(amt),
-      psc: String(psc),
-      pdc: String(pdc),
-      txAmt: String(taxAmt),
-      tAmt: String(tAmt),
-      pid,
-      scd: MERCHANT_CODE,
-      su,
-      fu,
-    });
-    const redirectUrl = `https://esewa.com.np/epay/main?${params.toString()}`;
-    window.location.href = redirectUrl;*/
+    // Implementation pending
   }
 
   return (

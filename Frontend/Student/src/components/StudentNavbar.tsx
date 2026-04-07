@@ -3,12 +3,13 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
-import { useLogout } from "@/hooks";
+import { useLogout, useUser } from "@/hooks";
 
 export default function StudentNavbar() {
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const { mutate: logout, isPending } = useLogout();
+  const { data: user } = useUser();
 
   useEffect(() => {
     function onClickOutside(e: MouseEvent) {
@@ -34,7 +35,6 @@ export default function StudentNavbar() {
 
   return (
     <>
-      {/* Global loading overlay during logout */}
       {isPending && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="flex flex-col items-center gap-4">
@@ -48,7 +48,13 @@ export default function StudentNavbar() {
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
           <div className="flex items-center gap-2">
             <Link href="/">
-              <Image src="/GuruBhet.png" alt="Logo" width={150} height={37} className="dark:invert" />
+              <Image
+                src="/GuruBhet.png"
+                alt="Logo"
+                width={150}
+                height={37}
+                className="dark:invert"
+              />
             </Link>
           </div>
 
@@ -65,12 +71,14 @@ export default function StudentNavbar() {
             >
               Bookings
             </Link>
-            <Link
-              href="/sessions"
-              className="rounded-md px-3 py-2 text-base text-foreground hover:bg-muted"
-            >
-              Sessions
-            </Link>
+            {user && (
+              <Link
+                href="/sessions"
+                className="rounded-md px-3 py-2 text-base text-foreground hover:bg-muted"
+              >
+                Sessions
+              </Link>
+            )}
             <Link
               href="/join-room"
               className="rounded-md px-3 py-2 text-base text-foreground hover:bg-muted"
@@ -83,9 +91,7 @@ export default function StudentNavbar() {
                 onClick={() => setOpen((v) => !v)}
                 className="relative flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-primary text-sm font-medium text-primary-foreground ring-1 ring-border hover:opacity-90"
               >
-                {/* Simple avatar fallback (could be replaced with user image) */}
                 <span className="select-none">S</span>
-                {/* Chevron indicator overlay (down/up based on open) */}
                 <span
                   aria-hidden="true"
                   className="pointer-events-none absolute right-0 bottom-0 flex h-4 w-4 items-center justify-center rounded-full bg-surface text-foreground ring-1 ring-border shadow-sm"
@@ -141,4 +147,3 @@ export default function StudentNavbar() {
     </>
   );
 }
-

@@ -34,7 +34,6 @@ export default function StaffNavbar() {
 
   return (
     <>
-      {/* Global loading overlay during logout */}
       {isPending && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="flex flex-col items-center gap-4">
@@ -53,7 +52,6 @@ export default function StaffNavbar() {
           </div>
 
           <nav className="flex items-center gap-6">
-            {/* Main Navigation Links */}
             <Link
               href="/teachers"
               className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
@@ -73,9 +71,7 @@ export default function StaffNavbar() {
                 onClick={() => setOpen((v) => !v)}
                 className="relative flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-black text-sm font-medium text-white ring-1 ring-border hover:opacity-90 dark:bg-white dark:text-black"
               >
-                {/* Simple avatar fallback (could be replaced with user image) */}
                 <span className="select-none">S</span>
-                {/* Chevron indicator overlay (down/up based on open) */}
                 <span
                   aria-hidden="true"
                   className="pointer-events-none absolute right-0 bottom-0 flex h-4 w-4 items-center justify-center rounded-full bg-white text-foreground ring-1 ring-border shadow-sm dark:bg-black dark:text-white"

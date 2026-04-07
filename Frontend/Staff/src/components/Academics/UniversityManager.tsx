@@ -26,7 +26,6 @@ export default function UniversityManager() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div>
         <h2 className="text-2xl font-bold text-foreground">Universities</h2>
         <p className="text-muted-foreground mt-1">
@@ -34,7 +33,6 @@ export default function UniversityManager() {
         </p>
       </div>
 
-      {/* Add University Form */}
       {!showForm ? (
         <button
           onClick={() => setShowForm(true)}
@@ -90,7 +88,6 @@ export default function UniversityManager() {
         </div>
       )}
 
-      {/* Universities List */}
       <div className="space-y-3">
         <h3 className="text-lg font-semibold text-foreground">
           {universities?.length || 0} Universit{(universities?.length || 0) !== 1 ? "ies" : "y"}
@@ -124,7 +121,6 @@ export default function UniversityManager() {
         )}
       </div>
 
-      {/* Note */}
       <div className="p-4 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg">
         <p className="text-sm text-blue-900 dark:text-blue-100">
           💡 <strong>Next Step:</strong> After creating universities, you&apos;ll be able to add faculties by selecting a university.

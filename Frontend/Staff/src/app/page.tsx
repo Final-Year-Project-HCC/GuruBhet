@@ -35,7 +35,6 @@ export default function Home() {
     <div className="min-h-screen bg-linear-to-b from-background to-muted">
       <div className="mx-auto max-w-6xl px-4 py-16">
         <div className="space-y-8">
-          {/* Main Heading */}
           <div className="space-y-4">
             <h1 className="text-4xl font-bold text-foreground">Staff Dashboard</h1>
             <p className="text-xl text-muted-foreground max-w-2xl">
@@ -43,7 +42,6 @@ export default function Home() {
             </p>
           </div>
 
-          {/* Quick Actions Grid */}
           <div className="grid md:grid-cols-2 gap-6 pt-8">
             {accessibleRoutes.map((route) => (
               <Link
@@ -69,7 +67,6 @@ export default function Home() {
             ))}
           </div>
 
-          {/* Empty State if no accessible routes */}
           {accessibleRoutes.length === 0 && (
             <div className="rounded-lg border border-border bg-card p-8 text-center">
               <h2 className="text-2xl font-bold text-foreground mb-2">No Available Actions</h2>

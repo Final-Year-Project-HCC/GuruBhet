@@ -84,7 +84,6 @@ export default function SubjectForm() {
 
   // Step 3: Generate semester array from faculty.numberOfSemesters
   const semesters = useMemo(() => {
-    console.log(facultiesQuery.data)
     if (!formState.facultyId || !facultiesQuery.data) return [];
     const faculty = facultiesQuery.data.find((f) => f.id === formState.facultyId);
     if (!faculty) return [];

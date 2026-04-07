@@ -82,7 +82,6 @@ const HeroSection: React.FC = () => {
         </div>
 
         <div className="relative group">
-          {/* <div className="absolute -inset-1 bg-gradient-to-r from-muted to-border rounded-2xl blur opacity-25 group-hover:opacity-50 transition duration-1000"></div> */}
           <div className="relative bg-surface border border-border rounded-3xl overflow-hidden shadow-2xl aspect-video md:aspect-square lg:aspect-4/3 flex items-center justify-center">
             <Image
               src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&q=80&w=800" 

@@ -100,11 +100,8 @@ const BookingCard = ({
         isRefetching ? "opacity-50 pointer-events-none" : ""
       }`}
     >
-      {/* Header Section */}
       <div className="border-b border-border bg-muted/30 p-5">
-        {/* Student Info */}
         <div className="flex gap-3 mb-4">
-          {/* Student Avatar */}
           <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full border border-border">
             {booking.student?.profilePictureUrl ? (
               <Image
@@ -121,7 +118,6 @@ const BookingCard = ({
             )}
           </div>
 
-          {/* Student Name and Subject */}
           <div className="flex-1 min-w-0">
             <p className="font-bold text-foreground truncate">{studentName}</p>
             <p className="text-sm text-muted-foreground truncate">
@@ -130,7 +126,6 @@ const BookingCard = ({
           </div>
         </div>
 
-        {/* Status Badge */}
         <span
           className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wide ${statusColor}`}
         >
@@ -151,9 +146,7 @@ const BookingCard = ({
         </span>
       </div>
 
-      {/* Contract Details Section */}
       <div className="p-5 space-y-4">
-        {/* Progress Bar */}
         <div>
           <div className="flex items-center justify-between mb-2">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
@@ -163,7 +156,6 @@ const BookingCard = ({
               {booking.completedSessions} of {booking.totalSessions} sessions
             </p>
           </div>
-          {/* Segmented Progress Bar */}
           <div className="flex gap-1">
             {Array.from({ length: booking.totalSessions }).map((_, i) => (
               <div
@@ -178,7 +170,6 @@ const BookingCard = ({
           </div>
         </div>
 
-        {/* Financials and Duration */}
         <div className="grid grid-cols-2 gap-4">
           <div className="rounded-lg bg-muted/50 p-3">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
@@ -203,13 +194,11 @@ const BookingCard = ({
           </div>
         </div>
 
-        {/* Request Timestamp */}
         <p className="text-xs text-muted-foreground">
           Requested on {formattedDate}
         </p>
       </div>
 
-      {/* Conditional Footer Actions */}
       <div className="border-t border-border bg-muted/20 p-5">
         {booking.status === "PENDING_APPROVAL" && (
           <div className="flex gap-3">

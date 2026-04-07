@@ -101,7 +101,6 @@ export default function BulkInputForm({
             key={item.id}
             className="border border-border rounded-lg overflow-hidden bg-background hover:border-primary transition-colors"
           >
-            {/* Item Header */}
             <button
               onClick={() => toggleExpanded(item.id)}
               className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted transition-colors"
@@ -135,7 +134,6 @@ export default function BulkInputForm({
               </div>
             </button>
 
-            {/* Item Expanded Content */}
             {expandedItems.has(item.id) && (
               <div className="border-t border-border px-4 py-3 bg-muted/30 space-y-3">
                 {fields.map((field) => (
@@ -194,7 +192,6 @@ export default function BulkInputForm({
         ))}
       </div>
 
-      {/* Add More Button */}
       {items.length < maxItems && (
         <button
           onClick={addItem}
@@ -205,7 +202,6 @@ export default function BulkInputForm({
         </button>
       )}
 
-      {/* Submit Button */}
       <button
         onClick={handleSubmit}
         disabled={!isValid || isLoading}

@@ -4,6 +4,7 @@
 import React, { useState, useMemo } from 'react';
 import { TRENDING_TEACHERS, RECOMMENDED_TEACHERS } from '../constants';
 import { SubjectLevel } from '../types';
+import { useRequireAuth } from '@/hooks/useRequireAuth';
 import FilterBar from './FilterBar';
 import ResultsHeader from './ResultsHeader';
 import TutorResults from './TutorResults';
@@ -17,14 +18,13 @@ const SearchPage: React.FC<SearchPageProps> = ({ onViewProfile }) => {
   const [selectedLevel, setSelectedLevel] = useState<SubjectLevel | 'All'>('All');
   const [maxPrice, setMaxPrice] = useState<number>(2000);
   const [sortBy, setSortBy] = useState<'rating' | 'price-low' | 'price-high'>('rating');
+  const requireAuth = useRequireAuth();
 
-  // Data preparation
   const allTeachers = useMemo(() => {
     const combined = [...TRENDING_TEACHERS, ...RECOMMENDED_TEACHERS];
     return Array.from(new Map(combined.map((item) => [item.id, item])).values());
   }, []);
 
-  // Filtering Logic
   const filteredTeachers = useMemo(() => {
     return allTeachers
       .filter((t) => {
@@ -47,7 +47,7 @@ const SearchPage: React.FC<SearchPageProps> = ({ onViewProfile }) => {
   // Handlers
   const handleMessage = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    // In a real app, this would open a chat or contact modal
+    requireAuth(() => {});
   };
 
   const handleReset = () => {

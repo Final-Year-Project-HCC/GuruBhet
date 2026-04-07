@@ -1,6 +1,7 @@
 
 import React from 'react';
 import Image from 'next/image';
+import { useRequireAuth } from '@/hooks/useRequireAuth';
 import { TRENDING_TEACHERS, RECOMMENDED_TEACHERS } from '../constants';
 
 interface TeacherDetailPageProps {
@@ -10,6 +11,7 @@ interface TeacherDetailPageProps {
 
 
 const TeacherDetailPage: React.FC<TeacherDetailPageProps> = ({ teacherId, onBack }) => {
+  const requireAuth = useRequireAuth();
   
   const allTeachers = [...TRENDING_TEACHERS, ...RECOMMENDED_TEACHERS];
   const teacher = allTeachers.find(t => t.id === teacherId);
@@ -77,11 +79,13 @@ const TeacherDetailPage: React.FC<TeacherDetailPageProps> = ({ teacherId, onBack
 
                 <div className="space-y-3">
                   <button 
+                    onClick={() => requireAuth(() => {})}
                     className="w-full bg-primary text-primary-foreground py-4 rounded-2xl font-bold text-lg hover:bg-primary-hover hover:text-primary-hover-foreground shadow-lg transition-all hover:scale-[1.02] active:scale-[0.98]"
                   >
                     Book a Trial Session
                   </button>
                   <button 
+                    onClick={() => requireAuth(() => {})}
                     className="w-full bg-muted text-foreground py-4 rounded-2xl font-bold text-lg hover:bg-border transition-all flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98]"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

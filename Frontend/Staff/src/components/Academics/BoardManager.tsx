@@ -44,7 +44,6 @@ export default function BoardManager() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div>
         <h2 className="text-2xl font-bold text-foreground">Boards</h2>
         <p className="text-muted-foreground mt-1">
@@ -52,7 +51,6 @@ export default function BoardManager() {
         </p>
       </div>
 
-      {/* Add Board Form */}
       {!showForm ? (
         <button
           onClick={() => setShowForm(true)}
@@ -62,7 +60,6 @@ export default function BoardManager() {
         </button>
       ) : (
         <div className="border border-border rounded-lg p-4 bg-card space-y-4">
-          {/* Select Study Levels */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">
               Select Study Levels * (This board will offer these levels)
@@ -93,7 +90,6 @@ export default function BoardManager() {
             )}
           </div>
 
-          {/* Board Name */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-1">
               Board Name *
@@ -107,7 +103,6 @@ export default function BoardManager() {
             />
           </div>
 
-          {/* Description */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-1">
               Description (Optional)
@@ -121,7 +116,6 @@ export default function BoardManager() {
             />
           </div>
 
-          {/* Actions */}
           <div className="flex gap-2">
             <button
               onClick={handleAddBoard}
@@ -145,7 +139,6 @@ export default function BoardManager() {
         </div>
       )}
 
-      {/* Boards List (filtered by first selected level) */}
       {selectedLevelIds.length > 0 && (
         <div className="space-y-3">
           <h3 className="text-lg font-semibold text-foreground">
@@ -181,7 +174,6 @@ export default function BoardManager() {
         </div>
       )}
 
-      {/* Info Banner */}
       <div className="p-4 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg">
         <p className="text-sm text-blue-900 dark:text-blue-100">
           💡 <strong>Next Step:</strong> After creating boards, add faculties under the boards.

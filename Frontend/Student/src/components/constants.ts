@@ -1,13 +1,6 @@
 
 import { Teacher, Session, SubjectLevel } from './types';
 
-// export const ACTIVE_SESSIONS: Session[] = [
-//   { id: '1', teacherName: 'Sarah Jenkins', subject: 'Advanced Calculus', subjectLevel: 'Bachelor', status: 'Live', durationMinutes: 60 },
-//   { id: '2', teacherName: 'Dr. Marcus Thorne', subject: 'Organic Chemistry', subjectLevel: 'Bachelor', status: 'Active', durationMinutes: 90 },
-//   { id: '3', teacherName: 'Elena Rodriguez', subject: 'UI/UX Design', subjectLevel: 'Diploma', status: 'Live', durationMinutes: 45 },
-//   { id: '4', teacherName: 'Kevin Wang', subject: 'Data Structures', subjectLevel: 'Bachelor', status: 'Active', durationMinutes: 60 },
-//   { id: '5', teacherName: 'Chloe Baker', subject: 'English Literature', subjectLevel: '11-12', status: 'Live', durationMinutes: 60 },
-// ];
 export const ACTIVE_SESSIONS: Session[] = [
   { 
     id: '1', 

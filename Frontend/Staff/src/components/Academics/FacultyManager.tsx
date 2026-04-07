@@ -60,7 +60,6 @@ export default function FacultyManager() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div>
         <h2 className="text-2xl font-bold text-foreground">Faculties</h2>
         <p className="text-muted-foreground mt-1">
@@ -68,12 +67,10 @@ export default function FacultyManager() {
         </p>
       </div>
 
-      {/* Step 1: Select Study Level and Board */}
       <div className="border border-border rounded-lg p-4 bg-card space-y-4">
         <h3 className="text-lg font-semibold text-foreground">Step 1: Select Study Level & Board</h3>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Study Level Selector */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-1">
               Study Level *
@@ -95,7 +92,6 @@ export default function FacultyManager() {
             </select>
           </div>
 
-          {/* Board Selector */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-1">
               Board *
@@ -124,7 +120,6 @@ export default function FacultyManager() {
         )}
       </div>
 
-      {/* Step 2: Add Faculty Form */}
       {selectedStudyLevelId && selectedBoardId && (
         <>
           {!showForm ? (
@@ -138,7 +133,6 @@ export default function FacultyManager() {
             <div className="border border-border rounded-lg p-4 bg-card space-y-4">
               <h3 className="text-lg font-semibold text-foreground">Step 2: Create New Faculty</h3>
 
-              {/* Faculty Name */}
               <div>
                 <label className="block text-sm font-medium text-foreground mb-1">
                   Faculty Name *
@@ -152,7 +146,6 @@ export default function FacultyManager() {
                 />
               </div>
 
-              {/* Description */}
               <div>
                 <label className="block text-sm font-medium text-foreground mb-1">
                   Description (Optional)
@@ -166,7 +159,6 @@ export default function FacultyManager() {
                 />
               </div>
 
-              {/* Unit Type and Total Units */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1">
@@ -206,7 +198,6 @@ export default function FacultyManager() {
                 </div>
               </div>
 
-              {/* Actions */}
               <div className="flex gap-2">
                 <button
                   onClick={handleAddFaculty}
@@ -236,7 +227,6 @@ export default function FacultyManager() {
             </div>
           )}
 
-          {/* Faculties List */}
           <div className="space-y-3">
             <h3 className="text-lg font-semibold text-foreground">
               {faculties?.length || 0} Facult{(faculties?.length || 0) !== 1 ? "ies" : "y"}
@@ -274,7 +264,6 @@ export default function FacultyManager() {
         </>
       )}
 
-      {/* Info Banner */}
       {selectedStudyLevelId && selectedBoardId && (
         <div className="p-4 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg">
           <p className="text-sm text-blue-900 dark:text-blue-100">

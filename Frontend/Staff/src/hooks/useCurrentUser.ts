@@ -10,14 +10,10 @@ async function fetchCurrentUser(): Promise<CurrentUser | null> {
   try {
     const { data } = await apiClient.get<CurrentUser>("/auth/me");
     return data;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: any) {
-    // If it's a 401 Unauthorized, return null so React Query stops retrying 
-    // and correctly caches the "unauthenticated" state
-    if (error?.response?.status === 401) {
-      return null;
-    }
-    throw error;
+    // throw error;
+    return null;
   }
 }
 
@@ -56,7 +52,9 @@ export function useHasPermission(permission: Permission) {
 export function useHasAnyPermission(permissions: Permission[]) {
   const { data: user } = useUser();
   if (!user) return false;
-  return user.is_superuser || permissions.some((p) => user.permissions.includes(p));
+  return (
+    user.is_superuser || permissions.some((p) => user.permissions.includes(p))
+  );
 }
 
 /**
@@ -65,7 +63,9 @@ export function useHasAnyPermission(permissions: Permission[]) {
 export function useHasAllPermissions(permissions: Permission[]) {
   const { data: user } = useUser();
   if (!user) return false;
-  return user.is_superuser || permissions.every((p) => user.permissions.includes(p));
+  return (
+    user.is_superuser || permissions.every((p) => user.permissions.includes(p))
+  );
 }
 
 /**

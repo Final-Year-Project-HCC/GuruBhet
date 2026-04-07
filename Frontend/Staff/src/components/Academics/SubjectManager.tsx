@@ -59,7 +59,6 @@ export default function SubjectManager() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div>
         <h2 className="text-2xl font-bold text-foreground">Subjects</h2>
         <p className="text-muted-foreground mt-1">
@@ -67,12 +66,10 @@ export default function SubjectManager() {
         </p>
       </div>
 
-      {/* Step 1: Select Hierarchy */}
       <div className="border border-border rounded-lg p-4 bg-card space-y-4">
         <h3 className="text-lg font-semibold text-foreground">Step 1: Select Hierarchy</h3>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* Study Level */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-1">
               Study Level *
@@ -95,7 +92,6 @@ export default function SubjectManager() {
             </select>
           </div>
 
-          {/* Board */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-1">
               Board *
@@ -118,7 +114,6 @@ export default function SubjectManager() {
             </select>
           </div>
 
-          {/* Faculty */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-1">
               Faculty *
@@ -163,7 +158,6 @@ export default function SubjectManager() {
                 </p>
               </div>
 
-              {/* Subject Name */}
               <div>
                 <label className="block text-sm font-medium text-foreground mb-1">
                   Subject Name *
@@ -177,7 +171,6 @@ export default function SubjectManager() {
                 />
               </div>
 
-              {/* Unit Value */}
               <div>
                 <label className="block text-sm font-medium text-foreground mb-1">
                   Unit Value (1 to {maxUnits}) *
@@ -196,7 +189,6 @@ export default function SubjectManager() {
                 </p>
               </div>
 
-              {/* Actions */}
               <div className="flex gap-2">
                 <button
                   onClick={handleAddSubject}
@@ -225,7 +217,6 @@ export default function SubjectManager() {
             </div>
           )}
 
-          {/* Subjects List */}
           <div className="space-y-3">
             <h3 className="text-lg font-semibold text-foreground">
               {subjects?.length || 0} Subject{(subjects?.length || 0) !== 1 ? "s" : ""}
@@ -263,7 +254,6 @@ export default function SubjectManager() {
         </>
       )}
 
-      {/* Info Banner */}
       {selectedStudyLevelId && selectedBoardId && selectedFacultyId && (
         <div className="p-4 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg">
           <p className="text-sm text-blue-900 dark:text-blue-100">
