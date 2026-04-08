@@ -1,19 +1,11 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
+
 import { QueryClient } from "@tanstack/react-query";
 
 let queryClient: QueryClient | null = null;
 
 export function setAuthQueryClient(client: QueryClient) {
   queryClient = client;
-}
-
-// Custom event for auth failures to prevent redirect loops
-export const AUTH_FAILURE_EVENT = "auth:failure";
-
-export function emitAuthFailure() {
-  if (typeof window !== "undefined") {
-    window.dispatchEvent(new CustomEvent(AUTH_FAILURE_EVENT));
-  }
 }
 
 // Build API base URL from environment variable or default to production
@@ -108,19 +100,17 @@ async function performTokenRefresh(): Promise<void> {
   }
 }
 
+
 /**
  * Handle authentication failure:
  * - Update cache to indicate unauthenticated state to prevent infinite refetch loops
- * - Emit auth failure event (instead of redirecting directly)
  */
 function handleAuthFailure() {
   if (queryClient) {
     queryClient.setQueryData(["auth", "current-user"], null);
   }
-
-  // Emit event instead of redirecting to prevent loops
-  emitAuthFailure();
 }
+
 
 /**
  * Clear auth on logout
@@ -129,9 +119,6 @@ export async function clearAuthOnLogout() {
   if (queryClient) {
     queryClient.setQueryData(["auth", "current-user"], null);
   }
-
-  // Emit event for logout redirect
-  emitAuthFailure();
 }
 
 export default apiClient;

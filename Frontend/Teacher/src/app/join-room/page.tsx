@@ -26,8 +26,8 @@ export default function JoinRoomPage() {
     }
   }
 
-  if (isJoined) {
-  return (
+  // Render room view if joined, form view otherwise
+  return isJoined ? (
     /* Full screen overlay on top of everything */
     <div className="fixed inset-0 z-9999 flex flex-col bg-black">
       {/* Leave button */}
@@ -55,10 +55,7 @@ export default function JoinRoomPage() {
         </LiveKitRoom>
       </div>
     </div>
-  );
-}
-
-  return (
+  ) : (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="w-full max-w-md rounded-lg border border-border bg-card p-8 shadow-lg">
         <h1 className="mb-6 text-2xl font-bold text-foreground">Join Room</h1>

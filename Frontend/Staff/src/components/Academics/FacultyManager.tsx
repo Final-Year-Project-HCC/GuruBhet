@@ -206,7 +206,7 @@ export default function FacultyManager() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">
-              Unit Type *
+              Structure *
             </label>
             <select
               value={selectedUnitType}
@@ -259,25 +259,6 @@ export default function FacultyManager() {
         </button>
       </div>
 
-      {/* Data Table */}
-      {isFormEnabled && (
-        <div>
-          <h3 className="text-lg font-semibold text-foreground mb-4">
-            {faculties?.length || 0} Facult{(faculties?.length || 0) !== 1 ? "ies" : "y"}
-          </h3>
-
-          <DataTable<Faculty>
-            data={faculties}
-            columns={columns}
-            isLoading={facultiesLoading}
-            isError={facultiesError}
-            emptyStateText={`No faculties created yet for ${selectedLevel?.name} > ${selectedBoard?.name}`}
-            onDelete={(item) => setDeleteModal({ isOpen: true, item })}
-            showActions={true}
-          />
-        </div>
-      )}
-
       {/* Delete Confirmation Modal */}
       <Modal
         isOpen={deleteModal.isOpen}
@@ -295,7 +276,7 @@ export default function FacultyManager() {
       {isFormEnabled && (
         <div>
           <h3 className="text-lg font-semibold text-foreground mb-4">
-            Faculties for {selectedLevel?.name} | {selectedBoard?.name} ({faculties?.length || 0})
+            Faculties for {selectedLevel?.name} in {selectedBoard?.name} ({faculties?.length || 0})
           </h3>
           
           <DataTable<Faculty>
