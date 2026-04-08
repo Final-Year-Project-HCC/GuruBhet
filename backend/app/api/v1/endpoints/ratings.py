@@ -1,6 +1,9 @@
+from typing import Annotated
 from uuid import UUID
-from fastapi import APIRouter
-from app.core.dependencies import DbSession, CurrentUser
+
+from fastapi import APIRouter, Path, Query
+
+from app.core.dependencies import CurrentUser, DbSession
 from app.schemas.rating import RatingCreate, RatingRead
 
 router = APIRouter()
@@ -18,8 +21,8 @@ async def submit_rating(body: RatingCreate, current_user: CurrentUser, db: DbSes
 
 @router.get("/teacher/{teacher_id}", response_model=list[RatingRead])
 async def get_teacher_ratings(
-    teacher_id: UUID,
-    subject_id: UUID | None = None,
+    teacher_id: Annotated[UUID, Path(..., alias="teacherId")],
+    subject_id: UUID | None = Query(default=None, alias="subjectId"),
     db: DbSession = None,
 ):
     """Public: list a teacher's ratings, optionally filtered by subject."""

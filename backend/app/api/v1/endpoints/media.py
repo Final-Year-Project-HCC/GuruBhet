@@ -1,13 +1,12 @@
 """Media endpoints for file uploads using Cloudinary."""
-from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.dependencies import get_current_user, get_db
-from app.schemas.communication import UploadSignatureResponse
 from app.models.user import User
+from app.schemas.communication import UploadSignatureResponse
 from app.utils.cloudinary import get_cloudinary_manager
 
 router = APIRouter(prefix="/media", tags=["media"])

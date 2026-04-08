@@ -1,13 +1,21 @@
+from typing import Annotated
 from uuid import UUID
-from fastapi import APIRouter, Query
+
+from fastapi import APIRouter, Path, Query
 from sqlalchemy import select
-from app.core.exceptions import ResourceNotFoundError, InvalidRequestError
 
 from app.core.dependencies import DbSession
+from app.core.exceptions import InvalidRequestError, ResourceNotFoundError
 from app.models.subject import Subject
-from app.schemas.subject import SubjectRead, SubjectCreate, BulkSubjectCreateRequest, SubjectSearchResponse
+from app.schemas.subject import (
+    BulkSubjectCreateRequest,
+    SubjectCreate,
+    SubjectRead,
+    SubjectSearchResponse,
+)
 
 router = APIRouter()
+
 
 @router.get("/search", response_model=list[SubjectSearchResponse])
 async def search_subjects(
@@ -19,7 +27,7 @@ async def search_subjects(
     stmt = select(Subject).where(Subject.name.ilike(f"{name}%")).limit(limit)
     result = await db.execute(stmt)
     subjects = result.scalars().all()
-    
+
     return [
         {
             "id": s.id,
@@ -28,7 +36,9 @@ async def search_subjects(
             "study_level_name": s.study_level.name if s.study_level else "",
             "board_name": s.board.name if s.board else "",
             "faculty_name": s.faculty.name if s.faculty else "",
-            "unit_type": s.faculty.unit_type if s.faculty else "GRADE",  # Fallback if somehow missing
+            "unit_type": s.faculty.unit_type
+            if s.faculty
+            else "GRADE",  # Fallback if somehow missing
         }
         for s in subjects
     ]
@@ -62,37 +72,37 @@ async def create_subject(body: SubjectCreate, db: DbSession):
 
 @router.post("/bulk", response_model=list[SubjectRead], status_code=201)
 async def bulk_create_subjects(
-    body: BulkSubjectCreateRequest,  
+    body: BulkSubjectCreateRequest,
     db: DbSession,
 ):
     """Bulk create subjects."""
     subjects_data = body.subjects
     if not subjects_data:
         raise InvalidRequestError(detail="No subjects provided")
-    
+
     created_subjects = []
-    
+
     for subject_data in subjects_data:
         # Check if subject with this name already exists
         stmt = select(Subject).where(Subject.name == subject_data.name)
         existing = await db.execute(stmt)
         if existing.scalar_one_or_none():
             continue  # Skip duplicates
-        
+
         subject = Subject(**subject_data.model_dump())
         db.add(subject)
         created_subjects.append(subject)
-    
+
     if created_subjects:
         await db.flush()
         for subject in created_subjects:
             await db.refresh(subject)
-    
+
     return created_subjects
 
 
 @router.get("/{subject_id}", response_model=SubjectRead)
-async def get_subject(subject_id: UUID, db: DbSession):
+async def get_subject(subject_id: Annotated[UUID, Path(..., alias="subjectId")], db: DbSession):
     result = await db.execute(select(Subject).where(Subject.id == subject_id))
     subject = result.scalar_one_or_none()
     if not subject:
@@ -101,7 +111,7 @@ async def get_subject(subject_id: UUID, db: DbSession):
 
 
 @router.delete("/{subject_id}", status_code=204)
-async def delete_subject(subject_id: UUID, db: DbSession):
+async def delete_subject(subject_id: Annotated[UUID, Path(..., alias="subjectId")], db: DbSession):
     """Hard-delete a subject from the catalog (if not referenced)."""
     result = await db.execute(select(Subject).where(Subject.id == subject_id))
     subject = result.scalar_one_or_none()

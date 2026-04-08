@@ -1,6 +1,7 @@
+from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Path, Query
 from sqlalchemy import select
 
 from app.core.dependencies import CurrentUser, DbSession
@@ -20,6 +21,7 @@ from app.schemas.user import StudentProfileRead, StudentProfileUpdate
 router = APIRouter()
 
 # ── Own profile ───────────────────────────────────────────────────────────────
+
 
 @router.get("/me", response_model=StudentProfileRead)
 async def get_my_profile(current_user: CurrentUser, db: DbSession):
@@ -64,6 +66,7 @@ async def update_my_profile(
 
 
 # ── Own bookings ──────────────────────────────────────────────────────────────
+
 
 @router.get("/me/sessions", response_model=list[StudentSessionRead])
 async def get_my_sessions(
@@ -133,7 +136,7 @@ async def get_my_bookings(current_user: CurrentUser, db: DbSession):
         .options(
             selectinload(Booking.sessions),
             selectinload(Booking.teacher).selectinload(TeacherProfile.user),
-            selectinload(Booking.subject)
+            selectinload(Booking.subject),
         )
         .where(Booking.student_id == current_user.id)
         .order_by(Booking.created_at.desc())
@@ -143,9 +146,10 @@ async def get_my_bookings(current_user: CurrentUser, db: DbSession):
 
 # ── Public profile (viewable by teachers and staff) ────────────────────────────
 
+
 @router.get("/{student_id}", response_model=StudentProfileRead)
 async def get_student_profile(
-    student_id: UUID,
+    student_id: Annotated[UUID, Path(..., alias="studentId")],
     current_user: CurrentUser,
     db: DbSession,
 ):
@@ -153,9 +157,7 @@ async def get_student_profile(
     Fetch a student's public profile.
     Accessible by the student themselves, teachers they have bookings with, and staff.
     """
-    result = await db.execute(
-        select(StudentProfile).where(StudentProfile.user_id == student_id)
-    )
+    result = await db.execute(select(StudentProfile).where(StudentProfile.user_id == student_id))
     profile = result.scalar_one_or_none()
     if not profile:
         raise StudentNotFoundError(student_id=str(student_id))
@@ -171,10 +173,12 @@ async def get_student_profile(
     # Teacher can only view if they have a shared booking with this student
     if current_user.role == UserRole.TEACHER:
         booking_result = await db.execute(
-            select(Booking).where(
+            select(Booking)
+            .where(
                 Booking.student_id == student_id,
                 Booking.teacher_id == current_user.id,
-            ).limit(1)
+            )
+            .limit(1)
         )
         if booking_result.scalar_one_or_none():
             return profile
