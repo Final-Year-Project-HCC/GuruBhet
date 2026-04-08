@@ -43,7 +43,7 @@ export function useUser() {
 export function useHasPermission(permission: Permission) {
   const { data: user } = useUser();
   if (!user) return false;
-  return user.is_superuser || user.permissions.includes(permission);
+  return user.isSuperuser || user.permissions.includes(permission);
 }
 
 /**
@@ -53,7 +53,7 @@ export function useHasAnyPermission(permissions: Permission[]) {
   const { data: user } = useUser();
   if (!user) return false;
   return (
-    user.is_superuser || permissions.some((p) => user.permissions.includes(p))
+    user.isSuperuser || permissions.some((p) => user.permissions.includes(p))
   );
 }
 
@@ -64,7 +64,7 @@ export function useHasAllPermissions(permissions: Permission[]) {
   const { data: user } = useUser();
   if (!user) return false;
   return (
-    user.is_superuser || permissions.every((p) => user.permissions.includes(p))
+    user.isSuperuser || permissions.every((p) => user.permissions.includes(p))
   );
 }
 

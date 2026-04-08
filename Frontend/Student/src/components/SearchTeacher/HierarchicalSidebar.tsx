@@ -34,11 +34,11 @@ const HierarchicalSidebar: React.FC<HierarchicalSidebarProps> = ({ onTeachersFou
     [faculties, selectedFaculty]
   );
 
-  // Generate unit options (1 to total_units)
+  // Generate unit options (1 to totalUnits)
   const unitOptions = useMemo(() => {
     if (!selectedFacultyDetails) return [];
     const options = [];
-    for (let i = 1; i <= selectedFacultyDetails.total_units; i++) {
+    for (let i = 1; i <= selectedFacultyDetails.totalUnits; i++) {
       options.push(i);
     }
     return options;
@@ -51,10 +51,10 @@ const HierarchicalSidebar: React.FC<HierarchicalSidebarProps> = ({ onTeachersFou
     }
     return allSubjects.find(
       (s) =>
-        s.study_level_id === selectedStudyLevel &&
-        s.board_id === selectedBoard &&
-        s.faculty_id === selectedFaculty &&
-        s.unit_value === selectedUnit
+        s.studyLevelId === selectedStudyLevel &&
+        s.boardId === selectedBoard &&
+        s.facultyId === selectedFaculty &&
+        s.unitValue === selectedUnit
     ) || null;
   }, [allSubjects, selectedStudyLevel, selectedBoard, selectedFaculty, selectedUnit]);
 
@@ -95,7 +95,7 @@ const HierarchicalSidebar: React.FC<HierarchicalSidebarProps> = ({ onTeachersFou
 
   const getUnitTypeLabel = () => {
     if (!selectedFacultyDetails) return 'Select Unit';
-    const unitType = selectedFacultyDetails.unit_type;
+    const unitType = selectedFacultyDetails.unitType;
     const singular = unitType.toLowerCase();
     return `Select ${singular.charAt(0).toUpperCase() + singular.slice(1)}`;
   };
@@ -184,7 +184,7 @@ const HierarchicalSidebar: React.FC<HierarchicalSidebarProps> = ({ onTeachersFou
           )}
         </div>
 
-        {/* Level 4: Unit Value (Dynamic based on Faculty.total_units) */}
+        {/* Level 4: Unit Value (Dynamic based on Faculty.totalUnits) */}
         {selectedFaculty && (
           <div>
             <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-3 px-1">
@@ -201,7 +201,7 @@ const HierarchicalSidebar: React.FC<HierarchicalSidebarProps> = ({ onTeachersFou
                       : 'bg-subtle border border-border text-foreground hover:bg-subtle-foreground/10'
                   }`}
                 >
-                  {selectedFacultyDetails?.unit_type || 'Unit'} {unit}
+                  {selectedFacultyDetails?.unitType || 'Unit'} {unit}
                 </button>
               ))}
             </div>
@@ -216,7 +216,7 @@ const HierarchicalSidebar: React.FC<HierarchicalSidebarProps> = ({ onTeachersFou
             </p>
             <p className="font-bold text-foreground mb-1">{selectedSubject.name}</p>
             <p className="text-xs text-muted-foreground">
-              {`${selectedFacultyDetails?.unit_type || 'Unit'} ${selectedUnit}`}
+              {`${selectedFacultyDetails?.unitType || 'Unit'} ${selectedUnit}`}
             </p>
           </div>
         )}
@@ -235,19 +235,19 @@ const HierarchicalSidebar: React.FC<HierarchicalSidebarProps> = ({ onTeachersFou
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-96 overflow-y-auto pr-2">
               {teachers.map((teacher) => (
                 <div
-                  key={teacher.teacher_id}
+                  key={teacher.teacherId}
                   className="bg-subtle border border-border rounded-xl p-4 hover:bg-subtle/80 transition-colors cursor-pointer"
                 >
                   <div className="flex gap-3 mb-3">
-                    {teacher.teacher_avatar_url && (
+                    {teacher.teacherAvatarUrl && (
                       <div className="w-12 h-12 rounded-full bg-subtle shrink-0 text-xs flex items-center justify-center font-bold text-muted-foreground">
-                        {teacher.teacher_name.charAt(0).toUpperCase()}
+                        {teacher.teacherName.charAt(0).toUpperCase()}
                       </div>
                     )}
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-foreground truncate">{teacher.teacher_name}</p>
+                      <p className="font-semibold text-foreground truncate">{teacher.teacherName}</p>
                       <p className="text-xs text-muted-foreground">
-                        {teacher.years_of_experience} year{teacher.years_of_experience !== 1 ? 's' : ''} exp.
+                        {teacher.yearsOfExperience} year{teacher.yearsOfExperience !== 1 ? 's' : ''} exp.
                       </p>
                     </div>
                   </div>
@@ -255,10 +255,10 @@ const HierarchicalSidebar: React.FC<HierarchicalSidebarProps> = ({ onTeachersFou
                   <div className="flex justify-between items-center text-sm">
                     <div className="flex items-center gap-1">
                       <span className="text-yellow-500">★</span>
-                      <span className="font-semibold">{teacher.avg_rating.toFixed(1)}</span>
-                      <span className="text-xs text-muted-foreground">({teacher.rating_count})</span>
+                      <span className="font-semibold">{teacher.avgRating.toFixed(1)}</span>
+                      <span className="text-xs text-muted-foreground">({teacher.ratingCount})</span>
                     </div>
-                    <p className="font-bold text-primary">₨{teacher.rate_per_session}</p>
+                    <p className="font-bold text-primary">₨{teacher.ratePerSession}</p>
                   </div>
                 </div>
               ))}

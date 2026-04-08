@@ -137,7 +137,7 @@ export interface Booking {
 
 export interface Session {
   id: string;
-  bookingId: string;
+  bookingId?: string;
   booking?: Booking;
   teacherId: string;
   studentId: string;
@@ -219,7 +219,7 @@ export interface Transaction {
   date: string;
   status: PaymentStatus;
   sessionSubject: string;
-  booking_id?: string;
+  bookingId?: string;
 }
 
 /**

@@ -9,49 +9,49 @@ export interface StudyLevel {
   id: string;
   name: string;
   description?: string;
-  is_active: boolean;
-  created_at?: string;
-  updated_at?: string;
+  isActive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface Board {
   id: string;
   name: string;
   description?: string;
-  is_active: boolean;
-  study_levels?: StudyLevel[];
-  created_at?: string;
-  updated_at?: string;
+  isActive: boolean;
+  studyLevels?: StudyLevel[];
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface Faculty {
   id: string;
-  board_id: string;
-  study_level_id: string;
+  boardId: string;
+  studyLevelId: string;
   name: string;
   description?: string;
-  unit_type: UnitType;
-  total_units: number;
-  is_active: boolean;
+  unitType: UnitType;
+  totalUnits: number;
+  isActive: boolean;
   board?: Board;
-  study_level?: StudyLevel;
-  created_at?: string;
-  updated_at?: string;
+  studyLevel?: StudyLevel;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface Subject {
   id: string;
   name: string;
-  study_level_id: string;
-  board_id: string;
-  faculty_id: string;
-  unit_value: number;
-  is_active: boolean;
-  study_level?: StudyLevel;
+  studyLevelId: string;
+  boardId: string;
+  facultyId: string;
+  unitValue: number;
+  isActive: boolean;
+  studyLevel?: StudyLevel;
   board?: Board;
   faculty?: Faculty;
-  created_at?: string;
-  updated_at?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 // Legacy types (kept for backward compatibility)
@@ -87,18 +87,18 @@ export type Permission =
 export interface CurrentUser {
   id: string;
   email: string;
-  first_name: string;
-  middle_name?: string;
-  last_name: string;
+  firstName: string;
+  middleName?: string;
+  lastName: string;
   phone?: string;
   role: UserRole;
-  is_email_verified: boolean;
-  is_active: boolean;
-  is_banned: boolean;
-  is_superuser: boolean;
-  mfa_enabled: boolean;
+  isEmailVerified: boolean;
+  isActive: boolean;
+  isBanned: boolean;
+  isSuperuser: boolean;
+  mfaEnabled: boolean;
   permissions: Permission[];
-  created_at: string;
+  createdAt: string;
 }
 
 export interface User {

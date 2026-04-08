@@ -7,16 +7,16 @@ import apiClient from "@/lib/api";
 export interface CurrentUserData {
   id: string;
   email: string;
-  first_name: string;
-  middle_name?: string;
-  last_name: string;
+  firstName: string;
+  middleName?: string;
+  lastName: string;
   phone?: string;
   role: string;
-  is_email_verified: boolean;
-  is_active: boolean;
-  is_banned: boolean;
-  is_superuser: boolean;
-  mfa_enabled: boolean;
+  isEmailVerified: boolean;
+  isActive: boolean;
+  isBanned: boolean;
+  isSuperuser: boolean;
+  mfaEnabled: boolean;
   permissions: string[];
 }
 

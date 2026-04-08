@@ -1,16 +1,23 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useState } from "react";
-import { useFetchStudyLevels, useCreateStudyLevel } from "@/lib/useAcademics";
+import { useFetchStudyLevels, useCreateStudyLevel, useDeleteStudyLevel } from "@/lib/useAcademics";
 import { StudyLevel } from "@/lib/types";
-import { FiAlertCircle } from "react-icons/fi";
+import { DataTable } from "./DataTable";
+import { Modal } from "./Modal";
 
 export default function StudyLevelManager() {
-  const [showForm, setShowForm] = useState(false);
   const [newName, setNewName] = useState("");
   const [newDescription, setNewDescription] = useState("");
+  const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; item: StudyLevel | null }>({
+    isOpen: false,
+    item: null,
+  });
+
   const { data: levels, isLoading, isError } = useFetchStudyLevels();
   const createMutation = useCreateStudyLevel();
+  const deleteMutation = useDeleteStudyLevel();
 
   const handleAddLevel = () => {
     if (newName.trim()) {
@@ -20,9 +27,46 @@ export default function StudyLevelManager() {
       });
       setNewName("");
       setNewDescription("");
-      setShowForm(false);
     }
   };
+
+  const handleDeleteConfirm = () => {
+    if (deleteModal.item) {
+      deleteMutation.mutate(deleteModal.item.id);
+    }
+  };
+
+  const columns = [
+    {
+      key: "name" as const,
+      label: "Name",
+      className: "font-medium",
+    },
+    {
+      key: "description" as const,
+      label: "Description",
+      render: (value: any) => (
+        value ? (
+          <span className="text-sm text-muted-foreground">{value}</span>
+        ) : (
+          <span className="text-sm text-muted-foreground italic">—</span>
+        )
+      ),
+    },
+    {
+      key: "isActive" as const,
+      label: "Status",
+      render: (value: any) => (
+        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+          value === true
+            ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
+            : "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400"
+        }`}>
+          {value === true ? "Active" : "Inactive"}
+        </span>
+      ),
+    },
+  ];
 
   return (
     <div className="space-y-6">
@@ -33,17 +77,13 @@ export default function StudyLevelManager() {
         </p>
       </div>
 
-      {!showForm ? (
-        <button
-          onClick={() => setShowForm(true)}
-          className="px-4 py-2.5 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors"
-        >
-          + Add Study Level
-        </button>
-      ) : (
-        <div className="border border-border rounded-lg p-4 bg-card space-y-3">
+      {/* Creation Form - Always Visible */}
+      <div className="border border-border rounded-lg p-6 bg-card space-y-4">
+        <h3 className="text-lg font-semibold text-foreground">Create New Study Level</h3>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1">
+            <label className="block text-sm font-medium text-foreground mb-2">
               Level Name *
             </label>
             <input
@@ -54,94 +94,59 @@ export default function StudyLevelManager() {
               className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
             />
           </div>
+          
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1">
+            <label className="block text-sm font-medium text-foreground mb-2">
               Description (Optional)
             </label>
-            <textarea
+            <input
+              type="text"
               value={newDescription}
               onChange={(e) => setNewDescription(e.target.value)}
               placeholder="Brief description of this study level"
-              rows={2}
               className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
             />
           </div>
-          <div className="flex gap-2">
-            <button
-              onClick={handleAddLevel}
-              disabled={createMutation.isPending || !newName.trim()}
-              className="px-4 py-2 bg-primary text-primary-foreground rounded-md font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {createMutation.isPending ? "Creating..." : "Create"}
-            </button>
-            <button
-              onClick={() => {
-                setShowForm(false);
-                setNewName("");
-                setNewDescription("");
-              }}
-              className="px-4 py-2 bg-muted text-foreground rounded-md font-medium hover:bg-muted/80 transition-colors"
-            >
-              Cancel
-            </button>
-          </div>
         </div>
-      )}
 
-      <div className="space-y-3">
-        <h3 className="text-lg font-semibold text-foreground">
-          {levels?.length || 0} Level{(levels?.length || 0) !== 1 ? "s" : ""}
+        <button
+          onClick={handleAddLevel}
+          disabled={createMutation.isPending || !newName.trim()}
+          className="px-4 py-2.5 bg-primary text-primary-foreground rounded-md font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {createMutation.isPending ? "Creating..." : "+ Create Study Level"}
+        </button>
+      </div>
+
+      {/* Data Table */}
+      <div>
+        <h3 className="text-lg font-semibold text-foreground mb-4">
+          {levels?.length || 0} Study Level{(levels?.length || 0) !== 1 ? "s" : ""}
         </h3>
-
-        {isLoading && (
-          <div className="flex items-center justify-center py-8">
-            <div className="text-muted-foreground">Loading study levels...</div>
-          </div>
-        )}
-
-        {isError && (
-          <div className="p-4 bg-destructive/15 border border-destructive rounded-lg flex items-center gap-3">
-            <FiAlertCircle className="text-destructive" size={20} />
-            <span className="text-destructive">Failed to load study levels</span>
-          </div>
-        )}
-
-        {!isLoading && !isError && levels && levels.length === 0 && (
-          <div className="p-8 text-center border border-dashed border-border rounded-lg">
-            <p className="text-muted-foreground">No study levels yet. Create one to get started!</p>
-          </div>
-        )}
-
-        {!isLoading && levels && levels.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {levels.map((level) => (
-              <StudyLevelCard key={level.id} level={level} />
-            ))}
-          </div>
-        )}
+        
+        <DataTable<StudyLevel>
+          data={levels}
+          columns={columns}
+          isLoading={isLoading}
+          isError={isError}
+          emptyStateText="No study levels created yet. Create one using the form above."
+          onDelete={(item) => setDeleteModal({ isOpen: true, item })}
+          showActions={true}
+        />
       </div>
 
-      <div className="p-4 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg">
-        <p className="text-sm text-blue-900 dark:text-blue-100">
-          💡 <strong>Next Step:</strong> After creating study levels, add boards that offer these levels.
-        </p>
-      </div>
-    </div>
-  );
-}
-
-function StudyLevelCard({ level }: { level: StudyLevel }) {
-  return (
-    <div className="border border-border rounded-lg p-4 bg-card hover:border-primary transition-colors">
-      <div className="space-y-2">
-        <h4 className="font-semibold text-foreground">{level.name}</h4>
-        {level.description && (
-          <p className="text-sm text-muted-foreground">{level.description}</p>
-        )}
-        {!level.is_active && (
-          <p className="text-xs text-destructive">Inactive</p>
-        )}
-      </div>
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={deleteModal.isOpen}
+        title="Delete Study Level"
+        description={`Are you sure you want to delete "${deleteModal.item?.name}"? This action cannot be undone.`}
+        isDangerous={true}
+        onClose={() => setDeleteModal({ isOpen: false, item: null })}
+        primaryButtonText="Delete"
+        primaryButtonLoading={deleteMutation.isPending}
+        onPrimaryAction={handleDeleteConfirm}
+        secondaryButtonText="Cancel"
+      />
     </div>
   );
 }

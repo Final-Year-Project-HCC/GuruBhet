@@ -44,7 +44,9 @@ function BookingStatsCards({
               <p className="mt-2 text-xs text-warning">
                 {paymentPending} awaiting payment
               </p>
-            ): ""}
+            ) : (
+              ""
+            )}
           </div>
           <div className="flex h-12 w-12 items-center justify-center rounded-lg text-muted-foreground">
             <MdBook className="h-6 w-6" />
@@ -59,7 +61,8 @@ function BookingStatsCards({
               TOTAL INVESTMENT
             </p>
             <p className="mt-3 text-3xl font-bold text-foreground">
-              Rs {totalInvestment.toLocaleString("en-IN", {
+              Rs{" "}
+              {totalInvestment.toLocaleString("en-IN", {
                 minimumFractionDigits: 0,
                 maximumFractionDigits: 0,
               })}
@@ -82,7 +85,11 @@ export default function StudentBookingsPage() {
   const { data: user, isLoading: userLoading } = useUser();
 
   // Fetch bookings for the logged-in student
-  const { data: bookings = [], isLoading, error } = useQuery<Booking[]>({
+  const {
+    data: bookings = [],
+    isLoading,
+    error,
+  } = useQuery<Booking[]>({
     queryKey: ["studentBookings"],
     queryFn: async () => {
       const { data } = await apiClient.get("/students/me/bookings");
@@ -93,12 +100,14 @@ export default function StudentBookingsPage() {
 
   // Filter bookings by status
   const approvalBookings = bookings.filter(
-    (b) => b.status === "PENDING_APPROVAL"
+    (b) => b.status === "PENDING_APPROVAL",
   );
-  const paymentBookings = bookings.filter((b) => b.status === "PENDING_PAYMENT");
+  const paymentBookings = bookings.filter(
+    (b) => b.status === "PENDING_PAYMENT",
+  );
   const upcomingBookings = bookings.filter((b) => b.status === "ACTIVE");
   const completedBookings = bookings.filter(
-    (b) => b.status === "COMPLETED" || b.status.includes("CANCELLED")
+    (b) => b.status === "COMPLETED" || b.status.includes("CANCELLED"),
   );
 
   // Calculate total spent
@@ -150,7 +159,9 @@ export default function StudentBookingsPage() {
     <div className="min-h-screen bg-background p-6">
       <div className="mx-auto max-w-6xl">
         <div className="mb-8">
-          <h1 className="mb-2 text-4xl font-bold text-foreground">My Bookings</h1>
+          <h1 className="mb-2 text-4xl font-bold text-foreground">
+            My Bookings
+          </h1>
           <p className="text-sm text-muted-foreground">
             Manage your tutoring sessions and track your learning progress
           </p>
@@ -175,49 +186,36 @@ export default function StudentBookingsPage() {
                   completedBookingsCount={0}
                 />
                 <div className="rounded-2xl border-2 border-primary/30 bg-linear-to-br from-primary/5 to-accent/5 p-12 text-center">
-                <div className="mb-6 flex justify-center">
-                  <div className="flex h-20 w-20 items-center justify-center rounded-full bg-primary/10">
-                    <MdBook className="h-10 w-10 text-primary" />
+                  <div className="mb-6 flex justify-center">
+                    <div className="flex h-20 w-20 items-center justify-center rounded-full bg-primary/10">
+                      <MdBook className="h-10 w-10 text-primary" />
+                    </div>
+                  </div>
+
+                  <h2 className="mb-3 text-3xl font-bold text-foreground">
+                    Start Your Learning Journey
+                  </h2>
+                  <p className="mb-8 text-lg text-muted-foreground max-w-lg mx-auto">
+                    Sign in to view your bookings, schedule sessions with expert
+                    tutors, and track your academic progress. Your personalized
+                    learning experience is just a login away!
+                  </p>
+
+                  <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                    <a
+                      href="/login"
+                      className="inline-flex items-center justify-center rounded-lg bg-primary text-primary-foreground px-8 py-3 font-semibold transition-all hover:bg-primary/90 active:scale-95"
+                    >
+                      Login to Your Account
+                    </a>
+                    <a
+                      href="/signup"
+                      className="inline-flex items-center justify-center rounded-lg border-2 border-primary text-primary px-8 py-3 font-semibold transition-all hover:bg-primary/5 active:scale-95"
+                    >
+                      Create New Account
+                    </a>
                   </div>
                 </div>
-
-                <h2 className="mb-3 text-3xl font-bold text-foreground">
-                  Start Your Learning Journey
-                </h2>
-                <p className="mb-8 text-lg text-muted-foreground max-w-lg mx-auto">
-                  Sign in to view your bookings, schedule sessions with expert tutors, and track your academic progress. Your personalized learning experience is just a login away!
-                </p>
-
-                <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                  <a
-                    href="/login"
-                    className="inline-flex items-center justify-center rounded-lg bg-primary text-primary-foreground px-8 py-3 font-semibold transition-all hover:bg-primary/90 active:scale-95"
-                  >
-                    Login to Your Account
-                  </a>
-                  <a
-                    href="/signup"
-                    className="inline-flex items-center justify-center rounded-lg border-2 border-primary text-primary px-8 py-3 font-semibold transition-all hover:bg-primary/5 active:scale-95"
-                  >
-                    Create New Account
-                  </a>
-                </div>
-
-                <div className="mt-10 grid grid-cols-1 sm:grid-cols-3 gap-6 border-t border-border/50 pt-10">
-                  <div className="space-y-2">
-                    <div className="text-2xl font-bold text-primary">1000+</div>
-                    <p className="text-sm text-muted-foreground">Expert Tutors</p>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="text-2xl font-bold text-primary">10000+</div>
-                    <p className="text-sm text-muted-foreground">Happy Students</p>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="text-2xl font-bold text-primary">150+</div>
-                    <p className="text-sm text-muted-foreground">Subjects Covered</p>
-                  </div>
-                </div>
-              </div>
               </>
             )}
 
@@ -239,8 +237,9 @@ export default function StudentBookingsPage() {
                       </p>
                       <p className="text-sm text-muted-foreground mt-1">
                         You have {approvalBookings.length} booking
-                        {approvalBookings.length > 1 ? "s" : ""} awaiting teacher
-                        approval. Teachers usually respond within 24 hours.
+                        {approvalBookings.length > 1 ? "s" : ""} awaiting
+                        teacher approval. Teachers usually respond within 24
+                        hours.
                       </p>
                     </div>
                   </div>
@@ -250,10 +249,13 @@ export default function StudentBookingsPage() {
                   <div className="mb-8 rounded-xl border border-warning/30 bg-warning/5 p-4 flex items-start gap-3">
                     <MdWarning className="h-5 w-5 text-warning shrink-0 mt-0.5" />
                     <div>
-                      <p className="font-medium text-foreground">Payments pending</p>
+                      <p className="font-medium text-foreground">
+                        Payments pending
+                      </p>
                       <p className="text-sm text-muted-foreground mt-1">
                         Complete payment for {paymentBookings.length} booking
-                        {paymentBookings.length > 1 ? "s" : ""} to confirm your sessions.
+                        {paymentBookings.length > 1 ? "s" : ""} to confirm your
+                        sessions.
                       </p>
                     </div>
                   </div>
@@ -325,7 +327,9 @@ export default function StudentBookingsPage() {
                       <div className="mb-4 inline-block animate-spin">
                         <div className="h-8 w-8 rounded-full border-4 border-border border-t-foreground"></div>
                       </div>
-                      <p className="text-sm text-muted-foreground">Loading your bookings...</p>
+                      <p className="text-sm text-muted-foreground">
+                        Loading your bookings...
+                      </p>
                     </div>
                   </div>
                 ) : error ? (
@@ -349,8 +353,8 @@ export default function StudentBookingsPage() {
                             No upcoming sessions
                           </p>
                           <p className="text-sm text-muted-foreground max-w-xs">
-                            Start learning by searching for tutors and booking your first
-                            session
+                            Start learning by searching for tutors and booking
+                            your first session
                           </p>
                           <button className="mt-4 rounded-lg bg-accent text-accent-foreground px-6 py-2.5 font-medium transition-all hover:opacity-90 text-sm">
                             Search Tutors

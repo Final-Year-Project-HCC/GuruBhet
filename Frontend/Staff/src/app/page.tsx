@@ -27,7 +27,7 @@ export default function Home() {
     );
   }
 
-  const accessibleRoutes = getAccessibleRoutes(user.permissions, user.is_superuser).filter(
+  const accessibleRoutes = getAccessibleRoutes(user.permissions, user.isSuperuser).filter(
     (route) => route.path !== "/" && route.description
   );
 

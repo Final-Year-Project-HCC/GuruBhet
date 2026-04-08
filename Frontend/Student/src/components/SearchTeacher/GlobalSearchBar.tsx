@@ -75,8 +75,8 @@ const GlobalSearchBar: React.FC<GlobalSearchBarProps> = ({ onSubjectSelect }) =>
     } else {
       // Default navigation to teacher search with subject filter
       const params = new URLSearchParams({
-        subject_id: subject.id,
-        subject_name: subject.name,
+        subjectId: subject.id,
+        subjectName: subject.name,
       });
       router.push(`/search-teacher?${params.toString()}`);
     }
@@ -130,7 +130,7 @@ const GlobalSearchBar: React.FC<GlobalSearchBarProps> = ({ onSubjectSelect }) =>
                   >
                     <div className="flex flex-col gap-1">
                       <p className="font-semibold text-foreground">{subject.name}</p>
-                      <p className="text-xs text-muted-foreground">{subject.full_context}</p>
+                      <p className="text-xs text-muted-foreground">{subject.fullContext}</p>
                     </div>
                   </div>
                 ))}

@@ -1,36 +1,50 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useState } from "react";
-import { useFetchStudyLevels } from "@/lib/useAcademics";
-import { useFetchBoardsByStudyLevel, useCreateBoard } from "@/lib/useAcademics";
+import {
+  useFetchStudyLevels,
+  useFetchAllBoards,
+  useCreateBoard,
+  useDeleteBoard,
+} from "@/lib/useAcademics";
 import { Board } from "@/lib/types";
-import { FiAlertCircle } from "react-icons/fi";
+import { DataTable } from "./DataTable";
+import { Modal } from "./Modal";
 
 export default function BoardManager() {
-  const [showForm, setShowForm] = useState(false);
   const [selectedLevelIds, setSelectedLevelIds] = useState<string[]>([]);
   const [newName, setNewName] = useState("");
   const [newDescription, setNewDescription] = useState("");
+  const [deleteModal, setDeleteModal] = useState<{
+    isOpen: boolean;
+    item: Board | null;
+  }>({
+    isOpen: false,
+    item: null,
+  });
 
   const { data: allLevels } = useFetchStudyLevels();
-  
-  // Get boards for the first selected level (for display purposes)
-  const firstSelectedLevel = selectedLevelIds[0];
-  const { data: boards, isLoading: boardsLoading, isError: boardsError } = useFetchBoardsByStudyLevel(firstSelectedLevel || null);
-  
+
+  // Fetch all boards (no filtering)
+  const {
+    data: boards,
+    isLoading: boardsLoading,
+    isError: boardsError,
+  } = useFetchAllBoards();
+
   const createMutation = useCreateBoard();
+  const deleteMutation = useDeleteBoard();
 
   const handleAddBoard = () => {
     if (newName.trim() && selectedLevelIds.length > 0) {
       createMutation.mutate({
         name: newName,
         description: newDescription || undefined,
-        study_level_ids: selectedLevelIds,
+        studyLevelIds: selectedLevelIds,
       });
       setNewName("");
       setNewDescription("");
-      setSelectedLevelIds([]);
-      setShowForm(false);
     }
   };
 
@@ -38,178 +52,178 @@ export default function BoardManager() {
     setSelectedLevelIds((prev) =>
       prev.includes(levelId)
         ? prev.filter((id) => id !== levelId)
-        : [...prev, levelId]
+        : [...prev, levelId],
     );
   };
+
+  const handleDeleteConfirm = () => {
+    if (deleteModal.item) {
+      deleteMutation.mutate(deleteModal.item.id);
+    }
+  };
+
+  const columns = [
+    {
+      key: "name" as const,
+      label: "Board Name",
+      className: "font-medium",
+    },
+    {
+      key: "description" as const,
+      label: "Description",
+      render: (value: any) => (
+        value ? (
+          <span className="text-sm text-muted-foreground">{value}</span>
+        ) : (
+          <span className="text-sm text-muted-foreground italic">—</span>
+        )
+      ),
+    },
+    {
+      key: "isActive" as const,
+      label: "Status",
+      render: (value: any) => (
+        <span
+          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+            value === true
+              ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
+              : "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400"
+          }`}
+        >
+          {value === true ? "Active" : "Inactive"}
+        </span>
+      ),
+    },
+  ];
 
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-foreground">Boards</h2>
         <p className="text-muted-foreground mt-1">
-          Create boards (examination bodies or universities) and assign them to study levels. Example: NEB, Tribhuvan University, Kathmandu University
+          Create boards (examination bodies or universities) and assign them to
+          study levels. Example: NEB, Tribhuvan University, Kathmandu University
         </p>
       </div>
 
-      {!showForm ? (
-        <button
-          onClick={() => setShowForm(true)}
-          className="px-4 py-2.5 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors"
-        >
-          + Add Board
-        </button>
-      ) : (
-        <div className="border border-border rounded-lg p-4 bg-card space-y-4">
+      {/* Study Level Selection */}
+      <div className="border border-border rounded-lg p-6 bg-card space-y-4">
+        <h3 className="text-lg font-semibold text-foreground">
+          Step 1: Select Study Levels
+        </h3>
+
+        {!allLevels || allLevels.length === 0 ? (
+          <div className="p-4 bg-muted/50 rounded text-sm text-muted-foreground text-center">
+            📚 No study levels available. Create study levels first in the Study
+            Levels tab.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {allLevels.map((level) => (
+              <label
+                key={level.id}
+                className="flex items-center gap-3 p-3 border border-border rounded-lg cursor-pointer hover:bg-muted/30 transition-colors"
+              >
+                <input
+                  type="checkbox"
+                  checked={selectedLevelIds.includes(level.id)}
+                  onChange={() => toggleLevelSelection(level.id)}
+                  className="w-4 h-4 rounded cursor-pointer accent-primary"
+                />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-foreground">
+                    {level.name}
+                  </p>
+                  {level.description && (
+                    <p className="text-xs text-muted-foreground">
+                      {level.description}
+                    </p>
+                  )}
+                </div>
+              </label>
+            ))}
+          </div>
+        )}
+
+        <p className="text-sm text-muted-foreground">
+          ✓ {selectedLevelIds.length} level
+          {selectedLevelIds.length !== 1 ? "s" : ""} selected
+        </p>
+      </div>
+
+      {/* Creation Form - Always Visible But Disabled When No Level Selected */}
+      <div
+        className={`border border-border rounded-lg p-6 space-y-4 ${selectedLevelIds.length === 0 ? "opacity-60 pointer-events-none bg-muted/10" : "bg-card"}`}
+      >
+        <h3 className="text-lg font-semibold text-foreground">
+          Step 2: Create New Board
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">
-              Select Study Levels * (This board will offer these levels)
-            </label>
-            {!allLevels || allLevels.length === 0 ? (
-              <div className="p-3 bg-muted/50 rounded text-sm text-muted-foreground">
-                No study levels available. Create study levels first.
-              </div>
-            ) : (
-              <div className="space-y-2 max-h-48 overflow-y-auto border border-border rounded-lg p-3 bg-background">
-                {allLevels.map((level) => (
-                  <label key={level.id} className="flex items-center gap-2 cursor-pointer hover:bg-muted/30 p-2 rounded">
-                    <input
-                      type="checkbox"
-                      checked={selectedLevelIds.includes(level.id)}
-                      onChange={() => toggleLevelSelection(level.id)}
-                      className="w-4 h-4 rounded cursor-pointer"
-                    />
-                    <span className="text-sm text-foreground">{level.name}</span>
-                  </label>
-                ))}
-              </div>
-            )}
-            {selectedLevelIds.length > 0 && (
-              <div className="mt-2 text-xs text-muted-foreground">
-                {selectedLevelIds.length} level(s) selected
-              </div>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-1">
               Board Name *
             </label>
             <input
               type="text"
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
-              placeholder="e.g., NEB, Tribhuvan University, Kathmandu University"
+              placeholder="e.g., NEB, Tribhuvan University"
               className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1">
+            <label className="block text-sm font-medium text-foreground mb-2">
               Description (Optional)
             </label>
-            <textarea
+            <input
+              type="text"
               value={newDescription}
               onChange={(e) => setNewDescription(e.target.value)}
-              placeholder="Brief description of the board"
-              rows={2}
+              placeholder="Brief description"
               className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
             />
           </div>
-
-          <div className="flex gap-2">
-            <button
-              onClick={handleAddBoard}
-              disabled={createMutation.isPending || !newName.trim() || selectedLevelIds.length === 0}
-              className="px-4 py-2 bg-primary text-primary-foreground rounded-md font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {createMutation.isPending ? "Creating..." : "Create"}
-            </button>
-            <button
-              onClick={() => {
-                setShowForm(false);
-                setNewName("");
-                setNewDescription("");
-                setSelectedLevelIds([]);
-              }}
-              className="px-4 py-2 bg-muted text-foreground rounded-md font-medium hover:bg-muted/80 transition-colors"
-            >
-              Cancel
-            </button>
-          </div>
         </div>
-      )}
 
-      {selectedLevelIds.length > 0 && (
-        <div className="space-y-3">
-          <h3 className="text-lg font-semibold text-foreground">
-            Boards for {allLevels?.find(l => l.id === selectedLevelIds[0])?.name} ({boards?.length || 0})
-          </h3>
-
-          {boardsLoading && (
-            <div className="flex items-center justify-center py-8">
-              <div className="text-muted-foreground">Loading boards...</div>
-            </div>
-          )}
-
-          {boardsError && (
-            <div className="p-4 bg-destructive/15 border border-destructive rounded-lg flex items-center gap-3">
-              <FiAlertCircle className="text-destructive" size={20} />
-              <span className="text-destructive">Failed to load boards</span>
-            </div>
-          )}
-
-          {!boardsLoading && !boardsError && boards && boards.length === 0 && (
-            <div className="p-8 text-center border border-dashed border-border rounded-lg">
-              <p className="text-muted-foreground">No boards for this study level yet.</p>
-            </div>
-          )}
-
-          {!boardsLoading && boards && boards.length > 0 && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {boards.map((board) => (
-                <BoardCard key={board.id} board={board} />
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      <div className="p-4 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg">
-        <p className="text-sm text-blue-900 dark:text-blue-100">
-          💡 <strong>Next Step:</strong> After creating boards, add faculties under the boards.
-        </p>
+        <button
+          onClick={handleAddBoard}
+          disabled={createMutation.isPending || !newName.trim()}
+          className="px-4 py-2.5 bg-primary text-primary-foreground rounded-md font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {createMutation.isPending ? "Creating..." : "+ Create Board"}
+        </button>
       </div>
-    </div>
-  );
-}
 
-function BoardCard({ board }: { board: Board }) {
-  return (
-    <div className="border border-border rounded-lg p-4 bg-card hover:border-primary transition-colors">
-      <div className="space-y-3">
-        <h4 className="font-semibold text-foreground">{board.name}</h4>
-        {board.description && (
-          <p className="text-sm text-muted-foreground">{board.description}</p>
-        )}
-        {board.study_levels && board.study_levels.length > 0 && (
-          <div className="space-y-1">
-            <p className="text-xs font-medium text-muted-foreground">Study Levels:</p>
-            <div className="flex flex-wrap gap-1">
-              {board.study_levels.map((level) => (
-                <span
-                  key={level.id}
-                  className="px-2 py-1 text-xs bg-primary/10 text-primary rounded"
-                >
-                  {level.name}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-        {!board.is_active && (
-          <p className="text-xs text-destructive">Inactive</p>
-        )}
+      {/* Data Table - Always Visible */}
+      <div>
+        <h3 className="text-lg font-semibold text-foreground mb-4">
+          Boards ({boards?.length || 0})
+        </h3>
+
+        <DataTable<Board>
+          data={boards}
+          columns={columns}
+          isLoading={boardsLoading}
+          isError={boardsError}
+          emptyStateText="No boards created yet. Create one using the form above."
+          onDelete={(item) => setDeleteModal({ isOpen: true, item })}
+          showActions={true}
+        />
       </div>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={deleteModal.isOpen}
+        title="Delete Board"
+        description={`Are you sure you want to delete "${deleteModal.item?.name}"? This action cannot be undone.`}
+        isDangerous={true}
+        onClose={() => setDeleteModal({ isOpen: false, item: null })}
+        primaryButtonText="Delete"
+        primaryButtonLoading={deleteMutation.isPending}
+        onPrimaryAction={handleDeleteConfirm}
+        secondaryButtonText="Cancel"
+      />
     </div>
   );
 }

@@ -193,23 +193,28 @@ async def create_board(
 
 @router.get("/boards", response_model=list[BoardRead])
 async def list_boards(
-    study_level_id: UUID,
-    request: Request,
+    study_level_id: UUID = None,
+    request: Request = None,
     is_active: bool = True,
     db: DbSession = None
 ) -> list[BoardRead]:
     """
-    [STAFF] List Boards associated with a specific StudyLevel.
+    [STAFF] List Boards.
+    
+    If study_level_id is provided: Returns boards associated with that StudyLevel.
+    If study_level_id is NOT provided: Returns ALL boards.
     """
     await verify_inactive_access(is_active, db, request)
-    stmt = select(Board).join(board_study_levels).where(
-        board_study_levels.c.study_level_id == study_level_id,
-        board_study_levels.c.is_active == is_active
-    )
-    stmt = stmt.where(Board.is_active == is_active)
+    
+    stmt = select(Board).where(Board.is_active == is_active)
+    
+    if study_level_id:
+        stmt = stmt.join(board_study_levels).where(
+            board_study_levels.c.study_level_id == study_level_id,
+            board_study_levels.c.is_active == is_active
+        )
     
     stmt = stmt.order_by(Board.name)
-
     result = await db.execute(stmt)
     return [BoardRead.model_validate(b) for b in result.scalars().all()]
 
@@ -304,31 +309,41 @@ async def create_faculty(
 
 @router.get("/faculties", response_model=list[FacultyRead])
 async def list_faculties(
-    study_level_id: UUID,
-    board_id: UUID,
-    request: Request,
+    study_level_id: UUID = None,
+    board_id: UUID = None,
+    request: Request = None,
     is_active: bool = True,
     db: DbSession = None
 ) -> list[FacultyRead]:
-    """[STAFF] List Faculties strictly filtering by StudyLevel and Board."""
+    """
+    [STAFF] List Faculties.
+    
+    If study_level_id and board_id are provided: Returns faculties for that hierarchy.
+    If NOT provided: Returns ALL faculties.
+    """
     await verify_inactive_access(is_active, db, request)
 
-    # Verify Board and StudyLevel relation exists
-    assoc_stmt = select(Board).join(board_study_levels).where(
-        Board.id == board_id,
-        board_study_levels.c.study_level_id == study_level_id,
-        board_study_levels.c.is_active == is_active
-    )
-    assoc_result = await db.execute(assoc_stmt)
-    if not assoc_result.scalar_one_or_none():
-        raise ResourceNotFoundError(
-            detail=f"Association between Board '{board_id}' and StudyLevel '{study_level_id}' not found"
+    # If both study_level_id and board_id are provided, verify the association exists
+    if study_level_id and board_id:
+        assoc_stmt = select(Board).join(board_study_levels).where(
+            Board.id == board_id,
+            board_study_levels.c.study_level_id == study_level_id,
+            board_study_levels.c.is_active == is_active
         )
+        assoc_result = await db.execute(assoc_stmt)
+        if not assoc_result.scalar_one_or_none():
+            raise ResourceNotFoundError(
+                detail=f"Association between Board '{board_id}' and StudyLevel '{study_level_id}' not found"
+            )
 
-    stmt = select(Faculty)
-    stmt = stmt.where(Faculty.is_active == is_active)
-    stmt = stmt.where(Faculty.board_id == board_id)
-    stmt = stmt.where(Faculty.study_level_id == study_level_id)
+    stmt = select(Faculty).where(Faculty.is_active == is_active)
+    
+    if study_level_id:
+        stmt = stmt.where(Faculty.study_level_id == study_level_id)
+    
+    if board_id:
+        stmt = stmt.where(Faculty.board_id == board_id)
+    
     stmt = stmt.order_by(Faculty.name)
 
     result = await db.execute(stmt)
@@ -435,35 +450,44 @@ async def create_subject(
 
 @router.get("/subjects", response_model=list[SubjectRead])
 async def list_subjects(
-    study_level_id: UUID,
-    board_id: UUID,
-    faculty_id: UUID,
-    request: Request,
+    study_level_id: UUID = None,
+    board_id: UUID = None,
+    faculty_id: UUID = None,
+    request: Request = None,
     is_active: bool = True,
     db: DbSession = None
 ) -> list[SubjectRead]:
     """
-    [STAFF] List Subjects strictly filtered by hierarchy.
+    [STAFF] List Subjects.
+    
+    If study_level_id, board_id, and faculty_id are provided: Returns subjects for that hierarchy.
+    If NOT provided: Returns ALL subjects.
     """
     await verify_inactive_access(is_active, db, request)
 
-    # Verify Board and StudyLevel relation exists
-    assoc_stmt = select(Board).join(board_study_levels).where(
-        Board.id == board_id,
-        board_study_levels.c.study_level_id == study_level_id,
-        board_study_levels.c.is_active == is_active
-    )
-    assoc_result = await db.execute(assoc_stmt)
-    if not assoc_result.scalar_one_or_none():
-        raise ResourceNotFoundError(
-            detail=f"Association between Board '{board_id}' and StudyLevel '{study_level_id}' not found"
+    # If study_level_id and board_id are provided, verify the association exists
+    if study_level_id and board_id:
+        assoc_stmt = select(Board).join(board_study_levels).where(
+            Board.id == board_id,
+            board_study_levels.c.study_level_id == study_level_id,
+            board_study_levels.c.is_active == is_active
         )
+        assoc_result = await db.execute(assoc_stmt)
+        if not assoc_result.scalar_one_or_none():
+            raise ResourceNotFoundError(
+                detail=f"Association between Board '{board_id}' and StudyLevel '{study_level_id}' not found"
+            )
 
-    stmt = select(Subject)
-    stmt = stmt.where(Subject.is_active == is_active)
-    stmt = stmt.where(Subject.study_level_id == study_level_id)
-    stmt = stmt.where(Subject.board_id == board_id)
-    stmt = stmt.where(Subject.faculty_id == faculty_id)
+    stmt = select(Subject).where(Subject.is_active == is_active)
+    
+    if study_level_id:
+        stmt = stmt.where(Subject.study_level_id == study_level_id)
+    
+    if board_id:
+        stmt = stmt.where(Subject.board_id == board_id)
+    
+    if faculty_id:
+        stmt = stmt.where(Subject.faculty_id == faculty_id)
 
     stmt = stmt.order_by(Subject.name)
     result = await db.execute(stmt)

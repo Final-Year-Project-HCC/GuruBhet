@@ -12,17 +12,17 @@ const SubjectCard: React.FC<SubjectCardProps> = ({
   onBookNow,
   requireAuth,
 }) => {
-  const { subject, rate_per_session, years_of_experience } = teacherSubject;
+  const { subject, ratePerSession, yearsOfExperience } = teacherSubject;
 
   // Build hierarchical context string
   const hierarchyBadges = [
-    subject.study_level?.name,
+    subject.studyLevel?.name,
     subject.board?.name,
     subject.faculty?.name,
   ].filter(Boolean);
 
   // Unit context: e.g., "Semester 5" or "Grade 12"
-  const unitContext = `${subject.faculty?.unit_type || 'Unit'} ${subject.unit_value}`;
+  const unitContext = `${subject.faculty?.unitType || 'Unit'} ${subject.unitValue}`;
 
   return (
     <div className="bg-surface border border-border rounded-3xl p-6 hover:shadow-lg transition-all hover:border-primary/50 group">
@@ -61,7 +61,7 @@ const SubjectCard: React.FC<SubjectCardProps> = ({
             Rate/Session
           </p>
           <p className="text-2xl font-black text-primary tracking-tighter">
-            NPR {rate_per_session}
+            NPR {ratePerSession}
           </p>
         </div>
         <div>
@@ -69,7 +69,7 @@ const SubjectCard: React.FC<SubjectCardProps> = ({
             Experience
           </p>
           <p className="text-2xl font-black tracking-tighter">
-            {years_of_experience}
+            {yearsOfExperience}
             <span className="text-xs font-bold text-muted-foreground ml-1">yrs</span>
           </p>
         </div>

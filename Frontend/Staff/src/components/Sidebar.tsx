@@ -23,7 +23,7 @@ export default function Sidebar() {
     );
   }
 
-  const accessibleRoutes = getAccessibleRoutes(user.permissions, user.is_superuser);
+  const accessibleRoutes = getAccessibleRoutes(user.permissions, user.isSuperuser);
 
   return (
     <nav className="flex flex-col gap-2 p-4 border-r border-border bg-card">

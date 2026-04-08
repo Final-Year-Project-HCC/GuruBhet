@@ -8,35 +8,35 @@ export interface StudyLevel {
   id: string;
   name: string;
   description?: string;
-  created_at?: string;
-  updated_at?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface BoardStudyLevelAssociation {
   id: string;
-  board_id: string;
-  study_level_id: string;
+  boardId: string;
+  studyLevelId: string;
 }
 
 export interface Board {
   id: string;
   name: string;
-  study_levels?: StudyLevel[];
+  studyLevels?: StudyLevel[];
   description?: string;
-  created_at?: string;
-  updated_at?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface Faculty {
   id: string;
   name: string;
   board: Board;
-  board_id: string;
+  boardId: string;
   description?: string;
-  unit_type: UnitType; // GRADE, SEMESTER, YEAR, etc.
-  total_units: number;
-  created_at?: string;
-  updated_at?: string;
+  unitType: UnitType; // GRADE, SEMESTER, YEAR, etc.
+  totalUnits: number;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export enum UnitType {
@@ -49,26 +49,26 @@ export enum UnitType {
 export interface Subject {
   id: string;
   name: string;
-  study_level: StudyLevel;
-  study_level_id: string;
+  studyLevel: StudyLevel;
+  studyLevelId: string;
   board: Board;
-  board_id: string;
+  boardId: string;
   faculty: Faculty;
-  faculty_id: string;
-  unit_value: number;
-  created_at?: string;
-  updated_at?: string;
+  facultyId: string;
+  unitValue: number;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface SubjectWithContext extends Subject {
-  full_context: string; // e.g., "Bachelor > Tribhuvan University > CSIT > Semester 5"
-  context_dict: {
-    study_level: string;
+  fullContext: string; // e.g., "Bachelor > Tribhuvan University > CSIT > Semester 5"
+  contextDict: {
+    studyLevel: string;
     board: string;
     faculty: string;
-    unit_value: number;
-    unit_type: string;
-    total_units: number;
+    unitValue: number;
+    unitType: string;
+    totalUnits: number;
   };
 }
 
@@ -111,8 +111,8 @@ export interface User {
   userType: UserRole;
   isActive: boolean;
   emailVerified: boolean;
-  created_at?: string;
-  updated_at?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface StudentProfile {
@@ -120,8 +120,8 @@ export interface StudentProfile {
   userId: string;
   educationalLevel?: string;
   profilePictureUrl?: string;
-  created_at?: string;
-  updated_at?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 /**
@@ -133,39 +133,39 @@ export interface TeacherProfile {
   userId: string;
   bio?: string;
   qualification?: string;
-  years_of_experience: number;
-  profile_picture_url?: string;
-  verification_status: VerificationStatus;
-  avg_rating?: number;
-  rating_count?: number;
-  is_available: boolean;
-  created_at?: string;
-  updated_at?: string;
+  yearsOfExperience: number;
+  profilePictureUrl?: string;
+  verificationStatus: VerificationStatus;
+  avgRating?: number;
+  ratingCount?: number;
+  isAvailable: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface TeacherSubjectRead {
-  teacher_id: string;
-  subject_id: string;
-  rate_per_session: number;
-  years_of_experience: number;
-  total_sessions_completed: number;
-  avg_rating: number;
-  rating_count: number;
-  is_active: boolean;
+  teacherId: string;
+  subjectId: string;
+  ratePerSession: number;
+  yearsOfExperience: number;
+  totalSessionsCompleted: number;
+  avgRating: number;
+  ratingCount: number;
+  isActive: boolean;
   subject: Subject;
 }
 
 export interface TeacherSearchResult {
-  teacher_id: string;
-  subject_id: string;
-  rate_per_session: number;
-  years_of_experience: number;
-  avg_rating: number;
-  rating_count: number;
-  total_sessions_completed: number;
-  teacher_name: string;
-  teacher_headline?: string;
-  teacher_avatar_url?: string;
+  teacherId: string;
+  subjectId: string;
+  ratePerSession: number;
+  yearsOfExperience: number;
+  avgRating: number;
+  ratingCount: number;
+  totalSessionsCompleted: number;
+  teacherName: string;
+  teacherHeadline?: string;
+  teacherAvatarUrl?: string;
   subject: Subject;
 }
 

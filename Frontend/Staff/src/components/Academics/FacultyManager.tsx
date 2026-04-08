@@ -1,10 +1,12 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useState } from "react";
 import { useFetchStudyLevels, useFetchBoardsByStudyLevel } from "@/lib/useAcademics";
-import { useFetchFacultiesByHierarchy, useCreateFaculty } from "@/lib/useAcademics";
-import { Faculty, UnitType } from "@/lib/types";
-import { FiAlertCircle } from "react-icons/fi";
+import { useFetchFacultiesByHierarchy, useCreateFaculty, useDeleteFaculty } from "@/lib/useAcademics";
+import { Faculty, UnitType, Board } from "@/lib/types";
+import { DataTable } from "./DataTable";
+import { Modal } from "./Modal";
 
 const UNIT_TYPES: { value: UnitType; label: string; description: string }[] = [
   { value: "GRADE", label: "Grade", description: "For school education (Grade 1-12)" },
@@ -13,22 +15,26 @@ const UNIT_TYPES: { value: UnitType; label: string; description: string }[] = [
 ];
 
 export default function FacultyManager() {
-  const [showForm, setShowForm] = useState(false);
   const [selectedStudyLevelId, setSelectedStudyLevelId] = useState<string>("");
   const [selectedBoardId, setSelectedBoardId] = useState<string>("");
   const [newName, setNewName] = useState("");
   const [newDescription, setNewDescription] = useState("");
   const [selectedUnitType, setSelectedUnitType] = useState<UnitType>("SEMESTER");
   const [totalUnits, setTotalUnits] = useState("8");
+  const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; item: Faculty | null }>({
+    isOpen: false,
+    item: null,
+  });
 
-  const { data: levels, isLoading: levelsLoading } = useFetchStudyLevels();
-  const { data: boards, isLoading: boardsLoading } = useFetchBoardsByStudyLevel(
+  const { data: levels } = useFetchStudyLevels();
+  const { data: boards } = useFetchBoardsByStudyLevel(
     selectedStudyLevelId
   );
   const { data: faculties, isLoading: facultiesLoading, isError: facultiesError } =
     useFetchFacultiesByHierarchy(selectedStudyLevelId || null, selectedBoardId || null);
 
   const createMutation = useCreateFaculty();
+  const deleteMutation = useDeleteFaculty();
 
   const handleAddFaculty = () => {
     if (
@@ -39,12 +45,12 @@ export default function FacultyManager() {
       parseInt(totalUnits) >= 1
     ) {
       createMutation.mutate({
-        board_id: selectedBoardId,
-        study_level_id: selectedStudyLevelId,
+        boardId: selectedBoardId,
+        studyLevelId: selectedStudyLevelId,
         name: newName,
         description: newDescription || undefined,
-        unit_type: selectedUnitType,
-        total_units: parseInt(totalUnits),
+        unitType: selectedUnitType,
+        totalUnits: parseInt(totalUnits),
       });
       setNewName("");
       setNewDescription("");
@@ -53,10 +59,62 @@ export default function FacultyManager() {
     }
   };
 
-  const selectedLevel = levels?.find((l) => l.id === selectedStudyLevelId);
-  const selectedBoard = boards?.find((b) => b.id === selectedBoardId);
+  const handleDeleteConfirm = () => {
+    if (deleteModal.item) {
+      deleteMutation.mutate(deleteModal.item.id);
+    }
+  };
 
-  const isLoading = levelsLoading || boardsLoading || facultiesLoading;
+  const selectedLevel = levels?.find((l) => l.id === selectedStudyLevelId);
+  const selectedBoard = boards?.find((b: Board) => b.id === selectedBoardId);
+
+  const isFormEnabled = !!selectedStudyLevelId && !!selectedBoardId;
+
+  const columns = [
+    {
+      key: "name" as const,
+      label: "Faculty Name",
+      className: "font-medium",
+    },
+    {
+      key: "description" as const,
+      label: "Description",
+      render: (value: any) => (
+        value ? (
+          <span className="text-sm text-muted-foreground">{value}</span>
+        ) : (
+          <span className="text-sm text-muted-foreground italic">—</span>
+        )
+      ),
+    },
+    {
+      key: "unitType" as const,
+      label: "Structure",
+      render: (value: any) => (
+        <span className="text-sm">{value ?? "—"}</span>
+      ),
+    },
+    {
+      key: "totalUnits" as const,
+      label: "Total Units",
+      render: (value: any) => (
+        <span className="text-sm font-medium">{value ?? "—"}</span>
+      ),
+    },
+    {
+      key: "isActive" as const,
+      label: "Status",
+      render: (value: any) => (
+        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+          value === true
+            ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
+            : "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400"
+        }`}>
+          {value === true ? "Active" : "Inactive"}
+        </span>
+      ),
+    },
+  ];
 
   return (
     <div className="space-y-6">
@@ -67,12 +125,13 @@ export default function FacultyManager() {
         </p>
       </div>
 
-      <div className="border border-border rounded-lg p-4 bg-card space-y-4">
+      {/* Step 1: Hierarchy Selection */}
+      <div className="border border-border rounded-lg p-6 bg-card space-y-4">
         <h3 className="text-lg font-semibold text-foreground">Step 1: Select Study Level & Board</h3>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1">
+            <label className="block text-sm font-medium text-foreground mb-2">
               Study Level *
             </label>
             <select
@@ -93,7 +152,7 @@ export default function FacultyManager() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1">
+            <label className="block text-sm font-medium text-foreground mb-2">
               Board *
             </label>
             <select
@@ -103,7 +162,7 @@ export default function FacultyManager() {
               className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <option value="">Select a board...</option>
-              {boards?.map((board) => (
+              {boards?.map((board: Board) => (
                 <option key={board.id} value={board.id}>
                   {board.name}
                 </option>
@@ -111,190 +170,145 @@ export default function FacultyManager() {
             </select>
           </div>
         </div>
-
-        {selectedLevel && (
-          <p className="text-sm text-muted-foreground">
-            Showing faculties for <strong>{selectedLevel.name}</strong>
-            {selectedBoard && ` > ${selectedBoard.name}`}
-          </p>
-        )}
       </div>
 
-      {selectedStudyLevelId && selectedBoardId && (
-        <>
-          {!showForm ? (
-            <button
-              onClick={() => setShowForm(true)}
-              className="px-4 py-2.5 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors"
+      {/* Step 2: Creation Form - Always Visible But Disabled When Needed */}
+      <div className={`border border-border rounded-lg p-6 space-y-4 ${!isFormEnabled ? "opacity-60 pointer-events-none bg-muted/10" : "bg-card"}`}>
+        <h3 className="text-lg font-semibold text-foreground">Step 2: Create New Faculty</h3>
+        <div>
+          <label className="block text-sm font-medium text-foreground mb-2">
+            Faculty Name *
+          </label>
+          <input
+            type="text"
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            placeholder="e.g., CSIT, Science, Management, General"
+            disabled={!isFormEnabled}
+            className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-foreground mb-2">
+            Description (Optional)
+          </label>
+          <input
+            type="text"
+            value={newDescription}
+            onChange={(e) => setNewDescription(e.target.value)}
+            placeholder="Brief description of this faculty"
+            disabled={!isFormEnabled}
+            className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"
+          />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-2">
+              Unit Type *
+            </label>
+            <select
+              value={selectedUnitType}
+              onChange={(e) => setSelectedUnitType(e.target.value as UnitType)}
+              disabled={!isFormEnabled}
+              className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              + Add Faculty
-            </button>
-          ) : (
-            <div className="border border-border rounded-lg p-4 bg-card space-y-4">
-              <h3 className="text-lg font-semibold text-foreground">Step 2: Create New Faculty</h3>
-
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1">
-                  Faculty Name *
-                </label>
-                <input
-                  type="text"
-                  value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
-                  placeholder="e.g., CSIT, Science, Management, General"
-                  className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1">
-                  Description (Optional)
-                </label>
-                <textarea
-                  value={newDescription}
-                  onChange={(e) => setNewDescription(e.target.value)}
-                  placeholder="Brief description of this faculty"
-                  rows={2}
-                  className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">
-                    Unit Type *
-                  </label>
-                  <select
-                    value={selectedUnitType}
-                    onChange={(e) => setSelectedUnitType(e.target.value as UnitType)}
-                    className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                  >
-                    {UNIT_TYPES.map((type) => (
-                      <option key={type.value} value={type.value}>
-                        {type.label}
-                      </option>
-                    ))}
-                  </select>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {UNIT_TYPES.find((t) => t.value === selectedUnitType)?.description}
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">
-                    Total Units *
-                  </label>
-                  <input
-                    type="number"
-                    value={totalUnits}
-                    onChange={(e) => setTotalUnits(e.target.value)}
-                    min="1"
-                    placeholder="e.g., 8 for 8 semesters"
-                    className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Number of {selectedUnitType.toLowerCase()}s in this program
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex gap-2">
-                <button
-                  onClick={handleAddFaculty}
-                  disabled={
-                    createMutation.isPending ||
-                    !newName.trim() ||
-                    !totalUnits ||
-                    parseInt(totalUnits) < 1
-                  }
-                  className="px-4 py-2 bg-primary text-primary-foreground rounded-md font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {createMutation.isPending ? "Creating..." : "Create"}
-                </button>
-                <button
-                  onClick={() => {
-                    setShowForm(false);
-                    setNewName("");
-                    setNewDescription("");
-                    setTotalUnits("8");
-                    setSelectedUnitType("SEMESTER");
-                  }}
-                  className="px-4 py-2 bg-muted text-foreground rounded-md font-medium hover:bg-muted/80 transition-colors"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          )}
-
-          <div className="space-y-3">
-            <h3 className="text-lg font-semibold text-foreground">
-              {faculties?.length || 0} Facult{(faculties?.length || 0) !== 1 ? "ies" : "y"}
-            </h3>
-
-            {isLoading && (
-              <div className="flex items-center justify-center py-8">
-                <div className="text-muted-foreground">Loading faculties...</div>
-              </div>
-            )}
-
-            {facultiesError && (
-              <div className="p-4 bg-destructive/15 border border-destructive rounded-lg flex items-center gap-3">
-                <FiAlertCircle className="text-destructive" size={20} />
-                <span className="text-destructive">Failed to load faculties</span>
-              </div>
-            )}
-
-            {!isLoading && !facultiesError && faculties && faculties.length === 0 && (
-              <div className="p-8 text-center border border-dashed border-border rounded-lg">
-                <p className="text-muted-foreground">
-                  No faculties yet for {selectedLevel?.name} {" > "} {selectedBoard?.name}
-                </p>
-              </div>
-            )}
-
-            {!isLoading && faculties && faculties.length > 0 && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {faculties.map((faculty) => (
-                  <FacultyCard key={faculty.id} faculty={faculty} />
-                ))}
-              </div>
-            )}
+              {UNIT_TYPES.map((type) => (
+                <option key={type.value} value={type.value}>
+                  {type.label}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-muted-foreground mt-1">
+              {UNIT_TYPES.find((t) => t.value === selectedUnitType)?.description}
+            </p>
           </div>
-        </>
-      )}
 
-      {selectedStudyLevelId && selectedBoardId && (
-        <div className="p-4 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg">
-          <p className="text-sm text-blue-900 dark:text-blue-100">
-            💡 <strong>Next Step:</strong> After creating faculties, add subjects under the faculties.
-          </p>
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-2">
+              Total Units *
+            </label>
+            <input
+              type="number"
+              value={totalUnits}
+              onChange={(e) => setTotalUnits(e.target.value)}
+              min="1"
+              placeholder="e.g., 8 for 8 semesters"
+              disabled={!isFormEnabled}
+              className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Number of {selectedUnitType.toLowerCase()}s in this program
+            </p>
+          </div>
         </div>
-      )}
-    </div>
-  );
-}
 
-function FacultyCard({ faculty }: { faculty: Faculty }) {
-  return (
-    <div className="border border-border rounded-lg p-4 bg-card hover:border-primary transition-colors">
-      <div className="space-y-2">
-        <h4 className="font-semibold text-foreground">{faculty.name}</h4>
-        {faculty.description && (
-          <p className="text-sm text-muted-foreground">{faculty.description}</p>
-        )}
-        <div className="text-xs text-muted-foreground space-y-1">
-          <p>
-            <strong>Unit Type:</strong> {faculty.unit_type}
-          </p>
-          <p>
-            <strong>Total Units:</strong> {faculty.total_units}
-          </p>
-        </div>
-        {!faculty.is_active && (
-          <p className="text-xs text-destructive">Inactive</p>
-        )}
+        <button
+          onClick={handleAddFaculty}
+          disabled={
+            !isFormEnabled ||
+            createMutation.isPending ||
+            !newName.trim() ||
+            !totalUnits ||
+            parseInt(totalUnits) < 1
+          }
+          className="px-4 py-2.5 bg-primary text-primary-foreground rounded-md font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {createMutation.isPending ? "Creating..." : "+ Create Faculty"}
+        </button>
       </div>
+
+      {/* Data Table */}
+      {isFormEnabled && (
+        <div>
+          <h3 className="text-lg font-semibold text-foreground mb-4">
+            {faculties?.length || 0} Facult{(faculties?.length || 0) !== 1 ? "ies" : "y"}
+          </h3>
+
+          <DataTable<Faculty>
+            data={faculties}
+            columns={columns}
+            isLoading={facultiesLoading}
+            isError={facultiesError}
+            emptyStateText={`No faculties created yet for ${selectedLevel?.name} > ${selectedBoard?.name}`}
+            onDelete={(item) => setDeleteModal({ isOpen: true, item })}
+            showActions={true}
+          />
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={deleteModal.isOpen}
+        title="Delete Faculty"
+        description={`Are you sure you want to delete "${deleteModal.item?.name}"? This action cannot be undone.`}
+        isDangerous={true}
+        onClose={() => setDeleteModal({ isOpen: false, item: null })}
+        primaryButtonText="Delete"
+        primaryButtonLoading={deleteMutation.isPending}
+        onPrimaryAction={handleDeleteConfirm}
+        secondaryButtonText="Cancel"
+      />
+
+      {/* Data Table - Only Visible When Step 1 Complete */}
+      {isFormEnabled && (
+        <div>
+          <h3 className="text-lg font-semibold text-foreground mb-4">
+            Faculties for {selectedLevel?.name} | {selectedBoard?.name} ({faculties?.length || 0})
+          </h3>
+          
+          <DataTable<Faculty>
+            data={faculties}
+            columns={columns}
+            isLoading={facultiesLoading}
+            isError={facultiesError}
+            emptyStateText={`No faculties created yet for ${selectedLevel?.name} > ${selectedBoard?.name}. Create one using the form above.`}
+            onDelete={(item) => setDeleteModal({ isOpen: true, item })}
+            showActions={true}
+          />
+        </div>
+      )}
     </div>
   );
 }

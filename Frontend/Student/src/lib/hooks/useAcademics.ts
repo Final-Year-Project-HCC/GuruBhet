@@ -24,7 +24,7 @@ export const useBoards = (studyLevelId: string | null) => {
     queryKey: ['boards', studyLevelId],
     queryFn: async () => {
       const { data } = await apiClient.get<Board[]>('/academics/boards/', {
-        params: studyLevelId ? { study_level_id: studyLevelId } : {},
+        params: studyLevelId ? { studyLevelId } : {},
       });
       return data;
     },
@@ -41,7 +41,7 @@ export const useFaculties = (boardId: string | null) => {
     queryKey: ['faculties', boardId],
     queryFn: async () => {
       const { data } = await apiClient.get<Faculty[]>('/academics/faculties/', {
-        params: boardId ? { board_id: boardId } : {},
+        params: boardId ? { boardId } : {},
       });
       return data;
     },
@@ -51,26 +51,26 @@ export const useFaculties = (boardId: string | null) => {
 };
 
 /**
- * Helper function to construct full_context from a Subject
+ * Helper function to construct fullContext from a Subject
  */
 const constructFullContext = (subject: Subject): string => {
-  const studyLevelName = subject.study_level?.name || 'Unknown';
+  const studyLevelName = subject.studyLevel?.name || 'Unknown';
   const boardName = subject.board?.name || 'Unknown';
   const facultyName = subject.faculty?.name || 'Unknown';
-  const unitType = subject.faculty?.unit_type || 'Unit';
-  return `${studyLevelName} > ${boardName} > ${facultyName} > ${unitType} ${subject.unit_value}`;
+  const unitType = subject.faculty?.unitType || 'Unit';
+  return `${studyLevelName} > ${boardName} > ${facultyName} > ${unitType} ${subject.unitValue}`;
 };
 
 /**
- * Helper function to construct context_dict from a Subject
+ * Helper function to construct contextDict from a Subject
  */
 const constructContextDict = (subject: Subject) => ({
-  study_level: subject.study_level?.name || '',
+  studyLevel: subject.studyLevel?.name || '',
   board: subject.board?.name || '',
   faculty: subject.faculty?.name || '',
-  unit_value: subject.unit_value,
-  unit_type: subject.faculty?.unit_type || '',
-  total_units: subject.faculty?.total_units || 1,
+  unitValue: subject.unitValue,
+  unitType: subject.faculty?.unitType || '',
+  totalUnits: subject.faculty?.totalUnits || 1,
 });
 
 /**
@@ -85,11 +85,11 @@ export const useSubjectSearchSuggestions = (query: string, enabled: boolean = tr
         params: { search: query, limit: 10 },
       });
       
-      // Transform to SubjectWithContext by computing full_context
+      // Transform to SubjectWithContext by computing fullContext
       return data.map((subject) => ({
         ...subject,
-        full_context: constructFullContext(subject),
-        context_dict: constructContextDict(subject),
+        fullContext: constructFullContext(subject),
+        contextDict: constructContextDict(subject),
       })) as SubjectWithContext[];
     },
     enabled: enabled && query.length > 0,
@@ -122,7 +122,7 @@ export const useTeachersBySubject = (subjectId: string | null) => {
     queryKey: ['teachersBySubject', subjectId],
     queryFn: async () => {
       const { data } = await apiClient.get<TeacherSearchResult[]>('/teachers/search/', {
-        params: { subject_id: subjectId, limit: 50 },
+        params: { subjectId, limit: 50 },
       });
       return data;
     },

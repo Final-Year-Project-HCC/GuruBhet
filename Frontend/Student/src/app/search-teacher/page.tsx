@@ -19,7 +19,7 @@ export default function SearchTeacherPage() {
     setSelectedSubjectFromSearch(subject);
     // Navigate to teacher profile or show teachers for this subject
     router.push(
-      `/search-teacher?subject_id=${subject.id}&subject_name=${encodeURIComponent(subject.name)}`
+      `/search-teacher?subjectId=${subject.id}&subjectName=${encodeURIComponent(subject.name)}`
     );
   };
 
@@ -57,7 +57,7 @@ export default function SearchTeacherPage() {
                   Teachers for: {selectedSubjectFromSearch.name}
                 </h2>
                 <p className="text-sm text-muted-foreground mb-6">
-                  {selectedSubjectFromSearch.full_context}
+                  {selectedSubjectFromSearch.fullContext}
                 </p>
                 <p className="text-center text-muted-foreground py-12">
                   Teacher search results would load here based on the subject selection

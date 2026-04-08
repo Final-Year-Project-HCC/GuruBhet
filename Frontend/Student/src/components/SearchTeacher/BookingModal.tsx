@@ -25,7 +25,7 @@ const BookingModal: React.FC<BookingModalProps> = ({
   const [numberOfSessions, setNumberOfSessions] = useState(1);
   const [negotiatedRate, setNegotiatedRate] = useState<number | null>(null);
 
-  const currentRate = negotiatedRate !== null ? negotiatedRate : (teacherSubject?.rate_per_session || 0);
+  const currentRate = negotiatedRate !== null ? negotiatedRate : (teacherSubject?.ratePerSession || 0);
 
   const totalAmount = useMemo(() => {
     return currentRate * numberOfSessions;
@@ -114,7 +114,7 @@ const BookingModal: React.FC<BookingModalProps> = ({
                   Their Rate
                 </p>
                 <p className="text-lg font-black text-foreground">
-                  NPR <span className="text-primary text-xl">{teacherSubject.rate_per_session}</span>
+                  NPR <span className="text-primary text-xl">{teacherSubject.ratePerSession}</span>
                 </p>
               </div>
 
@@ -140,7 +140,7 @@ const BookingModal: React.FC<BookingModalProps> = ({
                       }
                     }}
                     disabled={isLoading}
-                    placeholder={teacherSubject.rate_per_session.toString()}
+                    placeholder={teacherSubject.ratePerSession.toString()}
                     min="0"
                     step="50"
                     className="w-full bg-surface border border-border rounded-lg pr-3 pl-12 py-3.5 text-base font-bold outline-none focus:ring-2 focus:ring-primary/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
@@ -193,7 +193,7 @@ const BookingModal: React.FC<BookingModalProps> = ({
                   {numberOfSessions}×NPR {currentRate}
                 </p>
               </div>
-              {negotiatedRate !== null && negotiatedRate !== teacherSubject.rate_per_session && (
+              {negotiatedRate !== null && negotiatedRate !== teacherSubject.ratePerSession && (
                 <p className="text-xs font-semibold text-primary mt-2 pt-2 border-t border-primary/30">
                   Counter: NPR {negotiatedRate}
                 </p>
