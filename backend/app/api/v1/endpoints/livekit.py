@@ -1,32 +1,33 @@
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Header, Request
-from livekit.api import WebhookReceiver, TokenVerifier
+from fastapi import APIRouter, Header, Query, Request
+from livekit.api import TokenVerifier, WebhookReceiver
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
 from app.core.config import settings
 from app.core.dependencies import DbSession
-from app.core.enums import SessionStatus, BookingStatus
+from app.core.enums import SessionStatus
 from app.core.exceptions import InvalidTokenError
-from app.models.booking import Session, Booking
+from app.models.booking import Booking, Session
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
 
-def _session_id_from_room(room_name: str) -> str | None:
+def _session_id_from_room(room_name: Annotated[str, Query(..., alias="roomName")]) -> str | None:
     if room_name.startswith("session-"):
-        return room_name[len("session-"):]
+        return room_name[len("session-") :]
     return None
 
 
 async def _get_session_and_booking(
     db: DbSession,
-    room_name: str,
+    room_name: Annotated[str, Query(..., alias="roomName")],
 ) -> tuple[Session, Booking] | tuple[None, None]:
     if not _session_id_from_room(room_name):
         return None, None
@@ -39,8 +40,6 @@ async def _get_session_and_booking(
     if not session:
         return None, None
     return session, session.booking
-
-
 
 
 _receiver = WebhookReceiver(
@@ -71,7 +70,7 @@ async def livekit_webhook(
     except Exception:
         raise InvalidTokenError(detail="Invalid LiveKit webhook signature")
 
-    now = datetime.now(tz=timezone.utc)
+    now = datetime.now(tz=UTC)
 
     # ── room_started ──────────────────────────────────────────────────────────
     if event.event == "room_started" and event.room:
@@ -93,7 +92,7 @@ async def livekit_webhook(
             return {"status": "ignored"}
 
         try:
-            user_id = UUID(identity[len("user-"):])
+            user_id = UUID(identity[len("user-") :])
         except ValueError:
             return {"status": "ignored"}
 

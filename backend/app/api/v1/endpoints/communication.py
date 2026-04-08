@@ -6,7 +6,7 @@ This module implements the HTTP-to-Socket flow:
      - Save message to PostgreSQL database
      - Emit real-time notification via Socket.IO
      - Return message ID to client
-  
+
   2. POST /booking-requests - HTTP endpoint to send booking request
      - Validate JWT
      - Create booking request (or session request)
@@ -14,28 +14,30 @@ This module implements the HTTP-to-Socket flow:
      - Emit notification to recipient
      - Return request ID and status
 """
+
 import logging
+from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, status
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import APIRouter, Depends, Path, status
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.endpoints.auth import get_current_user_id
-from app.db.session import get_async_session
-from app.models.communication import Message
-from app.models.booking import Booking, Session as SessionModel, BookingStatus, SessionStatus
-from app.models.user import User
-from app.schemas.communication import MessageCreate, MessageResponse
-from app.schemas.booking import BookingCreate, BookingResponse
-from app.services.communication import CommunicationService, NotificationService
-from app.core.socketio import socketio_manager
 from app.core.exceptions import (
-    ValidationError,
-    UserNotFoundError,
     BookingNotFoundError,
     PermissionDeniedError,
+    UserNotFoundError,
+    ValidationError,
 )
+from app.core.socketio import socketio_manager
+from app.db.session import get_async_session
+from app.models.booking import Booking, BookingStatus
+from app.models.communication import Message
+from app.models.user import User
+from app.schemas.booking import BookingCreate
+from app.schemas.communication import MessageCreate, MessageResponse
+from app.services.communication import CommunicationService, NotificationService
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +48,7 @@ router = APIRouter()
 # Message Endpoints
 # ───────────────────────────────────────────────────────────────────────────────
 
+
 @router.post("/messages", response_model=MessageResponse, status_code=status.HTTP_201_CREATED)
 async def send_message(
     message_create: MessageCreate,
@@ -54,22 +57,22 @@ async def send_message(
 ) -> MessageResponse:
     """
     Send a message from current user to a recipient.
-    
+
     Database-First Flow:
       1. Validate request
       2. Verify recipient exists
       3. Save message to PostgreSQL
       4. Emit Socket.IO event to recipient
       5. Return 201 Created with message details
-    
+
     Args:
         message_create: MessageCreate schema with receiver_id, content, etc.
         current_user_id: UUID of authenticated user (from JWT)
         db: Async database session
-        
+
     Returns:
         MessageResponse with created message ID and timestamp
-        
+
     Raises:
         HTTPException 400: If content is empty or validation fails
         HTTPException 404: If receiver doesn't exist
@@ -80,17 +83,15 @@ async def send_message(
         if message_create.receiver_id == current_user_id:
             raise ValidationError(
                 detail="Cannot send message to yourself",
-                context={"receiver_id": str(message_create.receiver_id)}
+                context={"receiver_id": str(message_create.receiver_id)},
             )
-        
-        result = await db.execute(
-            select(User).where(User.id == message_create.receiver_id)
-        )
+
+        result = await db.execute(select(User).where(User.id == message_create.receiver_id))
         receiver = result.scalar_one_or_none()
-        
+
         if not receiver:
             raise UserNotFoundError(user_id=str(message_create.receiver_id))
-        
+
         # Save message to database (Database-First)
         message = await CommunicationService.save_and_send_message(
             db=db,
@@ -104,12 +105,14 @@ async def send_message(
             session_id=message_create.session_id,
             socketio_manager=socketio_manager,
         )
-        
+
         # Commit transaction
         await db.commit()
-        
-        logger.info(f"Message {message.id} sent from {current_user_id} to {message_create.receiver_id}")
-        
+
+        logger.info(
+            f"Message {message.id} sent from {current_user_id} to {message_create.receiver_id}"
+        )
+
         return MessageResponse(
             id=message.id,
             sender_id=message.sender_id,
@@ -123,27 +126,21 @@ async def send_message(
             created_at=message.created_at,
             read_at=message.read_at,
         )
-    
+
     except ValidationError:
         raise
     except ValidationError as e:
         logger.warning(f"Validation error in send_message: {e}")
-        raise ValidationError(
-            detail=str(e),
-            context={"error_type": "validation"}
-        )
+        raise ValidationError(detail=str(e), context={"error_type": "validation"})
     except Exception as e:
         logger.error(f"Error sending message: {e}", exc_info=True)
         await db.rollback()
-        raise ValidationError(
-            detail="Failed to send message",
-            context={"error_type": "unknown"}
-        )
+        raise ValidationError(detail="Failed to send message", context={"error_type": "unknown"})
 
 
 @router.get("/messages/{user_id}")
 async def get_conversation(
-    user_id: UUID,
+    user_id: Annotated[UUID, Path(..., alias="userId")],
     current_user_id: UUID = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_async_session),
     limit: int = 50,
@@ -151,14 +148,14 @@ async def get_conversation(
 ) -> dict:
     """
     Retrieve conversation between current user and another user.
-    
+
     Args:
         user_id: UUID of the conversation participant
         current_user_id: UUID of authenticated user
         db: Async database session
         limit: Number of messages to retrieve (default 50)
         offset: Pagination offset (default 0)
-        
+
     Returns:
         dict with messages list and pagination info
     """
@@ -166,17 +163,15 @@ async def get_conversation(
         result = await db.execute(
             select(Message)
             .where(
-                (
-                    ((Message.sender_id == current_user_id) & (Message.receiver_id == user_id))
-                    | ((Message.sender_id == user_id) & (Message.receiver_id == current_user_id))
-                )
+                ((Message.sender_id == current_user_id) & (Message.receiver_id == user_id))
+                | ((Message.sender_id == user_id) & (Message.receiver_id == current_user_id))
             )
             .order_by(Message.created_at.desc())
             .limit(limit)
             .offset(offset)
         )
         messages = result.scalars().all()
-        
+
         return {
             "messages": [
                 MessageResponse(
@@ -201,14 +196,14 @@ async def get_conversation(
     except Exception as e:
         logger.error(f"Error retrieving conversation: {e}", exc_info=True)
         raise ValidationError(
-            detail="Failed to retrieve conversation",
-            context={"error_type": "database"}
+            detail="Failed to retrieve conversation", context={"error_type": "database"}
         )
 
 
 # ───────────────────────────────────────────────────────────────────────────────
 # Booking Request Endpoints
 # ───────────────────────────────────────────────────────────────────────────────
+
 
 @router.post("/booking-requests", response_model=dict, status_code=status.HTTP_201_CREATED)
 async def create_booking_request(
@@ -218,36 +213,34 @@ async def create_booking_request(
 ) -> dict:
     """
     Create a booking request (student requests teacher for sessions).
-    
+
     Database-First Flow:
       1. Validate student and teacher exist
       2. Create Booking with status = PENDING_APPROVAL
       3. Persist to PostgreSQL
       4. Emit notification to teacher
       5. Return booking details
-    
+
     Args:
         booking_create: BookingCreate schema
         current_user_id: UUID of authenticated user (student)
         db: Async database session
-        
+
     Returns:
         dict with booking ID and status
-        
+
     Raises:
         HTTPException 400: If validation fails
         HTTPException 404: If teacher or subject not found
     """
     try:
         # Verify teacher exists
-        result = await db.execute(
-            select(User).where(User.id == booking_create.teacher_id)
-        )
+        result = await db.execute(select(User).where(User.id == booking_create.teacher_id))
         teacher = result.scalar_one_or_none()
-        
+
         if not teacher:
             raise UserNotFoundError(user_id=str(booking_create.teacher_id))
-        
+
         # Create booking with PENDING_APPROVAL status
         booking = Booking(
             student_id=current_user_id,
@@ -260,12 +253,14 @@ async def create_booking_request(
             escrow_amount=booking_create.rate_per_session * booking_create.total_sessions,
             status=BookingStatus.PENDING_APPROVAL,
         )
-        
+
         db.add(booking)
         await db.flush()
-        
-        logger.info(f"Booking {booking.id} created: student={current_user_id}, teacher={booking_create.teacher_id}")
-        
+
+        logger.info(
+            f"Booking {booking.id} created: student={current_user_id}, teacher={booking_create.teacher_id}"
+        )
+
         # Emit notification to teacher
         await NotificationService.create_and_emit_notification(
             db=db,
@@ -282,10 +277,10 @@ async def create_booking_request(
                 "total_amount": str(booking.total_amount),
             },
         )
-        
+
         # Commit transaction
         await db.commit()
-        
+
         return {
             "id": str(booking.id),
             "status": booking.status.value,
@@ -293,67 +288,62 @@ async def create_booking_request(
             "total_amount": str(booking.total_amount),
             "created_at": booking.created_at.isoformat() if booking.created_at else None,
         }
-    
+
     except UserNotFoundError:
         raise
     except Exception as e:
         logger.error(f"Error creating booking request: {e}", exc_info=True)
         await db.rollback()
         raise ValidationError(
-            detail="Failed to create booking request",
-            context={"error_type": "database"}
+            detail="Failed to create booking request", context={"error_type": "database"}
         )
 
 
 @router.post("/booking-requests/{booking_id}/approve", status_code=status.HTTP_200_OK)
 async def approve_booking_request(
-    booking_id: UUID,
+    booking_id: Annotated[UUID, Path(..., alias="bookingId")],
     current_user_id: UUID = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_async_session),
 ) -> dict:
     """
     Teacher approves a booking request.
-    
+
     Database-First Flow:
       1. Verify booking exists and current user is the teacher
       2. Update booking status to PENDING_PAYMENT
       3. Persist change
       4. Emit notification to student
       5. Return updated booking status
-    
+
     Args:
         booking_id: UUID of booking to approve
         current_user_id: UUID of authenticated user (teacher)
         db: Async database session
-        
+
     Returns:
         dict with booking status and next steps
-        
+
     Raises:
         HTTPException 404: If booking not found
         HTTPException 403: If not the teacher of this booking
     """
     try:
-        result = await db.execute(
-            select(Booking).where(Booking.id == booking_id)
-        )
+        result = await db.execute(select(Booking).where(Booking.id == booking_id))
         booking = result.scalar_one_or_none()
-        
+
         if not booking:
             raise BookingNotFoundError(booking_id=str(booking_id))
-        
+
         # Verify current user is the teacher
         if booking.teacher_id != current_user_id:
-            raise PermissionDeniedError(
-                detail="You are not authorized to approve this booking"
-            )
-        
+            raise PermissionDeniedError(detail="You are not authorized to approve this booking")
+
         # Update status
         booking.status = BookingStatus.PENDING_PAYMENT
         booking.teacher_approved_at = logging.datetime.utcnow()
-        
+
         await db.flush()
-        
+
         # Emit notification to student
         await NotificationService.create_and_emit_notification(
             db=db,
@@ -365,75 +355,70 @@ async def approve_booking_request(
             booking_id=booking.id,
             sender_id=current_user_id,
         )
-        
+
         await db.commit()
-        
+
         logger.info(f"Booking {booking_id} approved by teacher {current_user_id}")
-        
+
         return {
             "id": str(booking.id),
             "status": booking.status.value,
             "message": "Booking approved. Please proceed with payment.",
         }
-    
+
     except ValidationError:
         raise
     except Exception as e:
         logger.error(f"Error approving booking: {e}", exc_info=True)
         await db.rollback()
         raise ValidationError(
-            detail="Failed to approve booking",
-            context={"error_type": "database"}
+            detail="Failed to approve booking", context={"error_type": "database"}
         )
 
 
 @router.post("/booking-requests/{booking_id}/reject", status_code=status.HTTP_200_OK)
 async def reject_booking_request(
-    booking_id: UUID,
+    booking_id: Annotated[UUID, Path(..., alias="bookingId")],
     rejection_reason: str,
     current_user_id: UUID = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_async_session),
 ) -> dict:
     """
     Teacher rejects a booking request.
-    
+
     Database-First Flow:
       1. Verify booking exists and current user is the teacher
       2. Update booking status to CANCELLED_BY_TEACHER
       3. Store rejection reason
       4. Emit notification to student
       5. Return rejection confirmation
-    
+
     Args:
         booking_id: UUID of booking to reject
         rejection_reason: Reason for rejection
         current_user_id: UUID of authenticated user (teacher)
         db: Async database session
-        
+
     Returns:
         dict with rejection confirmation
     """
     try:
-        result = await db.execute(
-            select(Booking).where(Booking.id == booking_id)
-        )
+        result = await db.execute(select(Booking).where(Booking.id == booking_id))
         booking = result.scalar_one_or_none()
-        
+
         if not booking:
             raise BookingNotFoundError(booking_id=str(booking_id))
-        
+
         if booking.teacher_id != current_user_id:
-            raise PermissionDeniedError(
-                detail="You are not authorized to reject this booking"
-            )
-        
+            raise PermissionDeniedError(detail="You are not authorized to reject this booking")
+
         # Update booking status
         booking.status = BookingStatus.CANCELLED_BY_TEACHER
         booking.cancellation_reason = rejection_reason
         booking.cancelled_at = logging.datetime.utcnow()
-        
+
         await db.flush()
-        
+
         # Emit notification to student
         await NotificationService.create_and_emit_notification(
             db=db,
@@ -445,17 +430,17 @@ async def reject_booking_request(
             booking_id=booking.id,
             sender_id=current_user_id,
         )
-        
+
         await db.commit()
-        
+
         logger.info(f"Booking {booking_id} rejected by teacher {current_user_id}")
-        
+
         return {
             "id": str(booking.id),
             "status": booking.status.value,
             "message": "Booking rejected",
         }
-    
+
     except BookingNotFoundError:
         raise
     except PermissionDeniedError:
@@ -463,7 +448,4 @@ async def reject_booking_request(
     except Exception as e:
         logger.error(f"Error rejecting booking: {e}", exc_info=True)
         await db.rollback()
-        raise ValidationError(
-            detail="Failed to reject booking",
-            context={"error_type": "database"}
-        )
+        raise ValidationError(detail="Failed to reject booking", context={"error_type": "database"})

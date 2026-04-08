@@ -1,31 +1,38 @@
-from fastapi import APIRouter, status, Request
-from fastapi import Response, Header
+from typing import Annotated
+
+from fastapi import APIRouter, Header, Query, Request, Response, status
 from sqlalchemy.exc import IntegrityError
 
-from app.core.dependencies import DbSession, CurrentUser
+from app.core.config import settings
+from app.core.dependencies import CurrentUser, DbSession
+from app.core.enums import UserRole
 from app.core.exceptions import (
     EmailAlreadyRegisteredError,
-    PhoneAlreadyRegisteredError,
     InvalidCredentialsError,
-    PermissionDeniedError,
-    MissingTokenError,
     InvalidTokenError,
+    MissingTokenError,
+    PermissionDeniedError,
+    PhoneAlreadyRegisteredError,
     UserDisabledError,
 )
 from app.core.security import (
-    hash_password, verify_password,
-    create_access_token, create_refresh_token, decode_token,
+    create_access_token,
+    create_refresh_token,
+    decode_token,
+    hash_password,
+    verify_password,
 )
-from app.core.enums import UserRole
-from app.core.config import settings
-from app.models.user import User
+from app.db.redis import blacklist_jti, is_jti_blacklisted
 from app.models.student import StudentProfile
 from app.models.teacher import TeacherProfile
+from app.models.user import User
 from app.repositories.user_repo import UserRepository
-from app.db.redis import blacklist_jti, is_jti_blacklisted
-from datetime import datetime, timezone
-from jose import JWTError
-from app.schemas.auth import RegisterRequest, LoginRequest, RefreshRequest, LoginResponse, RefreshResponse
+from app.schemas.auth import (
+    LoginRequest,
+    LoginResponse,
+    RefreshResponse,
+    RegisterRequest,
+)
 from app.schemas.user import UserRead
 
 router = APIRouter()
@@ -35,13 +42,14 @@ router = APIRouter()
 
 from urllib.parse import urlparse
 
+
 def get_subdomain(request: Request) -> str | None:
     """
     Extracts subdomain from Origin header (browser) or Host header (fallback).
     """
     # 1. Try Origin first (this is where the frontend lives)
     raw_origin = request.headers.get("origin")
-    
+
     if raw_origin:
         # urlparse handles 'https://teacher.gurubhet.tech' -> 'teacher.gurubhet.tech'
         host = urlparse(raw_origin).netloc
@@ -50,45 +58,48 @@ def get_subdomain(request: Request) -> str | None:
         host = request.headers.get("host", "")
 
     # Remove port if present
-    host = host.split(':')[0]
-    
+    host = host.split(":")[0]
+
     # Development bypass
-    if not host or host in ('localhost', '127.0.0.1'):
+    if not host or host in ("localhost", "127.0.0.1"):
         return None
-    
+
     # Logic to identify the 'api' subdomain specifically from the Host
     # if Origin wasn't provided, but we don't want to block internal API calls
     if host.startswith("api."):
         return "api"
 
-    parts = host.split('.')
+    parts = host.split(".")
     # gurubhet.tech (2 parts) -> ""
     # teacher.gurubhet.tech (3 parts) -> "teacher"
     if len(parts) >= 3:
         return parts[0]
-    
+
     return ""
 
-def validate_subdomain_matches_role(request: Request, user_role: UserRole) -> None:
+
+def validate_subdomain_matches_role(
+    request: Request, user_role: Annotated[UserRole, Query(..., alias="userRole")]
+) -> None:
     subdomain = get_subdomain(request)
-    
+
     # Localhost / Dev bypass
     if subdomain is None:
         return
-    
+
     # IMPORTANT: We allow the 'api' bypass for Swagger UI and server-to-server calls.
     # If a generic browser is used on a real frontend, Origin will be 'teacher.gurubhet.tech' etc.
-    if subdomain == 'api':
+    if subdomain == "api":
         return
-    
+
     # Normalized role string (e.g., 'teacher', 'student', 'staff')
     role_str = user_role.value.lower()
-    
+
     # 1. Student Logic (Root domain "" or "student" subdomain)
     if role_str == "student":
         if subdomain in ("", "student"):
             return
-            
+
     # 2. Teacher/Staff Logic (Strict subdomain match)
     elif role_str == subdomain:
         return
@@ -97,14 +108,14 @@ def validate_subdomain_matches_role(request: Request, user_role: UserRole) -> No
     # If student is on 'teacher.gurubhet.tech' or teacher is on 'staff.gurubhet.tech'
     correct_sub = "www" if role_str == "student" else role_str
     correct_url = f"https://{correct_sub}.{settings.DOMAIN_NAME}"
-    
+
     raise PermissionDeniedError(
         detail=f"Wrong website for {user_role.value}s. Go to {correct_url} instead",
         context={
             "expected": role_str,
             "actual": subdomain or "root",
             "correct_url": correct_url,
-        }
+        },
     )
 
 
@@ -113,7 +124,7 @@ async def register(body: RegisterRequest, db: DbSession):
     repo = UserRepository(db)
     if await repo.email_exists(body.email):
         raise EmailAlreadyRegisteredError(email=body.email)
-    
+
     if await repo.phone_exists(body.phone):
         raise PhoneAlreadyRegisteredError(phone=body.phone)
 
@@ -127,7 +138,7 @@ async def register(body: RegisterRequest, db: DbSession):
         role=UserRole(body.role),
     )
     db.add(user)
-    
+
     try:
         await db.flush()
     except IntegrityError:
@@ -156,11 +167,19 @@ async def login(body: LoginRequest, db: DbSession, response: Response, request: 
     # Validate subdomain matches user role
     validate_subdomain_matches_role(request, user.role)
 
-    access = create_access_token(user_id=str(user.id), role=user.role.value, permissions=user.permissions, is_superuser=user.is_superuser)
+    access = create_access_token(
+        user_id=str(user.id),
+        role=user.role.value,
+        permissions=user.permissions,
+        is_superuser=user.is_superuser,
+    )
     refresh = create_refresh_token(str(user.id))
 
-
-    sameSitePolicy = "lax" if (settings.ENVIRONMENT=="production" or settings.ENVIRONMENT == "development2") else "none"
+    sameSitePolicy = (
+        "lax"
+        if (settings.ENVIRONMENT == "production" or settings.ENVIRONMENT == "development2")
+        else "none"
+    )
     securePolicy = False if settings.ENVIRONMENT == "development2" else True
     # Set tokens as HttpOnly cookies with SameSite=Lax
     response.set_cookie(
@@ -168,7 +187,7 @@ async def login(body: LoginRequest, db: DbSession, response: Response, request: 
         access,
         httponly=True,
         samesite=sameSitePolicy,
-        secure= securePolicy,
+        secure=securePolicy,
         max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         path="/",
     )
@@ -185,7 +204,12 @@ async def login(body: LoginRequest, db: DbSession, response: Response, request: 
 
 
 @router.post("/refresh", response_model=RefreshResponse)
-async def refresh(db: DbSession, response: Response, request: Request, x_refresh_token: str = Header(None, alias="x-refresh-token")):
+async def refresh(
+    db: DbSession,
+    response: Response,
+    request: Request,
+    x_refresh_token: str = Header(None, alias="x-refresh-token"),
+):
     if not x_refresh_token:
         raise MissingTokenError()
     try:
@@ -217,10 +241,19 @@ async def refresh(db: DbSession, response: Response, request: Request, x_refresh
         await blacklist_jti(jti, int(exp))
 
     # Issue new pair
-    access = create_access_token(user_id=str(user.id), role=user.role.value, permissions=user.permissions, is_superuser=user.is_superuser)
+    access = create_access_token(
+        user_id=str(user.id),
+        role=user.role.value,
+        permissions=user.permissions,
+        is_superuser=user.is_superuser,
+    )
     refresh = create_refresh_token(str(user.id))
 
-    sameSitePolicy = "lax" if (settings.ENVIRONMENT=="production" or settings.ENVIRONMENT == "development2") else "none"
+    sameSitePolicy = (
+        "lax"
+        if (settings.ENVIRONMENT == "production" or settings.ENVIRONMENT == "development2")
+        else "none"
+    )
     securePolicy = False if settings.ENVIRONMENT == "development2" else True
     response.set_cookie(
         "access_token",
@@ -244,7 +277,9 @@ async def refresh(db: DbSession, response: Response, request: Request, x_refresh
 
 
 @router.post("/logout")
-async def logout(db: DbSession, response: Response, x_refresh_token: str = Header(None, alias="x-refresh-token")):
+async def logout(
+    db: DbSession, response: Response, x_refresh_token: str = Header(None, alias="x-refresh-token")
+):
     """Blacklist presented refresh token (if any) and clear cookies."""
     if not x_refresh_token:
         # still clear cookies client-side

@@ -1,10 +1,9 @@
 from fastapi import APIRouter
-from sqlalchemy import select
 
-from app.core.dependencies import DbSession, CurrentUser
+from app.core.dependencies import CurrentUser, DbSession
 from app.core.exceptions import ValidationError
 from app.core.security import hash_password, verify_password
-from app.schemas.user import UserRead, PasswordChangeRequest
+from app.schemas.user import PasswordChangeRequest, UserRead
 
 router = APIRouter()
 
@@ -29,8 +28,7 @@ async def change_password(
     """Change password for any logged-in user."""
     if not verify_password(body.current_password, current_user.password_hash):
         raise ValidationError(
-            detail="Current password is incorrect",
-            context={"field": "current_password"}
+            detail="Current password is incorrect", context={"field": "current_password"}
         )
 
     current_user.password_hash = hash_password(body.new_password)

@@ -1,42 +1,45 @@
-from uuid import UUID
-from fastapi import APIRouter, status
 import hashlib
 import secrets
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
+from typing import Annotated
+from uuid import UUID
 
-from fastapi import HTTPException
+from fastapi import APIRouter, HTTPException, Path, status
 from sqlalchemy import select
 
-from app.models.invitation import StaffInvitation
-from app.core.security import hash_password
-from app.schemas.staff import StaffAcceptInviteSchema
-from app.tasks.notification_tasks import send_staff_invite_email
-
 from app.core.dependencies import DbSession, RequireStaffManage, RequireTeacherVerify
+from app.core.enums import AuditActionType, UserRole, VerificationStatus
 from app.core.exceptions import PermissionDeniedError, ResourceNotFoundError
-from app.models.user import User
+from app.core.security import hash_password
 from app.models.audit_log import AuditLog
-from app.core.enums import AuditActionType, UserRole
+from app.models.invitation import StaffInvitation
+from app.models.user import User
+from app.schemas.staff import (
+    StaffAcceptInviteSchema,
+    StaffInviteSchema,
+    StaffRead,
+    StaffUpdateSchema,
+)
 from app.schemas.user import TeacherProfileRead
-from app.core.enums import VerificationStatus
-from app.schemas.staff import StaffInviteSchema, StaffUpdateSchema, StaffRead
+from app.tasks.notification_tasks import send_staff_invite_email
 
 router = APIRouter()
 
 # ── Staff Management (Requires staff:manage) ───────────────────────────────
 
+
 @router.post("/invite", status_code=201)
 async def invite_staff(
-    body: StaffInviteSchema,
-    db: DbSession,
-    current_staff: User = RequireStaffManage
+    body: StaffInviteSchema, db: DbSession, current_staff: User = RequireStaffManage
 ):
     """
     [STAFF:MANAGE] Create an invite token for a new staff member.
     """
     # Hierarchy Rule #1: The Creation Paradox
     if "staff:manage" in body.permissions and not current_staff.is_superuser:
-        raise PermissionDeniedError(detail="Only a Superuser can grant the 'staff:manage' permission.")
+        raise PermissionDeniedError(
+            detail="Only a Superuser can grant the 'staff:manage' permission."
+        )
 
     # Check if user already exists
     existing_user = await db.scalar(select(User).where(User.email == body.email))
@@ -57,8 +60,8 @@ async def invite_staff(
         token_hash=token_hash,
         permissions=cleaned_permissions,
         is_superuser=grant_superuser,
-        expires_at=datetime.now(timezone.utc) + timedelta(days=7),
-        invited_by_id=current_staff.id
+        expires_at=datetime.now(UTC) + timedelta(days=7),
+        invited_by_id=current_staff.id,
     )
     db.add(invitation)
 
@@ -66,15 +69,20 @@ async def invite_staff(
     audit_log = AuditLog(
         actor_id=current_staff.id,
         action_type=AuditActionType.CREATE,
-        description=f"Generated staff invite for {body.email}"
+        description=f"Generated staff invite for {body.email}",
     )
     db.add(audit_log)
     await db.commit()
 
     # Send `raw_token` via Email asynchronously
     send_staff_invite_email.delay(email_to=body.email, raw_token=raw_token)
-    
-    return {"message": "Invite generated successfully", "email": body.email, "invite_token": raw_token}
+
+    return {
+        "message": "Invite generated successfully",
+        "email": body.email,
+        "invite_token": raw_token,
+    }
+
 
 @router.post("/accept-invite", status_code=status.HTTP_201_CREATED, response_model=StaffRead)
 async def accept_staff_invite(body: StaffAcceptInviteSchema, db: DbSession):
@@ -82,19 +90,19 @@ async def accept_staff_invite(body: StaffAcceptInviteSchema, db: DbSession):
     Public endpoint for staff to accept their invitation using the single-use token.
     """
     token_hash = hashlib.sha256(body.token.encode()).hexdigest()
-    
+
     # Find active invitation
     invitation = await db.scalar(
         select(StaffInvitation).where(
             StaffInvitation.token_hash == token_hash,
             StaffInvitation.is_used == False,
-            StaffInvitation.expires_at > datetime.now(timezone.utc)
+            StaffInvitation.expires_at > datetime.now(UTC),
         )
     )
-    
+
     if not invitation:
         raise HTTPException(status_code=400, detail="Invalid or expired invitation token.")
-        
+
     # Check if email was taken in the meantime
     existing_user = await db.scalar(select(User).where(User.email == invitation.email))
     if existing_user:
@@ -109,23 +117,24 @@ async def accept_staff_invite(body: StaffAcceptInviteSchema, db: DbSession):
         role=UserRole.STAFF,
         is_email_verified=True,  # Implies verified since it came via email invite
         is_superuser=invitation.is_superuser,
-        permissions=invitation.permissions
+        permissions=invitation.permissions,
     )
-    
+
     # Mark token as used
     invitation.is_used = True
-    
+
     db.add(new_staff)
     await db.commit()
     await db.refresh(new_staff)
     return new_staff
 
+
 @router.put("/management/{target_id}", response_model=StaffRead)
 async def update_staff_permissions(
-    target_id: UUID,
+    target_id: Annotated[UUID, Path(..., alias="targetId")],
     body: StaffUpdateSchema,
     db: DbSession,
-    current_staff: User = RequireStaffManage
+    current_staff: User = RequireStaffManage,
 ):
     """
     [STAFF:MANAGE] Update a staff member's permissions or active status.
@@ -133,14 +142,16 @@ async def update_staff_permissions(
     target_user = await db.scalar(select(User).where(User.id == target_id))
     if not target_user or target_user.role != UserRole.STAFF:
         raise ResourceNotFoundError(detail="Staff user not found.")
-    
+
     # Hierarchy Rule #2: Protection Axiom
     if target_user.is_superuser and current_staff.id != target_user.id:
         raise PermissionDeniedError(detail="You cannot modify a superuser profile.")
 
     # Hierarchy Rule #1 (Editing target): Superuser granting staff:manage
     if body.permissions and "staff:manage" in body.permissions and not current_staff.is_superuser:
-        raise PermissionDeniedError(detail="Only a Superuser can grant the 'staff:manage' permission.")
+        raise PermissionDeniedError(
+            detail="Only a Superuser can grant the 'staff:manage' permission."
+        )
 
     if body.permissions is not None:
         target_user.permissions = body.permissions
@@ -152,23 +163,26 @@ async def update_staff_permissions(
         actor_id=current_staff.id,
         action_type=AuditActionType.UPDATE,
         target_user_id=target_user.id,
-        description=f"Updated permissions for staff email {target_user.email}"
+        description=f"Updated permissions for staff email {target_user.email}",
     )
     db.add(audit_log)
     await db.flush()
 
     return target_user
 
+
 # ── Teacher Approvals (Requires teacher:verify) ───────────────────────────
+
 
 @router.get("/teachers/pending", response_model=list[TeacherProfileRead])
 async def list_pending_teachers(db: DbSession, current_staff: User = RequireTeacherVerify):
     """[TEACHER:VERIFY] list teachers awaiting document verification."""
     return []
 
+
 @router.post("/teachers/{teacher_id}/verify")
 async def verify_teacher(
-    teacher_id: UUID,
+    teacher_id: Annotated[UUID, Path(..., alias="teacherId")],
     status: VerificationStatus,
     db: DbSession,
     remarks: str | None = None,

@@ -1,7 +1,8 @@
 from decimal import Decimal
+from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Path, Query
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
@@ -32,11 +33,12 @@ router = APIRouter()
 # TODO: TEMPORARY ENDPOINT - Remove this after frontend integration with search
 #       This is a debug/development endpoint. In production, use /search with filters.
 
+
 @router.get("/", response_model=list[TeacherProfileRead])
 async def list_all_teachers(db: DbSession):
     """
     Fetch all registered teachers without authentication.
-    
+
     ⚠️  TEMPORARY ENDPOINT - For development/debugging only.
     Will be removed in production. Use /search endpoint for production queries.
     """
@@ -50,9 +52,10 @@ async def list_all_teachers(db: DbSession):
 
 # ── Public search (students use this) ────────────────────────────────────────
 
+
 @router.get("/search", response_model=list[TeacherSearchResult])
 async def search_teachers(
-    subject_id: UUID,
+    subject_id: Annotated[UUID, Path(..., alias="subjectId")],
     db: DbSession,
     min_rating: float = Query(default=0.0, ge=0.0, le=5.0),
     max_rate: Decimal | None = Query(default=None),
@@ -92,7 +95,7 @@ async def search_teachers(
 
 @router.get("/{subject_id}/search", response_model=list[TeacherSearchResult])
 async def search_teachers_by_subject(
-    subject_id: UUID,
+    subject_id: Annotated[UUID, Path(..., alias="subjectId")],
     db: DbSession,
     min_rating: float = Query(default=0.0, ge=0.0, le=5.0),
     min_years_of_experience: int = Query(default=0, ge=0),
@@ -107,7 +110,7 @@ async def search_teachers_by_subject(
       score = (avg_rating × 0.6) + (log(sessions_completed + 1) × 0.4)
     """
     repo = TeacherSubjectRepository(db)
-    
+
     # We will need to update the TeacherSubjectRepository search method or build the query directly here
     stmt = (
         select(TeacherSubject)
@@ -115,7 +118,7 @@ async def search_teachers_by_subject(
             selectinload(TeacherSubject.teacher).selectinload(TeacherProfile.user),
             selectinload(TeacherSubject.subject).selectinload(Subject.study_level),
             selectinload(TeacherSubject.subject).selectinload(Subject.board),
-            selectinload(TeacherSubject.subject).selectinload(Subject.faculty)
+            selectinload(TeacherSubject.subject).selectinload(Subject.faculty),
         )
         .where(TeacherSubject.subject_id == subject_id)
         .where(TeacherSubject.is_active == True)
@@ -130,13 +133,16 @@ async def search_teachers_by_subject(
 
     # Simplified scoring function using SQL math: (avg_rating * 0.6) + ln(total_sessions_completed + 1) * 0.4
     import sqlalchemy as sa
-    score_expr = (TeacherSubject.avg_rating * 0.6) + (sa.func.ln(TeacherSubject.total_sessions_completed + 1) * 0.4)
+
+    score_expr = (TeacherSubject.avg_rating * 0.6) + (
+        sa.func.ln(TeacherSubject.total_sessions_completed + 1) * 0.4
+    )
     stmt = stmt.order_by(score_expr.desc())
     stmt = stmt.limit(limit).offset(offset)
-    
+
     result = await db.execute(stmt)
     results = result.scalars().all()
-    
+
     return [
         TeacherSearchResult(
             teacher_id=ts.teacher_id,
@@ -157,6 +163,7 @@ async def search_teachers_by_subject(
 
 # ── Own profile (teacher only) ────────────────────────────────────────────────
 # Note: /me must be defined BEFORE /{teacher_id} to avoid UUID parsing conflicts
+
 
 @router.get("/me", response_model=TeacherProfileRead)
 async def get_my_profile(current_user: CurrentUser, db: DbSession):
@@ -203,6 +210,7 @@ async def update_my_profile(
 
 
 # ── Own bookings ──────────────────────────────────────────────────────────────
+
 
 @router.get("/me/sessions", response_model=list[TeacherSessionRead])
 async def get_my_sessions(
@@ -268,7 +276,7 @@ async def get_my_bookings(current_user: CurrentUser, db: DbSession):
         .options(
             selectinload(Booking.sessions),
             selectinload(Booking.student).selectinload(StudentProfile.user),
-            selectinload(Booking.subject)
+            selectinload(Booking.subject),
         )
         .where(Booking.teacher_id == current_user.id)
         .order_by(Booking.created_at.desc())
@@ -277,6 +285,7 @@ async def get_my_bookings(current_user: CurrentUser, db: DbSession):
 
 
 # ── Subject management ────────────────────────────────────────────────────────
+
 
 @router.get("/me/subjects", response_model=list[TeacherSubjectRead])
 async def list_my_subjects(current_user: CurrentUser, db: DbSession):
@@ -315,11 +324,14 @@ async def add_subject(
     )
     db.add(ts)
     await db.flush()
-    
+
     # Explicitly load the subject relationship before returning
     result = await db.execute(
         select(TeacherSubject)
-        .where((TeacherSubject.teacher_id == current_user.id) & (TeacherSubject.subject_id == body.subject_id))
+        .where(
+            (TeacherSubject.teacher_id == current_user.id)
+            & (TeacherSubject.subject_id == body.subject_id)
+        )
         .options(selectinload(TeacherSubject.subject))
     )
     ts = result.scalar_one()
@@ -329,7 +341,7 @@ async def add_subject(
 
 @router.patch("/me/subjects/{subject_id}", response_model=TeacherSubjectRead)
 async def update_subject(
-    subject_id: UUID,
+    subject_id: Annotated[UUID, Path(..., alias="subjectId")],
     body: TeacherSubjectCreate,
     current_user: CurrentUser,
     db: DbSession,
@@ -352,7 +364,7 @@ async def update_subject(
 
 @router.delete("/me/subjects/{subject_id}", status_code=204)
 async def remove_subject(
-    subject_id: UUID,
+    subject_id: Annotated[UUID, Path(..., alias="subjectId")],
     current_user: CurrentUser,
     db: DbSession,
 ):
@@ -372,16 +384,17 @@ async def remove_subject(
 # ── Public profile (viewable by anyone) ──────────────────────────────────────
 # Note: /{teacher_id} is defined LAST to avoid conflicts with /me and /search
 
+
 @router.get("/{teacher_id}", response_model=TeacherProfileRead)
-async def get_teacher_profile(teacher_id: UUID, db: DbSession):
+async def get_teacher_profile(
+    teacher_id: Annotated[UUID, Path(..., alias="teacherId")], db: DbSession
+):
     """
     Fetch a teacher's public profile.
     Accessible by any authenticated or unauthenticated user.
     Only shows approved teachers.
     """
-    result = await db.execute(
-        select(TeacherProfile).where(TeacherProfile.user_id == teacher_id)
-    )
+    result = await db.execute(select(TeacherProfile).where(TeacherProfile.user_id == teacher_id))
     profile = result.scalar_one_or_none()
     if not profile:
         raise TeacherNotFoundError(teacher_id=str(teacher_id))
