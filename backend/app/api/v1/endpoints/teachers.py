@@ -1,27 +1,29 @@
-from uuid import UUID
 from decimal import Decimal
+from uuid import UUID
 
 from fastapi import APIRouter, Query
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
-from app.core.dependencies import DbSession, CurrentUser
-from app.core.enums import UserRole
+from app.core.dependencies import CurrentUser, DbSession
+from app.core.enums import SessionStatus, UserRole
 from app.core.exceptions import (
-    PermissionDeniedError,
-    TeacherNotFoundError,
-    SubjectNotFoundError,
     ConflictError,
+    PermissionDeniedError,
+    SubjectNotFoundError,
+    TeacherNotFoundError,
 )
-from app.models.teacher import TeacherProfile
+from app.models.booking import Booking, Session
 from app.models.student import StudentProfile
-from app.models.booking import Booking
-from app.models.teacher_subject import TeacherSubject
 from app.models.subject import Subject
+from app.models.teacher import TeacherProfile
+from app.models.teacher_subject import TeacherSubject
+from app.models.user import User
 from app.repositories.teacher_subject_repo import TeacherSubjectRepository
-from app.schemas.user import TeacherProfileRead, TeacherProfileUpdate
+from app.schemas.booking import BookingDetailedReadForTeacher
+from app.schemas.session import TeacherSessionRead
 from app.schemas.subject import TeacherSearchResult, TeacherSubjectCreate, TeacherSubjectRead
-from app.schemas.booking import BookingRead, BookingDetailedReadForTeacher
+from app.schemas.user import TeacherProfileRead, TeacherProfileUpdate
 
 router = APIRouter()
 
@@ -201,6 +203,59 @@ async def update_my_profile(
 
 
 # ── Own bookings ──────────────────────────────────────────────────────────────
+
+@router.get("/me/sessions", response_model=list[TeacherSessionRead])
+async def get_my_sessions(
+    current_user: CurrentUser,
+    db: DbSession,
+    in_progress: bool = Query(default=True, description="Filter for in-progress sessions"),
+):
+    """
+    Return sessions for the logged-in teacher.
+    By default, only returns sessions with status IN_PROGRESS.
+    """
+    if current_user.role != UserRole.TEACHER:
+        raise PermissionDeniedError(detail="Only teachers can access this")
+
+    # Verify teacher profile exists
+    profile_result = await db.execute(
+        select(TeacherProfile).where(TeacherProfile.user_id == current_user.id)
+    )
+    if not profile_result.scalar_one_or_none():
+        raise TeacherNotFoundError(teacher_id=str(current_user.id))
+
+    query = (
+        select(
+            Session.id,
+            Session.booking_id,
+            Session.status,
+            User.first_name,
+            User.last_name,
+            Subject.name.label("subject_name"),
+        )
+        .join(Booking, Session.booking_id == Booking.id)
+        .join(User, Booking.student_id == User.id)
+        .join(Subject, Booking.subject_id == Subject.id)
+        .where(Booking.teacher_id == current_user.id)
+    )
+
+    if in_progress:
+        query = query.where(Session.status == SessionStatus.IN_PROGRESS)
+
+    result = await db.execute(query)
+    rows = result.all()
+
+    return [
+        {
+            "id": row.id,
+            "booking_id": row.booking_id,
+            "status": row.status,
+            "student_name": f"{row.first_name} {row.last_name}",
+            "subject_name": row.subject_name,
+        }
+        for row in rows
+    ]
+
 
 @router.get("/me/bookings", response_model=list[BookingDetailedReadForTeacher])
 async def get_my_bookings(current_user: CurrentUser, db: DbSession):

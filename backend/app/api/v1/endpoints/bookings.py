@@ -1,46 +1,50 @@
-from uuid import UUID
-from datetime import datetime, timezone, timedelta
-from decimal import Decimal
 import logging
+from datetime import UTC, datetime, timedelta
+from decimal import Decimal
+from uuid import UUID
+
 from fastapi import APIRouter, Request
 from sqlalchemy import select
 
-from app.core.dependencies import DbSession, CurrentUser
-from app.core.enums import BookingStatus, UserRole, SessionStatus
+from app.core.dependencies import CurrentUser, DbSession
+from app.core.enums import BookingStatus, SessionStatus, UserRole
 from app.core.exceptions import (
+    BookingConflictError,
+    BookingNotFoundError,
+    ExternalServiceError,
+    InvalidStatusTransitionError,
     PermissionDeniedError,
     SubjectNotFoundError,
-    BookingNotFoundError,
-    InvalidStatusTransitionError,
-    BookingConflictError,
-    ExternalServiceError,
-    LiveKitError,
     ValidationError,
 )
+from app.core.socketio import get_socketio_manager
 from app.models.booking import Booking, Session
+from app.models.communication import Message, MessageStatus, MessageType
 from app.models.subject import Subject
 from app.schemas.booking import (
+    BookingCancelRequest,
+    BookingRead,
     BookingRequestCreate,
-    BookingRead, BookingCancelRequest, LiveKitTokenResponse, SessionRead
+    LiveKitTokenResponse,
 )
 from app.schemas.payment import EsewaPaymentInitResponse
+from app.tasks.livekit_tasks import cleanup_expired_livekit_room
+from app.tasks.session_request_tasks import (
+    create_offline_notification_message,
+    create_session_request_message,
+    handle_session_request_timeout_task,
+)
 from app.utils.livekit import (
-    create_room, generate_room_token, 
-    set_pending_session_key, get_pending_session_key, clear_pending_session_key,
+    clear_pending_session_key,
+    create_room,
+    generate_room_token,
+    get_pending_session_key,
+    set_pending_session_key,
 )
 from app.utils.livekit_url import get_livekit_url_for_client
 from app.utils.presence import (
-    is_user_online, set_session_request_pending, get_session_request_pending,
-    clear_session_request_pending,
+    is_user_online,
 )
-from app.db.redis import cache_get, cache_set
-from app.models.communication import Message, MessageType, MessageStatus
-from app.tasks.session_request_tasks import (
-    create_session_request_message, create_offline_notification_message,
-    handle_session_request_timeout_task,
-)
-from app.tasks.livekit_tasks import cleanup_expired_livekit_room
-from app.core.socketio import get_socketio_manager
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -116,7 +120,7 @@ async def approve_booking_request(
         )
 
     booking.status = BookingStatus.PENDING_PAYMENT
-    booking.teacher_approved_at = datetime.now(tz=timezone.utc)
+    booking.teacher_approved_at = datetime.now(tz=UTC)
     await db.flush()
     await db.refresh(booking)
     return booking
@@ -223,7 +227,7 @@ async def request_session(booking_id: UUID, current_user: CurrentUser, db: DbSes
             context={"current_status": booking.status.value, "required_status": "ACTIVE"}
         )
     
-    # ── Check if a session is already in progress ──
+    # ── Check if a session is already in progress for this booking ──
     in_progress_session = await db.execute(
         select(Session).where(
             (Session.booking_id == booking_id) &
@@ -234,6 +238,32 @@ async def request_session(booking_id: UUID, current_user: CurrentUser, db: DbSes
         raise BookingConflictError(
             detail="A session is already in progress for this booking. Use /sync to reconnect.",
             context={"booking_id": str(booking_id), "conflict_type": "session_in_progress"}
+        )
+
+    # ── Check if teacher has an active session in ANY booking ──
+    teacher_active_session = await db.execute(
+        select(Session).join(Booking, Session.booking_id == Booking.id).where(
+            (Booking.teacher_id == current_user.id) &
+            (Session.status == SessionStatus.IN_PROGRESS)
+        )
+    )
+    if teacher_active_session.scalars().first():
+        raise BookingConflictError(
+            detail="You already have another session in progress. Please complete it before requesting a new one.",
+            context={"conflict_type": "teacher_session_in_progress"}
+        )
+
+    # ── Check if student has an active session in ANY booking ──
+    student_active_session = await db.execute(
+        select(Session).join(Booking, Session.booking_id == Booking.id).where(
+            (Booking.student_id == booking.student_id) &
+            (Session.status == SessionStatus.IN_PROGRESS)
+        )
+    )
+    if student_active_session.scalars().first():
+        raise BookingConflictError(
+            detail="The student is currently in another session.",
+            context={"conflict_type": "student_session_in_progress"}
         )
     
     # ── Step 2: Check completed sessions ──
@@ -312,7 +342,7 @@ async def request_session(booking_id: UUID, current_user: CurrentUser, db: DbSes
                 "session_number": completed + 1,
                 "total_sessions": booking.total_sessions,
                 "duration_minutes": booking.session_duration_minutes,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
                 "message": f"{current_user.full_name} has requested a session. You have 60 seconds to accept.",
             },
         )
@@ -407,8 +437,8 @@ async def accept_session_request(
         booking_id=booking.id,
         session_number=session_number,
         status=SessionStatus.READY,
-        teacher_initiated_at=datetime.now(tz=timezone.utc),
-        student_accepted_at=datetime.now(tz=timezone.utc),
+        teacher_initiated_at=datetime.now(tz=UTC),
+        student_accepted_at=datetime.now(tz=UTC),
     )
     db.add(session)
     await db.flush()
@@ -514,8 +544,8 @@ async def accept_session_request(
     
     # ── Emit Socket.IO event to teacher with their token ──
     try:
-        from app.core.socketio import get_socketio_manager
         from app.core.config import settings
+        from app.core.socketio import get_socketio_manager
         
         sio_manager = get_socketio_manager()
         if sio_manager:
@@ -653,7 +683,7 @@ async def reject_session_request(booking_id: UUID, current_user: CurrentUser, db
                 "booking_id": str(booking_id),
                 "student_id": str(current_user.id),
                 "student_name": current_user.full_name,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
                 "message": f"{current_user.full_name} has rejected your session request.",
             }
         )
@@ -807,14 +837,14 @@ async def sync_session(booking_id: UUID, current_user: CurrentUser, db: DbSessio
             allowed_end_time = session_end + timedelta(minutes=leniency_minutes)
             
             # Check if current time is within window + leniency
-            now = datetime.now(tz=timezone.utc)
+            now = datetime.now(tz=UTC)
             if now > allowed_end_time:
                 raise PermissionDeniedError(
                     detail=f"Session window expired. Window closed at {allowed_end_time.isoformat()}"
                 )
     
     # Record join timestamp if not already recorded
-    now = datetime.now(tz=timezone.utc)
+    now = datetime.now(tz=UTC)
     is_teacher = current_user.id == booking.teacher_id
     if is_teacher and not session.teacher_joined_at:
         session.teacher_joined_at = now
@@ -873,7 +903,7 @@ async def cancel_booking(
         booking.status = BookingStatus.CANCELLED_BY_TEACHER
  
     booking.cancellation_reason = body.reason
-    booking.cancelled_at = datetime.now(tz=timezone.utc)
+    booking.cancelled_at = datetime.now(tz=UTC)
     
     await db.flush()
     await db.refresh(booking)
