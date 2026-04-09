@@ -44,6 +44,75 @@ export interface Subject {
 }
 
 /**
+ * New Academic Hierarchy (4-Level)
+ * StudyLevel -> Board -> Faculty -> Subject
+ * Used by /academics/* endpoints
+ * Fields use camelCase (converted by middleware from backend snake_case)
+ */
+
+export type UnitType = 'GRADE' | 'SEMESTER' | 'YEAR';
+
+export interface AcademicStudyLevel {
+  id: string;
+  name: string;
+  description: string | null;
+  isActive: boolean;
+}
+
+export interface AcademicBoard {
+  id: string;
+  name: string;
+  description: string | null;
+  isActive: boolean;
+}
+
+export interface AcademicFaculty {
+  id: string;
+  name: string;
+  boardId: string;
+  studyLevelId: string;
+  description: string | null;
+  unitType: UnitType;
+  totalUnits: number;
+  isActive: boolean;
+}
+
+export interface AcademicSubject {
+  id: string;
+  name: string;
+  studyLevel: AcademicStudyLevel;
+  board: AcademicBoard;
+  faculty: AcademicFaculty;
+  unitValue: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TeacherAcademicSubject {
+  subjectId: string;
+  ratePerSession: number;
+  yearsOfExperience: number;
+  totalSessionsCompleted: number;
+  avgRating: number;
+  ratingCount: number;
+  isActive: boolean;
+  subject: AcademicSubject;
+}
+
+/**
+ * Teacher Profile Response from /teachers/me
+ * Backend returns camelCase via middleware from snake_case
+ */
+export interface TeacherProfileResponse {
+  userId: string;
+  bio?: string;
+  avatarUrl?: string;
+  headline?: string;
+  verificationStatus: VerificationStatus;
+}
+
+/**
  * Teacher Profile & Authentication
  */
 
