@@ -38,6 +38,7 @@ from app.schemas.auth import (
     LoginResponse,
     RefreshResponse,
     RegisterRequest,
+    UserMeResponse,
 )
 from app.schemas.user import UserRead
 
@@ -211,6 +212,7 @@ async def login(body: LoginRequest, db: DbSession, response: Response, request: 
         "access_token",
         access,
         httponly=True,
+        domain=f'.{settings.DOMAIN_NAME}',
         samesite=sameSitePolicy,
         secure=securePolicy,
         max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
@@ -220,6 +222,7 @@ async def login(body: LoginRequest, db: DbSession, response: Response, request: 
         "refresh_token",
         refresh,
         httponly=True,
+        domain=f'.{settings.DOMAIN_NAME}',
         samesite=sameSitePolicy,
         secure=securePolicy,
         max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
@@ -291,6 +294,7 @@ async def refresh(
         "access_token",
         access,
         httponly=True,
+        domain=f'.{settings.DOMAIN_NAME}',
         samesite=sameSitePolicy,
         secure=securePolicy,
         max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
@@ -300,6 +304,7 @@ async def refresh(
         "refresh_token",
         refresh,
         httponly=True,
+        domain=f'.{settings.DOMAIN_NAME}',
         samesite=sameSitePolicy,
         secure=securePolicy,
         max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
@@ -313,17 +318,39 @@ async def logout(
     db: DbSession, response: Response, x_refresh_token: str = Header(None, alias="x-refresh-token")
 ):
     """Blacklist presented refresh token (if any) and clear cookies."""
+    sameSitePolicy = (
+        "lax"
+        if (settings.ENVIRONMENT == "production" or settings.ENVIRONMENT == "development2")
+        else "none"
+    )
+    securePolicy = False if settings.ENVIRONMENT == "development2" else True
+
+    def clear_auth_cookies():
+        response.delete_cookie(
+            "access_token",
+            path="/",
+            domain=f'.{settings.DOMAIN_NAME}',
+            httponly=True,
+            samesite=sameSitePolicy,
+            secure=securePolicy,
+        )
+        response.delete_cookie(
+            "refresh_token",
+            path="/api/v1/auth",
+            domain=f'.{settings.DOMAIN_NAME}',
+            httponly=True,
+            samesite=sameSitePolicy,
+            secure=securePolicy,
+        )
+
+    clear_auth_cookies()
+
     if not x_refresh_token:
-        # still clear cookies client-side
-        response.delete_cookie("access_token", path="/")
-        response.delete_cookie("refresh_token", path="/api/v1/auth")
         return {"message": "logged out"}
 
     try:
         payload = decode_token(x_refresh_token)
     except ValueError:
-        response.delete_cookie("access_token", path="/")
-        response.delete_cookie("refresh_token", path="/api/v1/auth")
         return {"message": "logged out"}
 
     jti = payload.get("jti")
@@ -331,14 +358,24 @@ async def logout(
     if jti and exp:
         await blacklist_jti(jti, int(exp))
 
-    response.delete_cookie("access_token", path="/")
-    response.delete_cookie("refresh_token", path="/api/v1/auth")
     return {"message": "logged out"}
 
 
-@router.get("/me", response_model=UserRead)
+@router.get("/me", response_model=UserMeResponse)
 async def me(current_user: CurrentUser, db: DbSession):
-    return current_user
+    if current_user.role == UserRole.STAFF:
+        from app.models.staff import StaffProfile
+        result = await db.execute(
+            select(StaffProfile.permissions).where(StaffProfile.user_id == current_user.id)
+        )
+        perms = result.scalar_one_or_none() or []
+        
+        # Pydantic v2 dynamic model instantiation
+        user_data = UserRead.model_validate(current_user).model_dump()
+        user_data["permissions"] = perms
+        return UserMeResponse(**user_data)
+
+    return UserMeResponse.model_validate(current_user)
 
 @router.get("/verify/{token}")
 async def verify_email(token: str, db: DbSession):
