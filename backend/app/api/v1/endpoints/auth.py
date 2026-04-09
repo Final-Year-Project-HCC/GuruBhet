@@ -38,6 +38,7 @@ from app.schemas.auth import (
     LoginResponse,
     RefreshResponse,
     RegisterRequest,
+    UserMeResponse,
 )
 from app.schemas.user import UserRead
 
@@ -336,9 +337,21 @@ async def logout(
     return {"message": "logged out"}
 
 
-@router.get("/me", response_model=UserRead)
+@router.get("/me", response_model=UserMeResponse)
 async def me(current_user: CurrentUser, db: DbSession):
-    return current_user
+    if current_user.role == UserRole.STAFF:
+        from app.models.staff import StaffProfile
+        result = await db.execute(
+            select(StaffProfile.permissions).where(StaffProfile.user_id == current_user.id)
+        )
+        perms = result.scalar_one_or_none() or []
+        
+        # Pydantic v2 dynamic model instantiation
+        user_data = UserRead.model_validate(current_user).model_dump()
+        user_data["permissions"] = perms
+        return UserMeResponse(**user_data)
+
+    return UserMeResponse.model_validate(current_user)
 
 @router.get("/verify/{token}")
 async def verify_email(token: str, db: DbSession):

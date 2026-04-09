@@ -1,9 +1,13 @@
 from pydantic import EmailStr, field_validator
+from typing import List
 import re
 
 from .base import SharedConfig
 from .user import UserRead
 
+
+class UserMeResponse(UserRead):
+    permissions: List[str] | None = None
 
 class RegisterRequest(SharedConfig):
 
