@@ -1,6 +1,11 @@
 from typing import Annotated
+from uuid import UUID
+import hashlib
+from datetime import datetime, UTC
+from sqlalchemy import select
 
-from fastapi import APIRouter, Header, Query, Request, Response, status
+from fastapi import APIRouter, Header, HTTPException, Query, Request, Response, status
+from fastapi.responses import RedirectResponse
 from sqlalchemy.exc import IntegrityError
 
 from app.core.config import settings
@@ -22,7 +27,8 @@ from app.core.security import (
     hash_password,
     verify_password,
 )
-from app.db.redis import blacklist_jti, is_jti_blacklisted
+from app.db.redis import blacklist_jti, cache_get, cache_set, is_jti_blacklisted
+from app.models.invitation import StaffInvitation
 from app.models.student import StudentProfile
 from app.models.teacher import TeacherProfile
 from app.models.user import User
@@ -41,7 +47,7 @@ router = APIRouter()
 # ── Subdomain Role Validation Helper ──────────────────────────────────────────
 
 from urllib.parse import urlparse
-
+import secrets
 
 def get_subdomain(request: Request) -> str | None:
     """
@@ -121,11 +127,14 @@ def validate_subdomain_matches_role(
 
 @router.post("/register", response_model=UserRead, status_code=status.HTTP_201_CREATED)
 async def register(body: RegisterRequest, db: DbSession):
+    if body.role == UserRole.STAFF:
+        raise PermissionDeniedError(detail="Staff accounts can only be created via invitations.")
+
     repo = UserRepository(db)
     if await repo.email_exists(body.email):
         raise EmailAlreadyRegisteredError(email=body.email)
 
-    if await repo.phone_exists(body.phone):
+    if body.phone and await repo.phone_exists(body.phone):
         raise PhoneAlreadyRegisteredError(phone=body.phone)
 
     user = User(
@@ -152,6 +161,14 @@ async def register(body: RegisterRequest, db: DbSession):
 
     await db.flush()
     await db.refresh(user)
+
+    # Trigger email verification token generation & celery task
+    token = secrets.token_urlsafe(32)
+    await cache_set(f"verify_email:{token}", str(user.id), expire=86400)
+    
+    from app.tasks.notification_tasks import send_verification_email
+    send_verification_email.delay(email_to=user.email, token=token)
+
     return user
 
 
@@ -167,13 +184,21 @@ async def login(body: LoginRequest, db: DbSession, response: Response, request: 
     # Validate subdomain matches user role
     validate_subdomain_matches_role(request, user.role)
 
+    perms = []
+    if user.role == UserRole.STAFF:
+        from app.models.staff import StaffProfile
+        from sqlalchemy import select
+        result = await db.execute(select(StaffProfile.permissions).where(StaffProfile.user_id == user.id))
+        perms = result.scalar_one_or_none() or []
+
     access = create_access_token(
         user_id=str(user.id),
         role=user.role.value,
-        permissions=user.permissions,
+        permissions=perms,
         is_superuser=user.is_superuser,
     )
     refresh = create_refresh_token(str(user.id))
+
 
     sameSitePolicy = (
         "lax"
@@ -240,11 +265,18 @@ async def refresh(
     if exp:
         await blacklist_jti(jti, int(exp))
 
+    perms = []
+    if user.role == UserRole.STAFF:
+        from app.models.staff import StaffProfile
+        from sqlalchemy import select
+        result = await db.execute(select(StaffProfile.permissions).where(StaffProfile.user_id == user.id))
+        perms = result.scalar_one_or_none() or []
+
     # Issue new pair
     access = create_access_token(
         user_id=str(user.id),
         role=user.role.value,
-        permissions=user.permissions,
+        permissions=perms,
         is_superuser=user.is_superuser,
     )
     refresh = create_refresh_token(str(user.id))
@@ -305,5 +337,35 @@ async def logout(
 
 
 @router.get("/me", response_model=UserRead)
-async def me(current_user: CurrentUser):
+async def me(current_user: CurrentUser, db: DbSession):
     return current_user
+
+@router.get("/verify/{token}")
+async def verify_email(token: str, db: DbSession):
+    # Retrieve user_id from Redis
+    user_id_str = await cache_get(f"verify_email:{token}")
+    
+    if user_id_str:
+        repo = UserRepository(db)
+        user = await repo.get_by_id(UUID(user_id_str) if isinstance(user_id_str, str) else user_id_str)
+        if user and user.role in (UserRole.STUDENT, UserRole.TEACHER):
+            user.is_email_verified = True
+            await db.flush()
+            return {"message": "Email verified successfully."}
+        raise HTTPException(status_code=400, detail="Invalid token or user not found")
+        
+    # If not found in Redis, check if it's a pending StaffInvitation
+    hashed_token = hashlib.sha256(token.encode()).hexdigest()
+    stmt = select(StaffInvitation).where(
+        StaffInvitation.token_hash == hashed_token,
+        StaffInvitation.is_used == False,
+        StaffInvitation.expires_at > datetime.now(UTC)
+    )
+    result = await db.execute(stmt)
+    invitation = result.scalars().first()
+    
+    if invitation:
+        return RedirectResponse(url=f"https://staff.{settings.DOMAIN_NAME}/set-password?token={token}")
+        
+    raise HTTPException(status_code=400, detail="Invalid or expired token.")
+

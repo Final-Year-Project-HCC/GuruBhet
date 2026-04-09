@@ -117,15 +117,26 @@ async def accept_staff_invite(body: StaffAcceptInviteSchema, db: DbSession):
         role=UserRole.STAFF,
         is_email_verified=True,  # Implies verified since it came via email invite
         is_superuser=invitation.is_superuser,
-        permissions=invitation.permissions,
     )
+    db.add(new_staff)
+    await db.flush()
+
+    from app.models.staff import StaffProfile
+    staff_profile = StaffProfile(
+        user_id=new_staff.id,
+        permissions=invitation.permissions
+    )
+    db.add(staff_profile)
 
     # Mark token as used
     invitation.is_used = True
 
-    db.add(new_staff)
     await db.commit()
     await db.refresh(new_staff)
+
+    # Pydantic compat for StaffRead
+    new_staff.permissions = invitation.permissions
+
     return new_staff
 
 
@@ -154,7 +165,16 @@ async def update_staff_permissions(
         )
 
     if body.permissions is not None:
+        from app.models.staff import StaffProfile
+        staff_profile = await db.scalar(select(StaffProfile).where(StaffProfile.user_id == target_user.id))
+        if staff_profile:
+            staff_profile.permissions = body.permissions
         target_user.permissions = body.permissions
+    else:
+        from app.models.staff import StaffProfile
+        staff_profile = await db.scalar(select(StaffProfile).where(StaffProfile.user_id == target_user.id))
+        target_user.permissions = staff_profile.permissions if staff_profile else []
+
     if body.is_active is not None:
         target_user.is_active = body.is_active
 
@@ -190,3 +210,42 @@ async def verify_teacher(
 ):
     """[TEACHER:VERIFY] approve or reject a teacher's verification."""
     pass
+
+
+from pydantic import BaseModel
+
+class VerifyTeacherRequest(BaseModel):
+    document_status: VerificationStatus
+    is_payment_verified: bool = False
+    remarks: str | None = None
+
+@router.patch("/verify-teacher/{teacher_id}")
+async def verify_teacher_documents(
+    teacher_id: UUID,
+    body: VerifyTeacherRequest,
+    db: DbSession,
+    current_staff: User = RequireStaffManage,
+):
+    """[STAFF:MANAGE] approve or reject a teacher's verification documents and payment info."""
+    from app.models.teacher import TeacherProfile
+    from app.core.exceptions import TeacherNotFoundError
+    from datetime import datetime, UTC
+    
+    result = await db.execute(select(TeacherProfile).where(TeacherProfile.user_id == teacher_id))
+    profile = result.scalar_one_or_none()
+    
+    if not profile:
+        raise TeacherNotFoundError(teacher_id=str(teacher_id))
+        
+    profile.document_status = body.document_status
+    profile.is_payment_verified = body.is_payment_verified
+    profile.reviewed_by_id = current_staff.id
+    profile.reviewed_at = datetime.now(UTC)
+    
+    # Store remarks in audit or somewhere if needed, but not strictly asked for
+    db.add(profile)
+    await db.commit()
+    await db.refresh(profile)
+    
+    return {"msg": f"Teacher verification updated to {body.document_status.value}"}
+

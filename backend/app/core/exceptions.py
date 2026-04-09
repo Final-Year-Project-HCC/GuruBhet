@@ -40,6 +40,7 @@ class ErrorCode(str, Enum):
     PHONE_ALREADY_REGISTERED = "PHONE_ALREADY_REGISTERED"
     INVALID_REQUEST_DATA = "INVALID_REQUEST_DATA"
     DUPLICATE_BOOKING = "DUPLICATE_BOOKING"
+    INVALID_DOCUMENT = "INVALID_DOCUMENT"
     
     # Business Logic Errors (400, 422)
     BOOKING_CONFLICT = "BOOKING_CONFLICT"
@@ -64,6 +65,7 @@ class ErrorCode(str, Enum):
     INTERNAL_SERVER_ERROR = "INTERNAL_SERVER_ERROR"
     DATABASE_ERROR = "DATABASE_ERROR"
     OPERATION_FAILED = "OPERATION_FAILED"
+    UPLOAD_FAILED = "UPLOAD_FAILED"
 
 
 class GuruBhetException(Exception):
@@ -187,6 +189,62 @@ class UserDisabledError(AuthenticationError):
             detail=detail,
             error_code=ErrorCode.AUTH_USER_DISABLED,
         )
+
+
+class EmailNotVerifiedError(PermissionDeniedError):
+    """Raised when user email is not verified."""
+    
+    def __init__(
+        self,
+        detail: str = "Email not verified",
+        context: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        super().__init__(detail=detail, context=context)
+
+
+class InvalidDocumentError(GuruBhetException):
+    """Raised when an uploaded document is invalid."""
+    
+    def __init__(
+        self,
+        detail: str = "Invalid document. Please check the file format and size.",
+        context: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        super().__init__(
+            error_code=ErrorCode.INVALID_DOCUMENT,
+            detail=detail,
+            status_code=400,
+            context=context,
+        )
+
+
+class UploadFailedError(GuruBhetException):
+    """Raised when a file upload fails."""
+    
+    def __init__(
+        self,
+        detail: str = "File upload failed. Please try again later.",
+        context: Optional[Dict[str, Any]] = None,
+        cause: Optional[Exception] = None,
+    ) -> None:
+        super().__init__(
+            error_code=ErrorCode.UPLOAD_FAILED,
+            detail=detail,
+            status_code=500,
+            context=context,
+            cause=cause,
+        )
+
+
+class PaymentSetupPendingError(PermissionDeniedError):
+    """Raised when teacher payment setup is pending."""
+    
+    def __init__(
+        self,
+        detail: str = "Payment setup pending",
+        context: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        super().__init__(detail=detail, context=context)
 
 
 # Resource Not Found Errors (404)

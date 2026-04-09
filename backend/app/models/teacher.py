@@ -31,9 +31,11 @@ class TeacherProfile(Base, TimestampMixin):
     headline: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # eSewa verified separately from document verification
-    verification_status: Mapped[VerificationStatus] = mapped_column(
+    document_status: Mapped[VerificationStatus] = mapped_column(
         SAEnum(VerificationStatus), default=VerificationStatus.PENDING, nullable=False
     )
+    esewa_id: Mapped[str | None] = mapped_column(Text, nullable=True)
+    is_payment_verified: Mapped[bool] = mapped_column(default=False, nullable=False)
     # Admin who reviewed and approved/rejected
     reviewed_by_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id"), nullable=True

@@ -2,17 +2,20 @@ from decimal import Decimal
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Path, Query
+from fastapi import APIRouter, Path, Query, File, Form, UploadFile
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
-from app.core.dependencies import CurrentUser, DbSession
-from app.core.enums import SessionStatus, UserRole
+from app.core.dependencies import CurrentUser, DbSession, RequireTeacher, RequireVerifiedEmail
+from app.core.enums import SessionStatus, UserRole, VerificationStatus, DocumentType
 from app.core.exceptions import (
     ConflictError,
     PermissionDeniedError,
     SubjectNotFoundError,
     TeacherNotFoundError,
+    InvalidDocumentError,
+    UploadFailedError,
+    PhoneAlreadyRegisteredError,
 )
 from app.models.booking import Booking, Session
 from app.models.student import StudentProfile
@@ -21,10 +24,13 @@ from app.models.teacher import TeacherProfile
 from app.models.teacher_subject import TeacherSubject
 from app.models.user import User
 from app.repositories.teacher_subject_repo import TeacherSubjectRepository
+from app.repositories.user_repo import UserRepository
 from app.schemas.booking import BookingDetailedReadForTeacher
 from app.schemas.session import TeacherSessionRead
 from app.schemas.subject import TeacherSearchResult, TeacherSubjectCreate, TeacherSubjectRead
 from app.schemas.user import TeacherProfileRead, TeacherProfileUpdate
+from app.models.teacher_document import TeacherDocument
+from app.utils.cloudinary import get_cloudinary_manager
 
 router = APIRouter()
 
@@ -183,7 +189,7 @@ async def get_my_profile(current_user: CurrentUser, db: DbSession):
 @router.patch("/me", response_model=TeacherProfileRead)
 async def update_my_profile(
     body: TeacherProfileUpdate,
-    current_user: CurrentUser,
+    current_user: Annotated[User, RequireVerifiedEmail],
     db: DbSession,
 ):
     """Update the logged-in teacher's bio, avatar, and headline."""
@@ -205,6 +211,81 @@ async def update_my_profile(
         profile.headline = body.headline
 
     await db.flush()
+    await db.refresh(profile)
+    return profile
+
+
+@router.patch("/onboarding/documents", response_model=TeacherProfileRead)
+async def submit_onboarding_documents(
+    current_user: Annotated[User, RequireVerifiedEmail],
+    db: DbSession,
+    esewa_id: Annotated[str, Form(...)],
+    nid_front: Annotated[UploadFile, File(...)],
+    nid_back: Annotated[UploadFile, File(...)],
+    pan_card: Annotated[UploadFile, File(...)],
+    selfie_with_nid: Annotated[UploadFile, File(...)],
+    phone: Annotated[str | None, Form()] = None,
+):
+    """Upload onboarding documents and set eSewa ID for the current teacher. Ensures files are saved to Cloudinary."""
+    
+    if current_user.role != UserRole.TEACHER:
+        raise PermissionDeniedError(detail="Only teachers can access this")
+    
+    if not current_user.phone and not phone:
+        raise InvalidDocumentError(detail="Phone number is required for KYC if not provided during registration.")
+
+    if not current_user.phone and phone:
+        repo = UserRepository(db)
+        if await repo.phone_exists(phone):
+            raise PhoneAlreadyRegisteredError(phone=phone)
+        current_user.phone = phone
+        db.add(current_user)
+
+    result = await db.execute(
+        select(TeacherProfile).where(TeacherProfile.user_id == current_user.id)
+    )
+    profile = result.scalar_one_or_none()
+    if not profile:
+        raise TeacherNotFoundError(teacher_id=str(current_user.id))
+
+    profile.esewa_id = esewa_id
+    profile.document_status = VerificationStatus.PENDING
+
+    docs_to_upload = [
+        (DocumentType.NID_FRONT, nid_front),
+        (DocumentType.NID_BACK, nid_back),
+        (DocumentType.PAN_CARD, pan_card),
+        (DocumentType.SELFIE_WITH_NID, selfie_with_nid),
+    ]
+
+    cloudinary_mgr = get_cloudinary_manager()
+    folder_path = f"teachers/{current_user.id}/kyc"
+
+    for doc_type, file_obj in docs_to_upload:
+        if not file_obj.filename:
+            raise InvalidDocumentError(detail=f"Missing file for {doc_type.value}")
+        content_type = file_obj.content_type
+        if not content_type or not content_type.startswith("image/"):
+            raise InvalidDocumentError(detail=f"File {file_obj.filename} is not an image.")
+
+        try:
+            upload_result = cloudinary_mgr.upload_file(
+                file_obj=file_obj.file,
+                folder=folder_path,
+            )
+        except Exception as e:
+            raise UploadFailedError(detail=f"Failed to upload {doc_type.value} to Cloudinary. Error: {str(e)}", cause=e)
+
+        doc = TeacherDocument(
+            teacher_id=profile.user_id,
+            type=doc_type,
+            file_url=upload_result.get("secure_url"),
+            file_key=upload_result.get("public_id"),
+            status=VerificationStatus.PENDING
+        )
+        db.add(doc)
+
+    await db.commit()
     await db.refresh(profile)
     return profile
 

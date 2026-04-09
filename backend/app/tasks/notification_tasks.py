@@ -328,3 +328,58 @@ def send_staff_invite_email(self, email_to: str, raw_token: str):
         logger.error(f"Failed to send staff invite email to {email_to}: {e}")
         # Retry the task upon SMTP failures
         raise self.retry(exc=e)
+
+
+@celery_app.task(
+    name="app.tasks.notification_tasks.send_verification_email",
+    bind=True,
+    max_retries=3,
+    default_retry_delay=60,
+)
+def send_verification_email(self, email_to: str, token: str):
+    """
+    Sends an SMTP email with the verification magic link.
+    Runs asynchronously in the background via Celery.
+    """
+    try:
+        msg = EmailMessage()
+        msg["Subject"] = "Verify your Email Address - GuruBhet"
+        msg["From"] = getattr(settings, "EMAILS_FROM_EMAIL", "noreply@gurubhet.com")
+        msg["To"] = email_to
+        
+        # Determine the correct base URL based on environment or settings
+        api_url = getattr(settings, "SERVER_HOST", "http://localhost:8000")
+        verify_url = f"{api_url}/api/v1/auth/verify/{token}"
+        
+        html_content = f"""
+        <html>
+            <body style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
+                <h2 style="color: #2c3e50;">Welcome to GuruBhet!</h2>
+                <p>Please verify your email address to unlock all features of your account.</p>
+                <p>Click the link below to verify securely:</p>
+                <p>
+                    <a href="{verify_url}" style="display: inline-block; padding: 10px 20px; color: #fff; background-color: #3498db; text-decoration: none; border-radius: 5px;">Verify Email</a>
+                </p>
+                <p>If the button doesn't work, copy and paste this URL into your browser:</p>
+                <p><em>{verify_url}</em></p>
+                <p style="color: #7f8c8d; font-size: 0.9em;">This link will expire securely in 24 hours.</p>
+            </body>
+        </html>
+        """
+        
+        msg.set_content(f"Please use a mail client that supports HTML.\\n\\nYour verification link is: {verify_url}")
+        msg.add_alternative(html_content, subtype="html")
+        
+        if settings.SMTP_HOST and settings.SMTP_USER:
+            with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
+                server.ehlo()
+                server.starttls()
+                server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+                server.send_message(msg)
+            logger.info(f"Successfully sent verification email to {email_to}")
+        else:
+            logger.warning(f"SMTP credentials not configured! Mock sending verification email to {email_to}. Token: {token}")
+            
+    except Exception as e:
+        logger.error(f"Failed to send verification email to {email_to}: {e}")
+        raise self.retry(exc=e)
