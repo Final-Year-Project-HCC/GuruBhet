@@ -2,12 +2,22 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import Depends, status, Header
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.enums import UserRole
-from app.core.exceptions import MissingTokenError, InvalidTokenError, UserNotFoundError, PermissionDeniedError
+from app.core.enums import UserRole, VerificationStatus
+from app.core.exceptions import (
+    MissingTokenError,
+    InvalidTokenError,
+    UserNotFoundError,
+    PermissionDeniedError,
+    EmailNotVerifiedError,
+    TeacherNotVerifiedError,
+    PaymentSetupPendingError,
+)
 from app.core.security import decode_token
 from app.db.session import get_db
+from app.models.teacher import TeacherProfile
 from app.models.user import User
 from app.repositories.user_repo import UserRepository
 
@@ -44,6 +54,54 @@ async def get_current_user(
 CurrentUser = Annotated[User, Depends(get_current_user)]
 
 
+def require_verified_email(current_user: CurrentUser) -> User:
+    if not current_user.is_email_verified:
+        raise EmailNotVerifiedError()
+    return current_user
+
+
+RequireVerifiedEmail = Depends(require_verified_email)
+
+
+async def require_professional_teacher(
+    current_user: Annotated[User, RequireVerifiedEmail],
+    db: DbSession,
+) -> User:
+    if current_user.role != UserRole.TEACHER:
+        raise PermissionDeniedError(detail=f"Requires one of: {[UserRole.TEACHER.value]}")
+    
+    result = await db.execute(
+        select(TeacherProfile.document_status).where(TeacherProfile.user_id == current_user.id)
+    )
+    status_val = result.scalar_one_or_none()
+    
+    if status_val != VerificationStatus.APPROVED:
+        raise TeacherNotVerifiedError()
+    
+    return current_user
+
+
+RequireProfessionalTeacher = Depends(require_professional_teacher)
+
+
+async def require_payment_setup(
+    current_user: Annotated[User, RequireProfessionalTeacher],
+    db: DbSession,
+) -> User:
+    result = await db.execute(
+        select(TeacherProfile.is_payment_verified).where(TeacherProfile.user_id == current_user.id)
+    )
+    is_payment = result.scalar_one_or_none()
+    
+    if not is_payment:
+        raise PaymentSetupPendingError()
+    
+    return current_user
+
+
+RequirePaymentSetup = Depends(require_payment_setup)
+
+
 def require_role(*roles: UserRole):
     async def _guard(current_user: CurrentUser) -> User:
         if current_user.role not in roles:
@@ -67,16 +125,17 @@ class HasPermission:
     def __init__(self, required_permission: str):
         self.required_permission = required_permission
 
-    def __call__(self, current_user: CurrentUser) -> User:
+    async def __call__(self, current_user: CurrentUser, db: DbSession) -> User:
         if current_user.role != UserRole.STAFF:
             raise PermissionDeniedError(detail="Staff access only.")
 
-        has_access = current_user.is_superuser or (self.required_permission in current_user.permissions)
+        from app.models.staff import StaffProfile
+        result = await db.execute(select(StaffProfile.permissions).where(StaffProfile.user_id == current_user.id))
+        perms = result.scalar_one_or_none() or []
+
+        has_access = current_user.is_superuser or (self.required_permission in perms)
         if not has_access:
             raise PermissionDeniedError(detail=f"Missing required permission: {self.required_permission}")
-
-        if (current_user.is_superuser or "staff:manage" in current_user.permissions) and not current_user.mfa_enabled:
-            raise PermissionDeniedError(detail="Multi-Factor Authentication (MFA) is strictly required to exercise this permission.")
 
         return current_user
 

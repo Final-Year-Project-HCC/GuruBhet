@@ -10,6 +10,7 @@ from app.db.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
 if TYPE_CHECKING:
     from app.models.moderation import UserBan
     from app.models.payment_account import PaymentAccount
+    from app.models.staff import StaffProfile
     from app.models.student import StudentProfile
     from app.models.teacher import TeacherProfile
 
@@ -30,10 +31,13 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     is_banned: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     is_superuser: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
-    permissions: Mapped[list[str]] = mapped_column(ARRAY(String), default=list, server_default="{}", nullable=False)
-    mfa_enabled: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false", nullable=False)
-
     # ── Relationships ─────────────────────────────────────────────────────────
+    staff_profile: Mapped["StaffProfile"] = relationship(  # noqa: F821
+        back_populates="user",
+        uselist=False,
+        lazy="noload",
+        foreign_keys="StaffProfile.user_id",
+    )
     student_profile: Mapped["StudentProfile"] = relationship(  # noqa: F821
         back_populates="user", uselist=False, lazy="noload"
     )

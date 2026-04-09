@@ -7,7 +7,8 @@ from uuid import UUID
 from fastapi import APIRouter, Path, Request
 from sqlalchemy import select
 
-from app.core.dependencies import CurrentUser, DbSession
+from app.core.dependencies import CurrentUser, DbSession, RequireVerifiedEmail, RequireProfessionalTeacher, RequirePaymentSetup
+from app.models.user import User
 from app.core.enums import BookingStatus, SessionStatus, UserRole
 from app.core.exceptions import (
     BookingConflictError,
@@ -53,7 +54,7 @@ logger = logging.getLogger(__name__)
 
 @router.post("/request", response_model=BookingRead, status_code=201)
 async def create_booking_request(
-    body: BookingRequestCreate, current_user: CurrentUser, db: DbSession
+    body: BookingRequestCreate, current_user: Annotated[User, RequireVerifiedEmail], db: DbSession
 ):
     """
     Step 1: Student creates a booking request.
@@ -93,7 +94,7 @@ async def create_booking_request(
 @router.post("/{booking_id}/approve", response_model=BookingRead)
 async def approve_booking_request(
     booking_id: Annotated[UUID, Path(..., alias="bookingId")],
-    current_user: CurrentUser,
+    current_user: Annotated[User, RequireProfessionalTeacher],
     db: DbSession,
 ):
     """
@@ -170,7 +171,7 @@ async def initiate_payment(
 @router.post("/{booking_id}/request-session", response_model=dict)
 async def request_session(
     booking_id: Annotated[UUID, Path(..., alias="bookingId")],
-    current_user: CurrentUser,
+    current_user: Annotated[User, RequireProfessionalTeacher],
     db: DbSession,
 ):
     """

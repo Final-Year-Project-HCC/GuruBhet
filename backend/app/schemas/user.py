@@ -41,8 +41,6 @@ class UserRead(UserBase):
     is_active: bool
     is_banned: bool
     is_superuser: bool
-    mfa_enabled: bool
-    permissions: list[str] = []
     created_at: datetime
 
 
@@ -73,3 +71,9 @@ class TeacherProfileUpdate(SharedConfig):
     bio: str | None = None
     avatar_url: str | None = None
     headline: str | None = None
+
+
+class TeacherOnboardingRequest(SharedConfig):
+
+    esewa_id: str
+    document_urls: list[str]

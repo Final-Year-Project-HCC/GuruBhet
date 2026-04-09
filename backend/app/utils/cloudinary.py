@@ -31,30 +31,15 @@ class CloudinaryManager:
             self._init_cloudinary()
     
     def _init_cloudinary(self) -> None:
-        """Initialize the Cloudinary SDK.
-        
-        To be called after credentials are available in settings.
-        """
-        # IMPLEMENTATION_NOTES:
-        # - Import cloudinary SDK here when credentials are available
-        # - Configure cloudinary with settings:
-        #   import cloudinary
-        #   cloudinary.config(
-        #       cloud_name=self.cloud_name,
-        #       api_key=self.api_key,
-        #       api_secret=self.api_secret,
-        #   )
-        # - Set this flag: self._cloudinary_initialized = True
-        #
-        # This approach allows the app to start even if Cloudinary credentials
-        # are not yet configured, while providing meaningful error messages
-        # when users try to perform operations.
-        logger.warning(
-            "Cloudinary manager initialized with credentials from settings. "
-            "Actual SDK initialization deferred until full credential setup."
+        import cloudinary
+        import cloudinary.uploader
+        import cloudinary.api
+        cloudinary.config(
+            cloud_name=self.cloud_name,
+            api_key=self.api_key,
+            api_secret=self.api_secret,
         )
-        # TODO: Implement actual Cloudinary SDK initialization here
-        self._cloudinary_initialized = False
+        self._cloudinary_initialized = True
     
     def _check_initialized(self) -> bool:
         """Check if Cloudinary is properly initialized with credentials.
@@ -65,6 +50,21 @@ class CloudinaryManager:
         if not self._cloudinary_initialized and self.cloud_name and self.api_key:
             self._init_cloudinary()
         return self._cloudinary_initialized
+
+    def upload_file(self, file_obj, folder: str, public_id: str | None = None) -> dict:
+        if not self._check_initialized():
+            raise RuntimeError("Cloudinary is not initialized.")
+        import cloudinary.uploader
+        kwargs = {"folder": folder, "flags": "lossless"}
+        if public_id:
+            kwargs["public_id"] = public_id
+        result = cloudinary.uploader.upload(file_obj, **kwargs)
+        return {
+            "secure_url": result.get("secure_url"),
+            "public_id": result.get("public_id"),
+            "format": result.get("format"),
+            "bytes": result.get("bytes")
+        }
     
     def generate_upload_url(
         self,

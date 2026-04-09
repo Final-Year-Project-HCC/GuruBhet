@@ -7,7 +7,8 @@ from fastapi import APIRouter, HTTPException, Path
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
-from app.core.dependencies import CurrentUser, DbSession
+from app.core.dependencies import CurrentUser, DbSession, RequireProfessionalTeacher
+from app.models.user import User
 from app.core.enums import SessionStatus
 from app.db.redis import cache_delete, cache_get, cache_set
 from app.models.booking import Booking, Session
@@ -45,7 +46,7 @@ async def get_session(
 @router.post("/{session_id}/request-session-completion", response_model=SessionRead)
 async def request_session_completion(
     session_id: Annotated[UUID, Path(..., alias="sessionId")],
-    current_user: CurrentUser,
+    current_user: Annotated[User, RequireProfessionalTeacher],
     db: DbSession,
 ):
     """
