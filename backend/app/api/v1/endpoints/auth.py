@@ -318,17 +318,39 @@ async def logout(
     db: DbSession, response: Response, x_refresh_token: str = Header(None, alias="x-refresh-token")
 ):
     """Blacklist presented refresh token (if any) and clear cookies."""
+    sameSitePolicy = (
+        "lax"
+        if (settings.ENVIRONMENT == "production" or settings.ENVIRONMENT == "development2")
+        else "none"
+    )
+    securePolicy = False if settings.ENVIRONMENT == "development2" else True
+
+    def clear_auth_cookies():
+        response.delete_cookie(
+            "access_token",
+            path="/",
+            domain=f'.{settings.DOMAIN_NAME}',
+            httponly=True,
+            samesite=sameSitePolicy,
+            secure=securePolicy,
+        )
+        response.delete_cookie(
+            "refresh_token",
+            path="/api/v1/auth",
+            domain=f'.{settings.DOMAIN_NAME}',
+            httponly=True,
+            samesite=sameSitePolicy,
+            secure=securePolicy,
+        )
+
+    clear_auth_cookies()
+
     if not x_refresh_token:
-        # still clear cookies client-side
-        response.delete_cookie("access_token", path="/")
-        response.delete_cookie("refresh_token", path="/api/v1/auth")
         return {"message": "logged out"}
 
     try:
         payload = decode_token(x_refresh_token)
     except ValueError:
-        response.delete_cookie("access_token", path="/")
-        response.delete_cookie("refresh_token", path="/api/v1/auth")
         return {"message": "logged out"}
 
     jti = payload.get("jti")
@@ -336,8 +358,6 @@ async def logout(
     if jti and exp:
         await blacklist_jti(jti, int(exp))
 
-    response.delete_cookie("access_token", path="/")
-    response.delete_cookie("refresh_token", path="/api/v1/auth")
     return {"message": "logged out"}
 
 
