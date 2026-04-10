@@ -23,6 +23,8 @@ class ErrorCode(str, Enum):
     AUTH_MISSING_TOKEN = "AUTH_MISSING_TOKEN"
     AUTH_INSUFFICIENT_PERMISSIONS = "AUTH_INSUFFICIENT_PERMISSIONS"
     AUTH_USER_DISABLED = "AUTH_USER_DISABLED"
+    AUTH_EMAIL_NOT_VERIFIED = "AUTH_EMAIL_NOT_VERIFIED"
+    AUTH_PAYMENT_SETUP_PENDING = "AUTH_PAYMENT_SETUP_PENDING"
     
     # Resource Not Found (404)
     RESOURCE_NOT_FOUND = "RESOURCE_NOT_FOUND"
@@ -171,10 +173,11 @@ class PermissionDeniedError(GuruBhetException):
     def __init__(
         self,
         detail: str = "Insufficient permissions",
+        error_code: ErrorCode = ErrorCode.AUTH_INSUFFICIENT_PERMISSIONS,
         context: Optional[Dict[str, Any]] = None,
     ) -> None:
         super().__init__(
-            error_code=ErrorCode.AUTH_INSUFFICIENT_PERMISSIONS,
+            error_code=error_code,
             detail=detail,
             status_code=403,
             context=context,
@@ -199,7 +202,11 @@ class EmailNotVerifiedError(PermissionDeniedError):
         detail: str = "Email not verified",
         context: Optional[Dict[str, Any]] = None,
     ) -> None:
-        super().__init__(detail=detail, context=context)
+        super().__init__(
+            detail=detail,
+            error_code=ErrorCode.AUTH_EMAIL_NOT_VERIFIED,
+            context=context,
+        )
 
 
 class InvalidDocumentError(GuruBhetException):
@@ -244,7 +251,11 @@ class PaymentSetupPendingError(PermissionDeniedError):
         detail: str = "Payment setup pending",
         context: Optional[Dict[str, Any]] = None,
     ) -> None:
-        super().__init__(detail=detail, context=context)
+        super().__init__(
+            detail=detail,
+            error_code=ErrorCode.AUTH_PAYMENT_SETUP_PENDING,
+            context=context,
+        )
 
 
 # Resource Not Found Errors (404)
@@ -370,10 +381,11 @@ class ValidationError(GuruBhetException):
     def __init__(
         self,
         detail: str = "Validation failed",
+        error_code: ErrorCode = ErrorCode.VALIDATION_ERROR,
         context: Optional[Dict[str, Any]] = None,
     ) -> None:
         super().__init__(
-            error_code=ErrorCode.VALIDATION_ERROR,
+            error_code=error_code,
             detail=detail,
             status_code=400,
             context=context,
@@ -390,6 +402,7 @@ class InvalidRequestError(ValidationError):
     ) -> None:
         super().__init__(
             detail=detail,
+            error_code=ErrorCode.INVALID_REQUEST_DATA,
             context=context or {},
         )
 
