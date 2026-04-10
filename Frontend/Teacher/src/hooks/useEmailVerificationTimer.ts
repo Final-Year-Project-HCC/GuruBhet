@@ -1,43 +1,41 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 
-export const useEmailVerificationTimer = (initialSeconds: number = 90) => {
+export const useEmailVerificationTimer = (
+  initialSeconds: number = 90, 
+  enabled: boolean = false
+) => {
   const [timeRemaining, setTimeRemaining] = useState(initialSeconds);
-  const [isExpired, setIsExpired] = useState(false);
+
+  // Derive isExpired to avoid extra state synchronization
+  const isExpired = timeRemaining <= 0;
 
   useEffect(() => {
-    if (timeRemaining <= 0) {
-      setIsExpired(true);
-      return;
-    }
+    // If not enabled or already expired, do nothing
+    if (!enabled || isExpired) return;
 
     const interval = setInterval(() => {
-      setTimeRemaining((prev) => {
-        if (prev <= 1) {
-          setIsExpired(true);
-          return 0;
-        }
-        return prev - 1;
-      });
+      setTimeRemaining((prev) => (prev > 0 ? prev - 1 : 0));
     }, 1000);
 
     return () => clearInterval(interval);
+  }, [isExpired, enabled]);
+
+  // stable function to format time as MM:SS
+  const formattedTime = useMemo(() => {
+    const mins = Math.floor(timeRemaining / 60);
+    const secs = timeRemaining % 60;
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
   }, [timeRemaining]);
 
-  const formatTime = (seconds: number): string => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, "0")}`;
-  };
-
-  const resetTimer = (seconds: number = initialSeconds) => {
-    setTimeRemaining(seconds);
-    setIsExpired(false);
-  };
+  // reset function to restart the countdown
+  const resetTimer = useCallback(() => {
+    setTimeRemaining(initialSeconds);
+  }, [initialSeconds]);
 
   return {
     timeRemaining,
     isExpired,
-    formattedTime: formatTime(timeRemaining),
+    formattedTime,
     resetTimer,
   };
 };

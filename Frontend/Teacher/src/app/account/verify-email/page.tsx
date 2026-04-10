@@ -6,17 +6,20 @@ import { useMutation } from "@tanstack/react-query";
 import axios from "axios";
 import apiClient from "@/lib/api";
 import LoadingSpinner from "@/components/LoadingSpinner";
+import { useRouter } from "next/router";
 
 export default function VerifyEmailPage() {
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
-
+  const router = useRouter();
   // Initialize countdown to 10 so we don't have to set it synchronously in an effect
   const [autoCloseCountdown, setAutoCloseCountdown] = useState(10);
 
   const verifyMutation = useMutation({
     mutationFn: async (verificationToken: string) => {
-      const { data } = await apiClient.post(`/auth/verify/${verificationToken}`);
+      const { data } = await apiClient.post(
+        `/auth/verify/${verificationToken}`,
+      );
       return data;
     },
     onSuccess: () => {
@@ -31,7 +34,8 @@ export default function VerifyEmailPage() {
     onError: (err: unknown) => {
       let message = "Verification failed";
       if (axios.isAxiosError(err)) {
-        message = err.response?.data?.detail || err.response?.data?.message || message;
+        message =
+          err.response?.data?.detail || err.response?.data?.message || message;
       } else if (err instanceof Error) {
         message = err.message;
       }
@@ -51,7 +55,7 @@ export default function VerifyEmailPage() {
       verifyMutation.mutate(token);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]); 
+  }, [token]);
 
   // 2. Handle Countdown & Auto-Close
   useEffect(() => {
@@ -81,7 +85,9 @@ export default function VerifyEmailPage() {
         <div className="w-full max-w-lg space-y-6 rounded-lg border border-border p-8 bg-background text-center">
           <h1 className="text-3xl font-semibold mb-4">Verifying Email</h1>
           <LoadingSpinner />
-          <p className="text-muted-foreground">Please wait while we verify your email...</p>
+          <p className="text-muted-foreground">
+            Please wait while we verify your email...
+          </p>
         </div>
       </div>
     );
@@ -93,13 +99,16 @@ export default function VerifyEmailPage() {
       <div className="flex min-h-screen items-center justify-center p-6">
         <div className="w-full max-w-lg space-y-6 rounded-lg border border-border p-8 bg-background text-center">
           <div>
-            <h1 className="text-3xl font-semibold mb-2 text-green-600">Verification Successful</h1>
+            <h1 className="text-3xl font-semibold mb-2 text-green-600">
+              Verification Successful
+            </h1>
             <p className="text-muted-foreground">
-              Your email has been verified! You can now log in to your GuruBhet account.
+              Your email has been verified! You can now log in to your GuruBhet
+              account.
             </p>
           </div>
           <button
-            onClick={() => window.close()}
+            onClick={() => router.push("/login")}
             className="w-full rounded-md bg-primary text-primary-foreground cursor-pointer px-4 py-2 hover:bg-primary/90"
           >
             Go to Login
@@ -114,17 +123,22 @@ export default function VerifyEmailPage() {
     <div className="flex min-h-screen items-center justify-center p-6">
       <div className="w-full max-w-lg space-y-6 rounded-lg border border-border p-8 bg-background text-center">
         <div>
-          <h1 className="text-3xl font-semibold mb-2 text-red-600">Verification Failed</h1>
+          <h1 className="text-3xl font-semibold mb-2 text-red-600">
+            Verification Failed
+          </h1>
           <p className="text-muted-foreground mb-4">
-            {isMissingToken 
-              ? "No verification token found." 
+            {isMissingToken
+              ? "No verification token found."
               : "Verification failed or your link has expired. Please return to the signup page and click 'Resend'."}
           </p>
         </div>
 
         {isFailed && (
           <div className="bg-accent/50 rounded-md p-4 text-sm text-muted-foreground">
-            <p>This window will close automatically in {autoCloseCountdown} seconds...</p>
+            <p>
+              This window will close automatically in {autoCloseCountdown}{" "}
+              seconds...
+            </p>
           </div>
         )}
 

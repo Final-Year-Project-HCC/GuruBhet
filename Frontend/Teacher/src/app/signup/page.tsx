@@ -31,7 +31,7 @@ export default function SignupPage() {
   const router = useRouter();
   const [isCheckingEmail, setIsCheckingEmail] = useState(false);
   const [verificationEmail, setVerificationEmail] = useState("");
-  const { formattedTime, isExpired, resetTimer } = useEmailVerificationTimer(90);
+  const { formattedTime, isExpired, resetTimer } = useEmailVerificationTimer(90, isCheckingEmail);
   const [form, setForm] = useState<SignupInput>({
     firstName: "",
     middleName: "",
@@ -133,7 +133,6 @@ export default function SignupPage() {
       const emailToVerify = response?.email || form.email;
       setVerificationEmail(emailToVerify);
       setIsCheckingEmail(true);
-      toast.success("Please check your email for verification link");
     },
   });
 
