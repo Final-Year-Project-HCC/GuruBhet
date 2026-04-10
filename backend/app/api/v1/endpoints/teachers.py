@@ -219,14 +219,13 @@ async def update_my_profile(
 async def submit_onboarding_documents(
     current_user: Annotated[User, RequireTeacher],
     db: DbSession,
-    esewa_id: Annotated[str, Form(...)],
     nid_front: Annotated[UploadFile, File(...)],
     nid_back: Annotated[UploadFile, File(...)],
     pan_card: Annotated[UploadFile, File(...)],
     selfie_with_nid: Annotated[UploadFile, File(...)],
     phone: Annotated[str | None, Form()] = None,
 ):
-    """Upload onboarding documents and set eSewa ID for the current teacher. Ensures files are saved to Cloudinary."""
+    """Upload onboarding documents for the current teacher (KYC). Ensures files are saved to Cloudinary."""
     
     if current_user.role != UserRole.TEACHER:
         raise PermissionDeniedError(detail="Only teachers can access this")
@@ -248,7 +247,6 @@ async def submit_onboarding_documents(
     if not profile:
         raise TeacherNotFoundError(teacher_id=str(current_user.id))
 
-    profile.esewa_id = esewa_id
     profile.document_status = VerificationStatus.PENDING
 
     docs_to_upload = [
