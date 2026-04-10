@@ -47,6 +47,9 @@ class LoginResponse(SharedConfig):
     message: str
     user: UserRead
 
+class ResendVerificationRequest(SharedConfig):
+    email: EmailStr
+
 class RefreshResponse(SharedConfig):
     message: str
     user: UserRead

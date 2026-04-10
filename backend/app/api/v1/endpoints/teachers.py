@@ -6,7 +6,7 @@ from fastapi import APIRouter, Path, Query, File, Form, UploadFile
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
-from app.core.dependencies import CurrentUser, DbSession, RequireTeacher, RequireVerifiedEmail
+from app.core.dependencies import CurrentUser, DbSession, RequireTeacher
 from app.core.enums import SessionStatus, UserRole, VerificationStatus, DocumentType
 from app.core.exceptions import (
     ConflictError,
@@ -189,7 +189,7 @@ async def get_my_profile(current_user: CurrentUser, db: DbSession):
 @router.patch("/me", response_model=TeacherProfileRead)
 async def update_my_profile(
     body: TeacherProfileUpdate,
-    current_user: Annotated[User, RequireVerifiedEmail],
+    current_user: Annotated[User, RequireTeacher],
     db: DbSession,
 ):
     """Update the logged-in teacher's bio, avatar, and headline."""
@@ -217,7 +217,7 @@ async def update_my_profile(
 
 @router.patch("/onboarding/documents", response_model=TeacherProfileRead)
 async def submit_onboarding_documents(
-    current_user: Annotated[User, RequireVerifiedEmail],
+    current_user: Annotated[User, RequireTeacher],
     db: DbSession,
     esewa_id: Annotated[str, Form(...)],
     nid_front: Annotated[UploadFile, File(...)],

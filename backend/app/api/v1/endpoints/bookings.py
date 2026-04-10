@@ -7,7 +7,7 @@ from uuid import UUID
 from fastapi import APIRouter, Path, Request
 from sqlalchemy import select
 
-from app.core.dependencies import CurrentUser, DbSession, RequireVerifiedEmail, RequireProfessionalTeacher, RequirePaymentSetup
+from app.core.dependencies import CurrentUser, DbSession, RequireProfessionalTeacher, RequirePaymentSetup
 from app.models.user import User
 from app.core.enums import BookingStatus, SessionStatus, UserRole
 from app.core.exceptions import (
@@ -54,7 +54,7 @@ logger = logging.getLogger(__name__)
 
 @router.post("/request", response_model=BookingRead, status_code=201)
 async def create_booking_request(
-    body: BookingRequestCreate, current_user: Annotated[User, RequireVerifiedEmail], db: DbSession
+    body: BookingRequestCreate, current_user: CurrentUser, db: DbSession
 ):
     """
     Step 1: Student creates a booking request.

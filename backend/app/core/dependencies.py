@@ -54,17 +54,11 @@ async def get_current_user(
 CurrentUser = Annotated[User, Depends(get_current_user)]
 
 
-def require_verified_email(current_user: CurrentUser) -> User:
-    if not current_user.is_email_verified:
-        raise EmailNotVerifiedError()
-    return current_user
 
-
-RequireVerifiedEmail = Depends(require_verified_email)
 
 
 async def require_professional_teacher(
-    current_user: Annotated[User, RequireVerifiedEmail],
+    current_user: CurrentUser,
     db: DbSession,
 ) -> User:
     if current_user.role != UserRole.TEACHER:

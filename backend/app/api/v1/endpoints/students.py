@@ -4,7 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, Path, Query
 from sqlalchemy import select
 
-from app.core.dependencies import CurrentUser, DbSession, RequireVerifiedEmail
+from app.core.dependencies import CurrentUser, DbSession
 from app.core.enums import SessionStatus, UserRole
 from app.core.exceptions import (
     PermissionDeniedError,
@@ -41,7 +41,7 @@ async def get_my_profile(current_user: CurrentUser, db: DbSession):
 @router.patch("/me", response_model=StudentProfileRead)
 async def update_my_profile(
     body: StudentProfileUpdate,
-    current_user: Annotated[User, RequireVerifiedEmail],
+    current_user: CurrentUser,
     db: DbSession,
 ):
     """Update the logged-in student's bio and avatar."""
@@ -70,7 +70,7 @@ async def update_my_profile(
 
 @router.get("/me/sessions", response_model=list[StudentSessionRead])
 async def get_my_sessions(
-    current_user: Annotated[User, RequireVerifiedEmail],
+    current_user: CurrentUser,
     db: DbSession,
     in_progress: bool = Query(default=True, description="Filter for in-progress sessions"),
 ):
@@ -122,7 +122,7 @@ async def get_my_sessions(
 
 
 @router.get("/me/bookings", response_model=list[BookingDetailedReadForStudent])
-async def get_my_bookings(current_user: Annotated[User, RequireVerifiedEmail], db: DbSession):
+async def get_my_bookings(current_user: CurrentUser, db: DbSession):
     """Return all bookings for the logged-in student with teacher and subject details."""
     if current_user.role != UserRole.STUDENT:
         raise PermissionDeniedError(detail="Only students can access this")

@@ -3,7 +3,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Path, Query
 
-from app.core.dependencies import CurrentUser, DbSession, RequireVerifiedEmail
+from app.core.dependencies import CurrentUser, DbSession
 from app.models.user import User
 from app.schemas.rating import RatingCreate, RatingRead
 
@@ -11,7 +11,7 @@ router = APIRouter()
 
 
 @router.post("/", response_model=RatingRead, status_code=201)
-async def submit_rating(body: RatingCreate, current_user: Annotated[User, RequireVerifiedEmail], db: DbSession):
+async def submit_rating(body: RatingCreate, current_user: CurrentUser, db: DbSession):
     """
     Student submits a rating for a completed session.
     Triggers: update TeacherSubject.avg_rating + rating_count (running average).

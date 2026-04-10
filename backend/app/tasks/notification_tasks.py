@@ -289,8 +289,10 @@ def send_staff_invite_email(self, email_to: str, raw_token: str):
         msg["From"] = getattr(settings, "EMAILS_FROM_EMAIL", "noreply@gurubhet.com")
         msg["To"] = email_to
         
-        # Configurable frontend URL
-        frontend_url = getattr(settings, "STAFF_FRONTEND_URL", "http://localhost:3000")
+        # Build the correct frontend URL for the staff application
+        domain = getattr(settings, "DOMAIN_NAME", "gurubhet.tech")
+        frontend_url = f"https://staff.{domain}"
+        
         invite_url = f"{frontend_url}/accept-invite?token={raw_token}"
         
         html_content = f"""
@@ -336,7 +338,7 @@ def send_staff_invite_email(self, email_to: str, raw_token: str):
     max_retries=3,
     default_retry_delay=60,
 )
-def send_verification_email(self, email_to: str, token: str):
+def send_verification_email(self, email_to: str, token: str, role: str = "student"):
     """
     Sends an SMTP email with the verification magic link.
     Runs asynchronously in the background via Celery.
@@ -347,9 +349,17 @@ def send_verification_email(self, email_to: str, token: str):
         msg["From"] = getattr(settings, "EMAILS_FROM_EMAIL", "noreply@gurubhet.com")
         msg["To"] = email_to
         
-        # Determine the correct base URL based on environment or settings
-        api_url = getattr(settings, "SERVER_HOST", "http://localhost:8000")
-        verify_url = f"{api_url}/api/v1/auth/verify/{token}"
+        # Build the correct frontend URL depending on the user's role 
+        domain = getattr(settings, "DOMAIN_NAME", "gurubhet.tech")
+        
+        if role.lower() == "teacher":
+            base_url = f"https://teacher.{domain}"
+        else:
+            # Student falls back to the root domain
+            base_url = f"https://{domain}"
+            
+        # URL that the user clicks (frontend route)
+        verify_url = f"{base_url}/account/verify-email?token={token}"
         
         html_content = f"""
         <html>

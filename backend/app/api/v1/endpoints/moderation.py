@@ -3,7 +3,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Path
 
-from app.core.dependencies import CurrentUser, DbSession, RequireStaff, RequireVerifiedEmail
+from app.core.dependencies import CurrentUser, DbSession, RequireStaff
 from app.models.user import User
 from app.schemas.moderation import BanCreate, BanRead, ReportCreate, ReportRead, ReportResolve
 
@@ -14,7 +14,7 @@ router = APIRouter()
 
 
 @router.post("/reports", response_model=ReportRead, status_code=201)
-async def file_report(body: ReportCreate, current_user: Annotated[User, RequireVerifiedEmail], db: DbSession):
+async def file_report(body: ReportCreate, current_user: CurrentUser, db: DbSession):
     """Student or teacher files a report against the other party."""
     ...
 

@@ -1,10 +1,9 @@
 from typing import Annotated
 from uuid import UUID
-import hashlib
 from datetime import datetime, UTC
 from sqlalchemy import select
 
-from fastapi import APIRouter, Header, HTTPException, Query, Request, Response, status
+from fastapi import APIRouter, Header, Query, Request, Response, status
 from fastapi.responses import RedirectResponse
 from sqlalchemy.exc import IntegrityError
 
@@ -13,6 +12,7 @@ from app.core.dependencies import CurrentUser, DbSession
 from app.core.enums import UserRole
 from app.core.exceptions import (
     EmailAlreadyRegisteredError,
+    EmailNotVerifiedError,
     InvalidCredentialsError,
     InvalidTokenError,
     MissingTokenError,
@@ -28,8 +28,6 @@ from app.core.security import (
     verify_password,
 )
 from app.db.redis import blacklist_jti, cache_get, cache_set, is_jti_blacklisted
-from app.models.invitation import StaffInvitation
-from app.models.student import StudentProfile
 from app.models.teacher import TeacherProfile
 from app.models.user import User
 from app.repositories.user_repo import UserRepository
@@ -38,6 +36,7 @@ from app.schemas.auth import (
     LoginResponse,
     RefreshResponse,
     RegisterRequest,
+    ResendVerificationRequest,
     UserMeResponse,
 )
 from app.schemas.user import UserRead
@@ -168,10 +167,40 @@ async def register(body: RegisterRequest, db: DbSession):
     await cache_set(f"verify_email:{token}", str(user.id), expire=86400)
     
     from app.tasks.notification_tasks import send_verification_email
-    send_verification_email.delay(email_to=user.email, token=token)
+    send_verification_email.delay(email_to=user.email, token=token, role=user.role.value)
 
     return user
 
+@router.post("/resend-verification", status_code=status.HTTP_200_OK)
+async def resend_verification(body: ResendVerificationRequest, db: DbSession):
+    repo = UserRepository(db)
+    user = await repo.get_by_email(body.email)
+    
+    # We shouldn't throw an error if the user doesn't exist, to prevent email enumeration.
+    # Just return a generic success message.
+    if not user:
+        return {"message": "If an account with that email exists, a verification link has been sent."}
+        
+    if user.is_email_verified:
+        return {"message": "Account is already verified."}
+        
+    # Prevent spamming the endpoint (Rate limiting)
+    cooldown_key = f"resend_cooldown:{user.id}"
+    if await cache_get(cooldown_key):
+        raise PermissionDeniedError(detail="Please wait before requesting another verification email.")
+        
+    # Set a 60-second cooldown
+    await cache_set(cooldown_key, "locked", expire=60)
+    
+    # Generate new token
+    token = secrets.token_urlsafe(32)
+    # Overwrite or create new key (24 hour expiry)
+    await cache_set(f"verify_email:{token}", str(user.id), expire=86400)
+    
+    from app.tasks.notification_tasks import send_verification_email
+    send_verification_email.delay(email_to=user.email, token=token, role=user.role.value)
+    
+    return {"message": "Verification email has been resent."}
 
 @router.post("/login", response_model=LoginResponse)
 async def login(body: LoginRequest, db: DbSession, response: Response, request: Request):
@@ -181,6 +210,8 @@ async def login(body: LoginRequest, db: DbSession, response: Response, request: 
         raise InvalidCredentialsError()
     if not user.is_active or user.is_banned:
         raise UserDisabledError(detail="Account inactive or banned")
+    if not user.is_email_verified and user.role in (UserRole.STUDENT, UserRole.TEACHER):
+        raise EmailNotVerifiedError()
 
     # Validate subdomain matches user role
     validate_subdomain_matches_role(request, user.role)
@@ -389,20 +420,7 @@ async def verify_email(token: str, db: DbSession):
             user.is_email_verified = True
             await db.flush()
             return {"message": "Email verified successfully."}
-        raise HTTPException(status_code=400, detail="Invalid token or user not found")
+        raise InvalidTokenError(detail="Invalid token or user not found")
         
-    # If not found in Redis, check if it's a pending StaffInvitation
-    hashed_token = hashlib.sha256(token.encode()).hexdigest()
-    stmt = select(StaffInvitation).where(
-        StaffInvitation.token_hash == hashed_token,
-        StaffInvitation.is_used == False,
-        StaffInvitation.expires_at > datetime.now(UTC)
-    )
-    result = await db.execute(stmt)
-    invitation = result.scalars().first()
-    
-    if invitation:
-        return RedirectResponse(url=f"https://staff.{settings.DOMAIN_NAME}/set-password?token={token}")
-        
-    raise HTTPException(status_code=400, detail="Invalid or expired token.")
+    raise InvalidTokenError(detail="Invalid or expired token.")
 
