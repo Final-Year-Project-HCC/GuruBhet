@@ -28,6 +28,7 @@ from app.core.security import (
     verify_password,
 )
 from app.db.redis import blacklist_jti, cache_get, cache_set, is_jti_blacklisted
+from app.models.student import StudentProfile
 from app.models.teacher import TeacherProfile
 from app.models.user import User
 from app.repositories.user_repo import UserRepository
