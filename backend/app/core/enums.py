@@ -14,12 +14,10 @@ class VerificationStatus(str, Enum):
 
 
 class DocumentType(str, Enum):
-    NID_FRONT = "nid_front"
-    NID_BACK = "nid_back"
-    CITIZENSHIP = "citizenship"
-    PAN_CARD = "pan_card"
-    SELFIE_WITH_NID = "selfie_with_nid"
-    SELFIE = "selfie"
+    NID_FRONT = "NID_FRONT"
+    NID_BACK = "NID_BACK"
+    PAN_CARD = "PAN_CARD"
+    SELFIE_WITH_NID = "SELFIE_WITH_NID"
 
 
 class UnitType(str, Enum):
