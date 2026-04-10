@@ -1,14 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "react-toastify";
 import axios from "axios";
 import { FiEye, FiEyeOff } from "react-icons/fi";
 import { validateEmail } from "@/lib/utils";
 import apiClient from "@/lib/api";
-import { useEmailVerificationTimer } from "@/hooks/useEmailVerificationTimer";
+import CheckEmail from "@/components/CheckEmail";
 
 type SignupInput = {
   firstName: string;
@@ -28,10 +27,8 @@ function passwordValidationMessages(password: string): string[] {
 }
 
 export default function SignupPage() {
-  const router = useRouter();
   const [isCheckingEmail, setIsCheckingEmail] = useState(false);
   const [verificationEmail, setVerificationEmail] = useState("");
-  const { formattedTime, isExpired, resetTimer } = useEmailVerificationTimer(90, isCheckingEmail);
   const [form, setForm] = useState<SignupInput>({
     firstName: "",
     middleName: "",
@@ -53,30 +50,7 @@ export default function SignupPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
-  // Initialize Broadcast Channel for cross-tab communication
-  useEffect(() => {
-    if (!isCheckingEmail) return;
-
-    try {
-      const authChannel = new BroadcastChannel("auth_channel");
-      
-      const handleMessage = (event: MessageEvent) => {
-        if (event.data.type === "VERIFIED") {
-          authChannel.close();
-          router.push("/login");
-        }
-      };
-
-      authChannel.addEventListener("message", handleMessage);
-
-      return () => {
-        authChannel.removeEventListener("message", handleMessage);
-        authChannel.close();
-      };
-    } catch (error) {
-      console.warn("BroadcastChannel not supported:", error);
-    }
-  }, [isCheckingEmail, router]);
+  // Removed BroadcastChannel - now handled in CheckEmail component
 
   const errors: Partial<Record<keyof SignupInput, string>> = {};
   if ((touched.firstName || form.firstName.length > 0) && form.firstName.trim() === "") {
@@ -120,13 +94,21 @@ export default function SignupPage() {
     },
     onError: (err: unknown) => {
       let message = "Signup failed";
-      if (axios.isAxiosError(err)) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        message = (err.response?.data as any)?.detail || (err.response?.data as any)?.message || err.message || message;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const errorData = (err as any)?.response?.data as any;
+      const errorCode = errorData?.error?.code;
+
+      if (errorCode === "EMAIL_ALREADY_REGISTERED") {
+        toast.error("Email already registered! Login instead");
+      } else if (axios.isAxiosError(err)) {
+        message = errorData?.detail || errorData?.message || err.message || message;
+        toast.error(message);
       } else if (err instanceof Error) {
         message = err.message;
+        toast.error(message);
+      } else {
+        toast.error(message);
       }
-      toast.error(message);
     },
     onSuccess: (response) => {
       // Extract email from response or form
@@ -158,84 +140,34 @@ export default function SignupPage() {
 
   const hasClientErrors = Object.keys(errors).length > 0;
 
-  const handleResendEmail = async () => {
-    if (isExpired) {
-      try {
-        await apiClient.post("/auth/resend-verification", {
-          email: verificationEmail,
-        });
-        toast.success("Verification email resent. Please check your inbox.");
-        resetTimer();
-      } catch (error) {
-        let message = "Failed to resend verification email";
-        if (axios.isAxiosError(error)) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          message = (error.response?.data as any)?.detail || (error.response?.data as any)?.message || message;
-        }
-        toast.error(message);
-      }
-    }
-  };
-
-  // Show "Check Your Email" state
+  // Show "Check Your Email" state using CheckEmail component
   if (isCheckingEmail) {
     return (
-      <div className="flex min-h-[80vh] items-center justify-center p-6">
-        <div className="w-full max-w-lg space-y-6 rounded-lg border border-border p-8 bg-background text-center">
-          <div>
-            <h1 className="text-3xl font-semibold mb-2">Check Your Email</h1>
-            <p className="text-muted-foreground">
-              We&apos;ve sent a verification link to <span className="font-medium text-foreground">{verificationEmail}</span>
-            </p>
-          </div>
-
-          <div className="py-4">
-            <p className="text-lg text-muted-foreground mb-2">
-              Please check your inbox (and spam folder) to activate your GuruBhet account.
-            </p>
-          </div>
-
-          <div className="bg-accent/50 rounded-md p-4 text-sm text-muted-foreground">
-            <p>Didn&apos;t receive the email? You can resend it in:</p>
-            <p className="text-xl font-mono font-bold text-foreground mt-2">{formattedTime}</p>
-          </div>
-
-          <button
-            onClick={handleResendEmail}
-            disabled={!isExpired}
-            className="w-full rounded-md bg-primary text-primary-foreground cursor-pointer px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isExpired ? "Resend Verification Email" : "Wait to Resend"}
-          </button>
-
-          <button
-            onClick={() => {
-              setIsCheckingEmail(false);
-              setForm({
-                firstName: "",
-                middleName: "",
-                lastName: "",
-                email: "",
-                phone: "",
-                password: "",
-                confirmPassword: "",
-              });
-              setTouched({
-                firstName: false,
-                middleName: false,
-                lastName: false,
-                email: false,
-                phone: false,
-                password: false,
-                confirmPassword: false,
-              });
-            }}
-            className="w-full rounded-md bg-secondary text-secondary-foreground cursor-pointer px-4 py-2 hover:bg-secondary/90"
-          >
-            Back to Signup
-          </button>
-        </div>
-      </div>
+      <CheckEmail
+        email={verificationEmail}
+        onBack={() => {
+          setIsCheckingEmail(false);
+          setForm({
+            firstName: "",
+            middleName: "",
+            lastName: "",
+            email: "",
+            phone: "",
+            password: "",
+            confirmPassword: "",
+          });
+          setTouched({
+            firstName: false,
+            middleName: false,
+            lastName: false,
+            email: false,
+            phone: false,
+            password: false,
+            confirmPassword: false,
+          });
+        }}
+        mode="signup"
+      />
     );
   }
 

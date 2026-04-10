@@ -9,6 +9,7 @@ import { FiEye, FiEyeOff } from "react-icons/fi";
 import { validateEmail } from "@/lib/utils";
 import apiClient from "@/lib/api";
 import { useAuthRedirectToLanding } from "@/hooks";
+import CheckEmail from "@/components/CheckEmail";
 
 type LoginInput = {
   email: string;
@@ -20,6 +21,8 @@ export default function LoginPage() {
   useAuthRedirectToLanding("/");
   
   const router = useRouter()
+  const [isCheckingEmail, setIsCheckingEmail] = useState(false);
+  const [verificationEmail, setVerificationEmail] = useState("");
   
   const [form, setForm] = useState<LoginInput>({ email: "", password: "" });
   const [touched, setTouched] = useState<Record<keyof LoginInput, boolean>>({ email: false, password: false });
@@ -34,20 +37,31 @@ export default function LoginPage() {
 
   const mutation = useMutation({
     mutationFn: async (payload: LoginInput) => {
-      const { data } = await apiClient.post("", payload, {
+      const { data } = await apiClient.post("/auth/login", payload, {
         withCredentials: true,
       });
       return data;
     },
     onError: (err: unknown) => {
       let message = "Login failed";
-      if (axios.isAxiosError(err)) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        message = (err.response?.data as any)?.detail || (err.response?.data as any)?.message || err.message || message;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const errorData = (err as any)?.response?.data as any;
+      const errorCode = errorData?.error?.code;
+
+      if (errorCode === "AUTH_EMAIL_NOT_VERIFIED") {
+        // Email not verified - show CheckEmail component to resend verification
+        setVerificationEmail(form.email);
+        setIsCheckingEmail(true);
+        toast.info("Please verify your email before logging in.");
+      } else if (axios.isAxiosError(err)) {
+        message = errorData?.detail || errorData?.message || err.message || message;
+        toast.error(message);
       } else if (err instanceof Error) {
         message = err.message;
+        toast.error(message);
+      } else {
+        toast.error(message);
       }
-      toast.error(message);
     },
     onSuccess: () => {
       toast.success("Logged in successfully");
@@ -74,6 +88,21 @@ export default function LoginPage() {
   };
 
   const hasClientErrors = !!errors.email || !!errors.password;
+
+  // Show CheckEmail component if email not verified
+  if (isCheckingEmail) {
+    return (
+      <CheckEmail
+        email={verificationEmail}
+        onBack={() => {
+          setIsCheckingEmail(false);
+          setForm({ email: "", password: "" });
+          setTouched({ email: false, password: false });
+        }}
+        mode="login"
+      />
+    );
+  }
 
   return (
     <div className="flex min-h-[80vh] items-center justify-center p-6">
