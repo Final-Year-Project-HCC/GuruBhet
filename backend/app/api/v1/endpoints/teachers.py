@@ -214,8 +214,14 @@ async def update_my_profile(
     if body.headline is not None:
         profile.headline = body.headline
 
-    await db.flush()
-    await db.refresh(profile)
+    await db.commit()
+    # Re-fetch to ensure eager loaded relationships are intact before returning to Pydantic
+    result = await db.execute(
+        select(TeacherProfile)
+        .options(selectinload(TeacherProfile.documents))
+        .where(TeacherProfile.user_id == current_user.id)
+    )
+    profile = result.scalar_one_or_none()
     return profile
 
 
@@ -290,7 +296,15 @@ async def submit_onboarding_documents(
         db.add(doc)
 
     await db.commit()
-    await db.refresh(profile)
+    
+    # We must re-fetch the profile with documents eagerly loaded after commit
+    result = await db.execute(
+        select(TeacherProfile)
+        .options(selectinload(TeacherProfile.documents))
+        .where(TeacherProfile.user_id == current_user.id)
+    )
+    profile = result.scalar_one_or_none()
+
     return profile
 
 

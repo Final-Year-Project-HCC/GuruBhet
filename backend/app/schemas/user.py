@@ -72,10 +72,9 @@ class TeacherProfileRead(SharedConfig):
     bio: str | None
     avatar_url: str | None
     headline: str | None
-    verification_status: VerificationStatus
+    document_status: VerificationStatus
 
 class TeacherProfilePrivateRead(TeacherProfileRead):
-    document_status: VerificationStatus
     documents: list[TeacherDocumentRead] = []
 
 class TeacherProfileUpdate(SharedConfig):

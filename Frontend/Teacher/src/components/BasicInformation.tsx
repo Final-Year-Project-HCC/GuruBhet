@@ -1,10 +1,10 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect } from 'react';
-import { useMutation } from '@tanstack/react-query';
-import apiClient from '@/lib/api';
-import { toast } from 'react-toastify';
-import FileInputWithPreview from './FileInputWithPreview';
+import React, { useState, useEffect } from "react";
+import { useMutation } from "@tanstack/react-query";
+import apiClient from "@/lib/api";
+import { toast } from "react-toastify";
+import FileInputWithPreview from "./FileInputWithPreview";
 
 interface FileState {
   file: File | null;
@@ -20,21 +20,21 @@ interface BasicInformationProps {
  * Displays and manages teacher profile information:
  * - Name fields (first, middle, last)
  * - Email address
- * - KYC document uploads (PAN, Citizenship, Selfies)
+ * - KYC document uploads (NID, PAN, Selfies)
  */
 export function BasicInformation({ onSuccess }: BasicInformationProps) {
   const [formData, setFormData] = useState({
-    firstName: '',
-    middleName: '',
-    lastName: '',
-    email: '',
+    firstName: "",
+    middleName: "",
+    lastName: "",
+    email: "",
   });
 
   const [files, setFiles] = useState<Record<string, FileState>>({
     panCard: { file: null, previewUrl: null },
-    citizenship: { file: null, previewUrl: null },
-    selfie: { file: null, previewUrl: null },
-    selfieWithCitizenship: { file: null, previewUrl: null },
+    nidFront: { file: null, previewUrl: null },
+    nidBack: { file: null, previewUrl: null },
+    selfieWithNid: { file: null, previewUrl: null },
   });
 
   // Cleanup object URLs on component unmount
@@ -50,20 +50,24 @@ export function BasicInformation({ onSuccess }: BasicInformationProps) {
 
   const updateMutation = useMutation({
     mutationFn: async (data: FormData) => {
-      const response = await apiClient.patch('/teachers/me', data, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
+      const response = await apiClient.patch(
+        "/teachers/onboarding/documents",
+        data,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
         },
-      });
+      );
       return response.data;
     },
     onSuccess: () => {
-      toast.success('Profile updated successfully');
+      toast.success("Profile updated successfully");
       onSuccess?.();
     },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     onError: (error: any) => {
-      toast.error(error?.response?.data?.message || 'Failed to update profile');
+      toast.error(error?.response?.data?.message || "Failed to update profile");
     },
   });
 
@@ -89,23 +93,28 @@ export function BasicInformation({ onSuccess }: BasicInformationProps) {
     e.preventDefault();
 
     // Validate required fields
-    if (!formData.firstName.trim() || !formData.lastName.trim() || !formData.email.trim()) {
-      toast.error('First name, last name, and email are required');
+    if (
+      !formData.firstName.trim() ||
+      !formData.lastName.trim() ||
+      !formData.email.trim()
+    ) {
+      toast.error("First name, last name, and email are required");
       return;
     }
 
     const formDataToSubmit = new FormData();
-    formDataToSubmit.append('firstName', formData.firstName);
-    formDataToSubmit.append('middleName', formData.middleName);
-    formDataToSubmit.append('lastName', formData.lastName);
-    formDataToSubmit.append('email', formData.email);
+    // API endpoint /teachers/onboarding/documents only accepts documents.
+    // If you need to hit another endpoint for Name / Email, you'd do it separately here.
 
-    // Add files if they exist
-    Object.entries(files).forEach(([key, { file }]) => {
-      if (file) {
-        formDataToSubmit.append(key, file);
-      }
-    });
+    // Add files if they exist Maps with backend snake_case parameters
+    if (files.nidFront?.file)
+      formDataToSubmit.append("nid_front", files.nidFront.file);
+    if (files.nidBack?.file)
+      formDataToSubmit.append("nid_back", files.nidBack.file);
+    if (files.panCard?.file)
+      formDataToSubmit.append("pan_card", files.panCard.file);
+    if (files.selfieWithNid?.file)
+      formDataToSubmit.append("selfie_with_nid", files.selfieWithNid.file);
 
     updateMutation.mutate(formDataToSubmit);
   };
@@ -119,7 +128,10 @@ export function BasicInformation({ onSuccess }: BasicInformationProps) {
           {/* Name Fields */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label htmlFor="firstName" className="block text-sm font-medium mb-2">
+              <label
+                htmlFor="firstName"
+                className="block text-sm font-medium mb-2"
+              >
                 First Name <span className="text-destructive">*</span>
               </label>
               <input
@@ -134,7 +146,10 @@ export function BasicInformation({ onSuccess }: BasicInformationProps) {
               />
             </div>
             <div>
-              <label htmlFor="middleName" className="block text-sm font-medium mb-2">
+              <label
+                htmlFor="middleName"
+                className="block text-sm font-medium mb-2"
+              >
                 Middle Name
               </label>
               <input
@@ -148,7 +163,10 @@ export function BasicInformation({ onSuccess }: BasicInformationProps) {
               />
             </div>
             <div>
-              <label htmlFor="lastName" className="block text-sm font-medium mb-2">
+              <label
+                htmlFor="lastName"
+                className="block text-sm font-medium mb-2"
+              >
                 Last Name <span className="text-destructive">*</span>
               </label>
               <input
@@ -186,28 +204,28 @@ export function BasicInformation({ onSuccess }: BasicInformationProps) {
             <h3 className="text-lg font-semibold mb-6">KYC Documents</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <FileInputWithPreview
+                name="nidFront"
+                label="National ID Front (Citizenship/Passport)"
+                previewSrc={files.nidFront?.previewUrl || undefined}
+                onChange={(file) => handleFileChange("nidFront", file)}
+              />
+              <FileInputWithPreview
+                name="nidBack"
+                label="National ID Back"
+                previewSrc={files.nidBack?.previewUrl || undefined}
+                onChange={(file) => handleFileChange("nidBack", file)}
+              />
+              <FileInputWithPreview
                 name="panCard"
                 label="PAN Card"
-                previewSrc={files.panCard.previewUrl || undefined}
-                onChange={(file) => handleFileChange('panCard', file)}
+                previewSrc={files.panCard?.previewUrl || undefined}
+                onChange={(file) => handleFileChange("panCard", file)}
               />
               <FileInputWithPreview
-                name="citizenship"
-                label="Citizenship Document"
-                previewSrc={files.citizenship.previewUrl || undefined}
-                onChange={(file) => handleFileChange('citizenship', file)}
-              />
-              <FileInputWithPreview
-                name="selfie"
-                label="Selfie"
-                previewSrc={files.selfie.previewUrl || undefined}
-                onChange={(file) => handleFileChange('selfie', file)}
-              />
-              <FileInputWithPreview
-                name="selfieWithCitizenship"
-                label="Selfie with Citizenship Document"
-                previewSrc={files.selfieWithCitizenship.previewUrl || undefined}
-                onChange={(file) => handleFileChange('selfieWithCitizenship', file)}
+                name="selfieWithNid"
+                label="Selfie with National ID"
+                previewSrc={files.selfieWithNid?.previewUrl || undefined}
+                onChange={(file) => handleFileChange("selfieWithNid", file)}
               />
             </div>
           </div>
@@ -219,7 +237,7 @@ export function BasicInformation({ onSuccess }: BasicInformationProps) {
               disabled={updateMutation.isPending}
               className="px-6 py-2 bg-primary text-primary-foreground font-medium rounded-md hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              {updateMutation.isPending ? 'Saving...' : 'Save Changes'}
+              {updateMutation.isPending ? "Saving..." : "Save Changes"}
             </button>
           </div>
         </form>
