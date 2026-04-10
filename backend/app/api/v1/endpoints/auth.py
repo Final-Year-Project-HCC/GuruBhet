@@ -409,7 +409,7 @@ async def me(current_user: CurrentUser, db: DbSession):
 
     return UserMeResponse.model_validate(current_user)
 
-@router.get("/verify/{token}")
+@router.post("/verify/{token}")
 async def verify_email(token: str, db: DbSession):
     # Retrieve user_id from Redis
     user_id_str = await cache_get(f"verify_email:{token}")
