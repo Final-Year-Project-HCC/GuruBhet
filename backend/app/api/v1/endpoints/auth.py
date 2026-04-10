@@ -165,7 +165,7 @@ async def register(body: RegisterRequest, db: DbSession):
 
     # Trigger email verification token generation & celery task
     token = secrets.token_urlsafe(32)
-    await cache_set(f"verify_email:{token}", str(user.id), expire=86400)
+    await cache_set(f"verify_email:{token}", str(user.id), ttl=86400)
     
     from app.tasks.notification_tasks import send_verification_email
     send_verification_email.delay(email_to=user.email, token=token, role=user.role.value)
@@ -191,12 +191,12 @@ async def resend_verification(body: ResendVerificationRequest, db: DbSession):
         raise PermissionDeniedError(detail="Please wait before requesting another verification email.")
         
     # Set a 60-second cooldown
-    await cache_set(cooldown_key, "locked", expire=60)
+    await cache_set(cooldown_key, "locked", ttl=60)
     
     # Generate new token
     token = secrets.token_urlsafe(32)
     # Overwrite or create new key (24 hour expiry)
-    await cache_set(f"verify_email:{token}", str(user.id), expire=86400)
+    await cache_set(f"verify_email:{token}", str(user.id), ttl=86400)
     
     from app.tasks.notification_tasks import send_verification_email
     send_verification_email.delay(email_to=user.email, token=token, role=user.role.value)
