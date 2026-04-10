@@ -250,6 +250,7 @@ async def submit_onboarding_documents(
         current_user.phone = phone
         db.add(current_user)
 
+
     result = await db.execute(
         select(TeacherProfile)
         .options(selectinload(TeacherProfile.documents))
@@ -258,6 +259,9 @@ async def submit_onboarding_documents(
     profile = result.scalar_one_or_none()
     if not profile:
         raise TeacherNotFoundError(teacher_id=str(current_user.id))
+
+    if profile.document_status == VerificationStatus.APPROVED:
+        raise ConflictError(detail="KYC documents are already approved. You cannot upload new documents.")
 
     profile.document_status = VerificationStatus.PENDING
 
@@ -270,33 +274,44 @@ async def submit_onboarding_documents(
 
     cloudinary_mgr = get_cloudinary_manager()
     folder_path = f"teachers/{current_user.id}/kyc"
+    uploaded_public_ids = []
 
-    for doc_type, file_obj in docs_to_upload:
-        if not file_obj.filename:
-            raise InvalidDocumentError(detail=f"Missing file for {doc_type.value}")
-        content_type = file_obj.content_type
-        if not content_type or not content_type.startswith("image/"):
-            raise InvalidDocumentError(detail=f"File {file_obj.filename} is not an image.")
+    try:
+        for doc_type, file_obj in docs_to_upload:
+            if not file_obj.filename:
+                raise InvalidDocumentError(detail=f"Missing file for {doc_type.value}")
+            content_type = file_obj.content_type
+            if not content_type or not content_type.startswith("image/"):
+                raise InvalidDocumentError(detail=f"File {file_obj.filename} is not an image.")
 
-        try:
             upload_result = cloudinary_mgr.upload_file(
                 file_obj=file_obj.file,
                 folder=folder_path,
             )
-        except Exception as e:
-            raise UploadFailedError(detail=f"Failed to upload {doc_type.value} to Cloudinary. Error: {str(e)}", cause=e)
+            uploaded_public_ids.append(upload_result.get("public_id"))
 
-        doc = TeacherDocument(
-            teacher_id=profile.user_id,
-            type=doc_type,
-            file_url=upload_result.get("secure_url"),
-            file_key=upload_result.get("public_id"),
-            status=VerificationStatus.PENDING
-        )
-        db.add(doc)
+            doc = TeacherDocument(
+                teacher_id=profile.user_id,
+                type=doc_type,
+                file_url=upload_result.get("secure_url"),
+                file_key=upload_result.get("public_id"),
+                status=VerificationStatus.PENDING
+            )
+            db.add(doc)
 
-    await db.commit()
-    
+        await db.commit()
+    except Exception as e:
+        # Rollback DB and delete uploaded files
+        await db.rollback()
+        for public_id in uploaded_public_ids:
+            try:
+                cloudinary_mgr.delete_file(public_id)
+            except Exception as del_exc:
+                # Log but do not raise further
+                logger = __import__("logging").getLogger(__name__)
+                logger.error(f"Failed to delete Cloudinary file {public_id}: {del_exc}")
+        raise UploadFailedError(detail=f"Failed to upload KYC documents. Error: {str(e)}", cause=e)
+
     # We must re-fetch the profile with documents eagerly loaded after commit
     result = await db.execute(
         select(TeacherProfile)
