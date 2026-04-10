@@ -229,10 +229,10 @@ async def update_my_profile(
 async def submit_onboarding_documents(
     current_user: Annotated[User, RequireTeacher],
     db: DbSession,
-    nid_front: Annotated[UploadFile, File(...)],
-    nid_back: Annotated[UploadFile, File(...)],
-    pan_card: Annotated[UploadFile, File(...)],
-    selfie_with_nid: Annotated[UploadFile, File(...)],
+    nid_front: Annotated[UploadFile, File(..., alias="nidFront")],
+    nid_back: Annotated[UploadFile, File(..., alias="nidBack")],
+    pan_card: Annotated[UploadFile, File(..., alias="panCard")],
+    selfie_with_nid: Annotated[UploadFile, File(..., alias="selfieWithNid")],
     phone: Annotated[str | None, Form()] = None,
 ):
     """Upload onboarding documents for the current teacher (KYC). Ensures files are saved to Cloudinary."""
