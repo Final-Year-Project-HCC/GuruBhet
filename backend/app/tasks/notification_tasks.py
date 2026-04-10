@@ -286,7 +286,7 @@ def send_staff_invite_email(self, email_to: str, raw_token: str):
     try:
         msg = EmailMessage()
         msg["Subject"] = "You have been invited to join GuruBhet Staff"
-        msg["From"] = getattr(settings, "EMAILS_FROM_EMAIL", "noreply@gurubhet.com")
+        msg["From"] = getattr(settings, "EMAILS_FROM_EMAIL", f"noreply@{getattr(settings, 'DOMAIN_NAME', 'gurubhet.tech')}")
         msg["To"] = email_to
         
         # Build the correct frontend URL for the staff application
@@ -346,7 +346,7 @@ def send_verification_email(self, email_to: str, token: str, role: str = "studen
     try:
         msg = EmailMessage()
         msg["Subject"] = "Verify your Email Address - GuruBhet"
-        msg["From"] = getattr(settings, "EMAILS_FROM_EMAIL", "noreply@gurubhet.com")
+        msg["From"] = getattr(settings, "EMAILS_FROM_EMAIL", f"noreply@{getattr(settings, 'DOMAIN_NAME', 'gurubhet.tech')}")
         msg["To"] = email_to
         
         # Build the correct frontend URL depending on the user's role 
