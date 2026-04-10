@@ -34,7 +34,7 @@ export default function LoginPage() {
 
   const mutation = useMutation({
     mutationFn: async (payload: LoginInput) => {
-      const { data } = await apiClient.post("/auth/login", payload, {
+      const { data } = await apiClient.post("", payload, {
         withCredentials: true,
       });
       return data;

@@ -7,8 +7,7 @@ import LoadingSpinner from "./LoadingSpinner";
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const { data: user, isLoading, isError } = useUser();
-
+  const { data: user, isLoading, isFetching, isError } = useUser();
   useEffect(() => {
     if (!isLoading && (isError || !user)) {
       router.push("/login");
@@ -16,9 +15,8 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
   }, [isLoading, isError, user, router]);
 
   // Show spinner while checking authentication
-  if (isLoading) {
+  if (isLoading || isFetching) {
     return <LoadingSpinner />;
   }
-
   return <>{children}</>;
 }

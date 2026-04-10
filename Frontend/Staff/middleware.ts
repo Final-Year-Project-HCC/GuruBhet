@@ -14,7 +14,7 @@ const PROTECTED_ROUTES = [
  * PUBLIC ROUTES - Accessible without authentication
  * Routes that don't require login
  */
-const PUBLIC_ROUTES = ["/login", "/signup"];
+const PUBLIC_ROUTES = ["/login"];
 
 /**
  * Check if a route is protected
@@ -38,7 +38,7 @@ function isPublicRoute(pathname: string): boolean {
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-
+  console.log("HELLO")
   // If it's a public route, allow it through without auth check
   if (isPublicRoute(pathname)) {
     return NextResponse.next();
@@ -48,9 +48,11 @@ export async function middleware(request: NextRequest) {
   if (!isProtectedRoute(pathname)) {
     return NextResponse.next();
   }
-
+  console.log(pathname + " HELLO")
+  console.log("All Cookies:", request.cookies.getAll());
   // Protected route: Check authentication
   const accessToken = request.cookies.get("access_token")?.value;
+  console.log(accessToken)
 
   if (!accessToken) {
     // No token found, redirect to login
@@ -70,6 +72,7 @@ export async function middleware(request: NextRequest) {
     // Token is invalid or expired - try to refresh
     if (verifyResponse.status === 401) {
       const refreshToken = request.cookies.get("refresh_token")?.value;
+  console.log(accessToken)
 
       if (!refreshToken) {
         // No refresh token, redirect to login

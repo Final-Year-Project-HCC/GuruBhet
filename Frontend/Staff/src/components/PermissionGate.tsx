@@ -60,7 +60,6 @@ export function PermissionGate({
   if (isError || !user) {
     return fallback ?? <div className="p-4 text-destructive">Authentication failed</div>;
   }
-
   // Single permission check
   if (require) {
     const hasPermission = user.isSuperuser || user.permissions.includes(require);

@@ -2,19 +2,20 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-toastify";
 import axios from "axios";
 import { FiEye, FiEyeOff } from "react-icons/fi";
 import { validateEmail } from "@/lib/utils";
 import apiClient from "@/lib/api";
-
+import { QUERY_KEY } from "@/hooks/useCurrentUser";
 type LoginInput = {
   email: string;
   password: string;
 };
 
 export default function LoginPage() {
+  const queryClient = useQueryClient()
   const router = useRouter();
   const [form, setForm] = useState<LoginInput>({ email: "", password: "" });
   const [touched, setTouched] = useState<Record<keyof LoginInput, boolean>>({ email: false, password: false });
@@ -47,6 +48,7 @@ export default function LoginPage() {
     },
     onSuccess: () => {
       toast.success("Logged in successfully");
+      queryClient.invalidateQueries({ queryKey: QUERY_KEY });
       router.push("/academic-setup");
     },
   });
