@@ -1,12 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter} from "next/navigation";
 import { useMutation } from "@tanstack/react-query";
 import axios from "axios";
 import apiClient from "@/lib/api";
 import LoadingSpinner from "@/components/LoadingSpinner";
-import { useRouter } from "next/router";
 
 export default function VerifyEmailPage() {
   const searchParams = useSearchParams();
