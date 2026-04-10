@@ -26,7 +26,7 @@ export function useLogout() {
     onSuccess: async () => {
       // Clear cache and redirect
       await clearAuthOnLogout();
-      router.push("/login");
+      router.push("/dashboard");
     },
     onError: (error) => {
       console.error("Logout failed:", error);

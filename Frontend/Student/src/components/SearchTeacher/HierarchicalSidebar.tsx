@@ -51,9 +51,9 @@ const HierarchicalSidebar: React.FC<HierarchicalSidebarProps> = ({ onTeachersFou
     }
     return allSubjects.find(
       (s) =>
-        s.studyLevelId === selectedStudyLevel &&
-        s.boardId === selectedBoard &&
-        s.facultyId === selectedFaculty &&
+        s.studyLevel.id === selectedStudyLevel &&
+        s.board.id === selectedBoard &&
+        s.faculty.id === selectedFaculty &&
         s.unitValue === selectedUnit
     ) || null;
   }, [allSubjects, selectedStudyLevel, selectedBoard, selectedFaculty, selectedUnit]);

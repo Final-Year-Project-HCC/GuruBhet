@@ -1,3 +1,38 @@
+export interface CurrentUserData {
+  id: string;
+  email: string;
+  firstName: string;
+  middleName?: string;
+  lastName: string;
+  phone?: string;
+  role: string;
+  isEmailVerified: boolean;
+  isActive: boolean;
+  isBanned: boolean;
+  isSuperuser: boolean;
+  mfaEnabled: boolean;
+  permissions: string[];
+}
+
+export interface TeacherDocument {
+  id: string; // UUID
+  type: string; // DocumentType
+  fileUrl: string;
+  status: string; // VerificationStatus
+  remarks?: string | null;
+  createdAt: string; // ISO datetime string
+}
+
+export interface TeacherData {
+  id: string;
+  firstName: string;
+  middleName?: string;
+  lastName: string;
+  email: string;
+  phone?: string;
+  documents: TeacherDocument[];
+  // Add more fields as needed based on API response
+}
 /**
  * Academic Domain Hierarchy
  * University -> Faculty -> Semester(s) -> Subject(s)
@@ -50,43 +85,50 @@ export interface Subject {
  * Fields use camelCase (converted by middleware from backend snake_case)
  */
 
-export type UnitType = 'GRADE' | 'SEMESTER' | 'YEAR';
-
-export interface AcademicStudyLevel {
-  id: string;
-  name: string;
-  description: string | null;
-  isActive: boolean;
+export enum UnitType {
+  SEMESTER = 'SEMESTER',
+  GRADE = 'GRADE',
+  YEAR = 'YEAR',
 }
 
-export interface AcademicBoard {
+export interface StudyLevel {
   id: string;
   name: string;
-  description: string | null;
-  isActive: boolean;
+  description?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
-export interface AcademicFaculty {
+export interface Board {
   id: string;
   name: string;
+  studyLevels?: StudyLevel[];
+  description?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface Faculty {
+  id: string;
+  name: string;
+  board: Board;
   boardId: string;
-  studyLevelId: string;
-  description: string | null;
+  description?: string;
   unitType: UnitType;
   totalUnits: number;
-  isActive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
-export interface AcademicSubject {
+export interface Subject {
   id: string;
   name: string;
-  studyLevel: AcademicStudyLevel;
-  board: AcademicBoard;
-  faculty: AcademicFaculty;
+  studyLevel: StudyLevel;
+  board: Board;
+  faculty: Faculty;
   unitValue: number;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface TeacherAcademicSubject {
@@ -97,7 +139,7 @@ export interface TeacherAcademicSubject {
   avgRating: number;
   ratingCount: number;
   isActive: boolean;
-  subject: AcademicSubject;
+  subject: Subject;
 }
 
 /**
