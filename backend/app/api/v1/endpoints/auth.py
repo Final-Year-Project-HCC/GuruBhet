@@ -27,7 +27,7 @@ from app.core.security import (
     hash_password,
     verify_password,
 )
-from app.db.redis import blacklist_jti, cache_get, cache_set, is_jti_blacklisted
+from app.db.redis import blacklist_jti, cache_delete, cache_get, cache_set, is_jti_blacklisted
 from app.models.student import StudentProfile
 from app.models.teacher import TeacherProfile
 from app.models.user import User
@@ -49,6 +49,7 @@ router = APIRouter()
 
 from urllib.parse import urlparse
 import secrets
+import base64
 
 def get_subdomain(request: Request) -> str | None:
     """
@@ -164,8 +165,11 @@ async def register(body: RegisterRequest, db: DbSession):
     await db.refresh(user)
 
     # Trigger email verification token generation & celery task
-    token = secrets.token_urlsafe(32)
-    await cache_set(f"verify_email:{token}", str(user.id), ttl=86400)
+    secret = secrets.token_urlsafe(32)
+    await cache_set(f"verify_email:{user.id}", secret, ttl=86400)
+    
+    raw_token = f"{user.id}:{secret}"
+    token = base64.urlsafe_b64encode(raw_token.encode()).decode().rstrip("=")
     
     from app.tasks.notification_tasks import send_verification_email
     send_verification_email.delay(email_to=user.email, token=token, role=user.role.value)
@@ -194,9 +198,12 @@ async def resend_verification(body: ResendVerificationRequest, db: DbSession):
     await cache_set(cooldown_key, "locked", ttl=60)
     
     # Generate new token
-    token = secrets.token_urlsafe(32)
-    # Overwrite or create new key (24 hour expiry)
-    await cache_set(f"verify_email:{token}", str(user.id), ttl=86400)
+    secret = secrets.token_urlsafe(32)
+    # Overwrite the existing key. This automatically invalidates any old token.
+    await cache_set(f"verify_email:{user.id}", secret, ttl=86400)
+    
+    raw_token = f"{user.id}:{secret}"
+    token = base64.urlsafe_b64encode(raw_token.encode()).decode().rstrip("=")
     
     from app.tasks.notification_tasks import send_verification_email
     send_verification_email.delay(email_to=user.email, token=token, role=user.role.value)
@@ -411,17 +418,27 @@ async def me(current_user: CurrentUser, db: DbSession):
 
 @router.post("/verify/{token}")
 async def verify_email(token: str, db: DbSession):
-    # Retrieve user_id from Redis
-    user_id_str = await cache_get(f"verify_email:{token}")
-    
-    if user_id_str:
-        repo = UserRepository(db)
-        user = await repo.get_by_id(UUID(user_id_str) if isinstance(user_id_str, str) else user_id_str)
-        if user and user.role in (UserRole.STUDENT, UserRole.TEACHER):
-            user.is_email_verified = True
-            await db.flush()
-            return {"message": "Email verified successfully."}
-        raise InvalidTokenError(detail="Invalid token or user not found")
+    try:
+        # Add padding if stripped
+        padded_token = token + "=" * ((4 - len(token) % 4) % 4)
+        decoded_str = base64.urlsafe_b64decode(padded_token.encode()).decode()
+        user_id_str, secret = decoded_str.split(":", 1)
+        # Validate UUID specifically inside the try-except to avoid 500 errors
+        user_id = UUID(user_id_str)
+    except Exception:
+        raise InvalidTokenError(detail="Invalid or malformed token.")
+
+    cached_secret = await cache_get(f"verify_email:{user_id_str}")
+    if not cached_secret or cached_secret != secret:
+        raise InvalidTokenError(detail="Invalid or expired token.")
         
-    raise InvalidTokenError(detail="Invalid or expired token.")
+    repo = UserRepository(db)
+    user = await repo.get_by_id(user_id)
+    if user and user.role in (UserRole.STUDENT, UserRole.TEACHER):
+        user.is_email_verified = True
+        await cache_delete(f"verify_email:{user_id_str}")
+        await db.flush()
+        return {"message": "Email verified successfully."}
+        
+    raise InvalidTokenError(detail="User not found")
 
