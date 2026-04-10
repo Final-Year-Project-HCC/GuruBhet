@@ -49,10 +49,21 @@ export default function LoginPage() {
       const errorCode = errorData?.error?.code;
 
       if (errorCode === "AUTH_EMAIL_NOT_VERIFIED") {
-        // Email not verified - show CheckEmail component to resend verification
+        // Email not verified - send verification email and show CheckEmail component
         setVerificationEmail(form.email);
-        setIsCheckingEmail(true);
-        toast.info("Please verify your email before logging in.");
+        
+        // Automatically send verification email
+        apiClient
+          .post("/auth/resend-verification", { email: form.email })
+          .then(() => {
+            setIsCheckingEmail(true);
+            toast.info("Verification email sent. Please check your inbox.");
+          })
+          .catch((resendErr) => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const resendErrMsg = (resendErr as any)?.response?.data?.detail || "Failed to send verification email";
+            toast.error(resendErrMsg);
+          });
       } else if (axios.isAxiosError(err)) {
         message = errorData?.detail || errorData?.message || err.message || message;
         toast.error(message);
