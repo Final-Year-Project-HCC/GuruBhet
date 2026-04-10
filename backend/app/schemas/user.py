@@ -2,7 +2,7 @@ from uuid import UUID
 from datetime import datetime
 from pydantic import EmailStr, field_validator
 
-from app.core.enums import UserRole, VerificationStatus
+from app.core.enums import UserRole, VerificationStatus, DocumentType
 import re
 from .base import SharedConfig
 
@@ -57,6 +57,15 @@ class StudentProfileUpdate(SharedConfig):
     avatar_url: str | None = None
 
 
+class TeacherDocumentRead(SharedConfig):
+    id: UUID
+    type: DocumentType
+    file_url: str
+    status: VerificationStatus
+    remarks: str | None = None
+    created_at: datetime
+
+
 class TeacherProfileRead(SharedConfig):
 
     user_id: UUID
@@ -65,6 +74,9 @@ class TeacherProfileRead(SharedConfig):
     headline: str | None
     verification_status: VerificationStatus
 
+class TeacherProfilePrivateRead(TeacherProfileRead):
+    document_status: VerificationStatus
+    documents: list[TeacherDocumentRead] = []
 
 class TeacherProfileUpdate(SharedConfig):
 

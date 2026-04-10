@@ -28,7 +28,7 @@ from app.repositories.user_repo import UserRepository
 from app.schemas.booking import BookingDetailedReadForTeacher
 from app.schemas.session import TeacherSessionRead
 from app.schemas.subject import TeacherSearchResult, TeacherSubjectCreate, TeacherSubjectRead
-from app.schemas.user import TeacherProfileRead, TeacherProfileUpdate
+from app.schemas.user import TeacherProfileRead, TeacherProfilePrivateRead, TeacherProfileUpdate
 from app.models.teacher_document import TeacherDocument
 from app.utils.cloudinary import get_cloudinary_manager
 
@@ -171,14 +171,16 @@ async def search_teachers_by_subject(
 # Note: /me must be defined BEFORE /{teacher_id} to avoid UUID parsing conflicts
 
 
-@router.get("/me", response_model=TeacherProfileRead)
+@router.get("/me", response_model=TeacherProfilePrivateRead)
 async def get_my_profile(current_user: CurrentUser, db: DbSession):
     """Return the logged-in teacher's own profile."""
     if current_user.role != UserRole.TEACHER:
         raise PermissionDeniedError(detail="Only teachers can access this")
 
     result = await db.execute(
-        select(TeacherProfile).where(TeacherProfile.user_id == current_user.id)
+        select(TeacherProfile)
+        .options(selectinload(TeacherProfile.documents))
+        .where(TeacherProfile.user_id == current_user.id)
     )
     profile = result.scalar_one_or_none()
     if not profile:
@@ -186,7 +188,7 @@ async def get_my_profile(current_user: CurrentUser, db: DbSession):
     return profile
 
 
-@router.patch("/me", response_model=TeacherProfileRead)
+@router.patch("/me", response_model=TeacherProfilePrivateRead)
 async def update_my_profile(
     body: TeacherProfileUpdate,
     current_user: Annotated[User, RequireTeacher],
@@ -197,7 +199,9 @@ async def update_my_profile(
         raise PermissionDeniedError(detail="Only teachers can access this")
 
     result = await db.execute(
-        select(TeacherProfile).where(TeacherProfile.user_id == current_user.id)
+        select(TeacherProfile)
+        .options(selectinload(TeacherProfile.documents))
+        .where(TeacherProfile.user_id == current_user.id)
     )
     profile = result.scalar_one_or_none()
     if not profile:
@@ -215,7 +219,7 @@ async def update_my_profile(
     return profile
 
 
-@router.patch("/onboarding/documents", response_model=TeacherProfileRead)
+@router.patch("/onboarding/documents", response_model=TeacherProfilePrivateRead)
 async def submit_onboarding_documents(
     current_user: Annotated[User, RequireTeacher],
     db: DbSession,
@@ -241,7 +245,9 @@ async def submit_onboarding_documents(
         db.add(current_user)
 
     result = await db.execute(
-        select(TeacherProfile).where(TeacherProfile.user_id == current_user.id)
+        select(TeacherProfile)
+        .options(selectinload(TeacherProfile.documents))
+        .where(TeacherProfile.user_id == current_user.id)
     )
     profile = result.scalar_one_or_none()
     if not profile:
