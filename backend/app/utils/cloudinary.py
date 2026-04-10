@@ -55,7 +55,7 @@ class CloudinaryManager:
         if not self._check_initialized():
             raise RuntimeError("Cloudinary is not initialized.")
         import cloudinary.uploader
-        kwargs = {"folder": folder, "flags": "lossless"}
+        kwargs = {"folder": folder}
         if public_id:
             kwargs["public_id"] = public_id
         result = cloudinary.uploader.upload(file_obj, **kwargs)
