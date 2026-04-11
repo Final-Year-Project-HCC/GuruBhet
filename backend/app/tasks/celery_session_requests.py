@@ -11,7 +11,7 @@ from app.models.booking import Booking, Session
 from app.models.communication import Message, MessageType
 from app.core.enums import BookingStatus, SessionStatus
 from app.utils.presence import get_session_request_pending, clear_session_request_pending
-from app.db.session import get_db_session
+from app.db.session import get_db_context
 
 logger = logging.getLogger(__name__)
 

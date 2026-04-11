@@ -18,6 +18,7 @@ This module implements the HTTP-to-Socket flow:
 import logging
 from typing import Annotated
 from uuid import UUID
+from datetime import datetime, UTC
 
 from fastapi import APIRouter, Depends, Path, status, BackgroundTasks
 from sqlalchemy import select
@@ -34,7 +35,7 @@ from app.core.socketio import get_socketio_manager
 from app.db.session import get_async_session
 from app.models.booking import Booking, BookingStatus
 from app.models.communication import Message
-from app.models.user import User, UTC, datetime
+from app.models.user import User
 from app.schemas.booking import BookingCreate
 from app.schemas.communication import MessageCreate, MessageResponse
 from app.services.communication import CommunicationService, NotificationService
@@ -52,9 +53,9 @@ router = APIRouter()
 @router.post("/messages", response_model=MessageResponse, status_code=status.HTTP_201_CREATED)
 async def send_message(
     message_create: MessageCreate,
+    background_tasks: BackgroundTasks,
     current_user_id: UUID = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_async_session),
-    background_tasks: BackgroundTasks,
 ) -> MessageResponse:
     """
     Send a message from current user to a recipient.

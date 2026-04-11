@@ -11,7 +11,7 @@ from app.models.booking import Booking, Session
 from app.models.communication import Message, MessageType, MessageStatus
 from app.core.enums import BookingStatus, SessionStatus
 from app.utils.presence import get_session_request_pending, clear_session_request_pending
-from app.db.session import get_db_session
+from app.db.session import get_db_context
 from app.celery import celery_app
 
 logger = logging.getLogger(__name__)
@@ -40,7 +40,7 @@ async def handle_session_request_expiration(booking_id: UUID, message_id: UUID) 
     
     try:
         # Get database session
-        async with get_db_session() as db:
+        async with get_db_context() as db:
             # Fetch the session request message
             message_result = await db.execute(
                 select(Message).where(
@@ -191,4 +191,3 @@ def handle_session_request_timeout_task(self, booking_id: str, message_id: str):
     except Exception as exc:
         logger.error(f"Session request timeout task failed: {exc}")
         raise self.retry(exc=exc, countdown=5)  # Retry after 5 seconds
-

@@ -44,7 +44,7 @@ def process_session_billing(self, session_id: str, booking_id: str):
         # Import here to avoid circular imports
         from sqlalchemy import select
         from sqlalchemy.ext.asyncio import AsyncSession
-        from app.db.session import get_db_async
+        from app.db.session import get_db_context
         from app.models.booking import Session, Booking
         
         # TODO: Implement async session handling in Celery context

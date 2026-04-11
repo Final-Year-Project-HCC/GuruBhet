@@ -23,8 +23,8 @@ async def submit_rating(body: RatingCreate, current_user: CurrentUser, db: DbSes
 @router.get("/teacher/{teacher_id}", response_model=list[RatingRead])
 async def get_teacher_ratings(
     teacher_id: Annotated[UUID, Path(..., alias="teacherId")],
+    db: DbSession,
     subject_id: UUID | None = Query(default=None, alias="subjectId"),
-    db: DbSession = None,
 ):
     """Public: list a teacher's ratings, optionally filtered by subject."""
     ...

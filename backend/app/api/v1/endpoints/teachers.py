@@ -24,7 +24,7 @@ from app.core.exceptions import (
 from app.models.booking import Booking, Session
 from app.models.student import StudentProfile
 from app.models.subject import Subject
-from app.models.rating import Rating
+from app.models.rating import TeacherRating
 from app.models.teacher import TeacherProfile
 from app.models.teacher_subject import TeacherSubject
 from app.models.user import User
@@ -451,9 +451,9 @@ async def get_teacher_latest_ratings(
         raise TeacherNotFoundError(teacher_id=str(teacher_id))
 
     result = await db.execute(
-        select(Rating)
-        .where(Rating.teacher_id == teacher_id)
-        .order_by(Rating.created_at.desc())
+        select(TeacherRating)
+        .where(TeacherRating.teacher_id == teacher_id)
+        .order_by(TeacherRating.created_at.desc())
         .limit(3)
     )
     return list(result.scalars().all())

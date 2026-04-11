@@ -112,8 +112,8 @@ async def list_study_levels(
 async def get_study_level(
     study_level_id: Annotated[UUID, Path(..., alias="studyLevelId")],
     request: Request,
-    is_active: bool = Query(default=True, alias="isActive"),
     db: DbSession,
+    is_active: bool = Query(default=True, alias="isActive"),
 ) -> StudyLevelRead:
     """[STAFF] Get a specific StudyLevel by ID."""
     await verify_inactive_access(is_active, db, request)
@@ -197,10 +197,10 @@ async def create_board(body: BoardCreate, db: DbSession, _=RequireAcademicsManag
 
 @router.get("/boards", response_model=list[BoardRead])
 async def list_boards(
+    db: DbSession,
     study_level_id: UUID = Query(default=None, alias="studyLevelId"),
     request: Request = None,
     is_active: bool = Query(default=True, alias="isActive"),
-    db: DbSession,
 ) -> list[BoardRead]:
     """
     [STAFF] List Boards.
@@ -227,8 +227,8 @@ async def list_boards(
 async def get_board(
     board_id: Annotated[UUID, Path(..., alias="boardId")],
     request: Request,
-    is_active: bool = Query(default=True, alias="isActive"),
     db: DbSession,
+    is_active: bool = Query(default=True, alias="isActive"),
 ) -> BoardRead:
     """[STAFF] Get a specific Board by ID."""
     await verify_inactive_access(is_active, db, request)
@@ -316,11 +316,11 @@ async def create_faculty(
 
 @router.get("/faculties", response_model=list[FacultyRead])
 async def list_faculties(
+    db: DbSession,
     study_level_id: UUID = Query(default=None, alias="studyLevelId"),
     board_id: UUID = Query(default=None, alias="boardId"),
     request: Request = None,
     is_active: bool = Query(default=True, alias="isActive"),
-    db: DbSession,
 ) -> list[FacultyRead]:
     """
     [STAFF] List Faculties.
@@ -365,8 +365,8 @@ async def list_faculties(
 async def get_faculty(
     faculty_id: Annotated[UUID, Path(..., alias="facultyId")],
     request: Request,
-    is_active: bool = Query(default=True, alias="isActive"),
     db: DbSession,
+    is_active: bool = Query(default=True, alias="isActive"),
 ) -> FacultyRead:
     """[STAFF] Get a specific Faculty by ID."""
     await verify_inactive_access(is_active, db, request)
@@ -460,12 +460,12 @@ async def create_subject(
 
 @router.get("/subjects", response_model=list[SubjectRead])
 async def list_subjects(
+    db: DbSession,
     study_level_id: UUID = Query(default=None, alias="studyLevelId"),
     board_id: UUID = Query(default=None, alias="boardId"),
     faculty_id: UUID = Query(default=None, alias="facultyId"),
     request: Request = None,
     is_active: bool = Query(default=True, alias="isActive"),
-    db: DbSession,
 ) -> list[SubjectRead]:
     """
     [STAFF] List Subjects.
@@ -512,8 +512,8 @@ async def list_subjects(
 async def get_subject(
     subject_id: Annotated[UUID, Path(..., alias="subjectId")],
     request: Request,
-    is_active: bool = Query(default=True, alias="isActive"),
     db: DbSession,
+    is_active: bool = Query(default=True, alias="isActive"),
 ) -> SubjectWithContextRead:
     """[STAFF] Get a specific Subject by ID with full context."""
     await verify_inactive_access(is_active, db, request)
