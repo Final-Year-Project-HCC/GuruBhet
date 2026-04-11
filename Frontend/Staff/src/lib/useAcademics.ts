@@ -109,7 +109,7 @@ export function useCreateBoard() {
     },
     onSuccess: () => {
       // Invalidate boards for all study levels in studyLevelIds if available
-      queryClient.invalidateQueries({ queryKey: ["boards"] });
+      queryClient.invalidateQueries({ queryKey: ["allBoards"] });
       toast.success("Board created successfully!");
     },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -234,9 +234,9 @@ export function useCreateSubject() {
       );
       return data;
     },
-    onSuccess: (data) => {
+    onSuccess: (data, {studyLevelId, boardId, facultyId}) => {
       queryClient.invalidateQueries({
-        queryKey: ["subjects", data.studyLevelId, data.boardId, data.facultyId],
+        queryKey: ["subjects", studyLevelId, boardId, facultyId],
       });
       toast.success("Subject created successfully!");
     },
@@ -278,7 +278,7 @@ export function useDeleteBoard() {
       await apiClient.delete(`/academics/boards/${id}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["boards"] });
+      queryClient.invalidateQueries({ queryKey: ["allBoards"] });
       queryClient.invalidateQueries({ queryKey: ["faculties"] });
       toast.success("Board deleted successfully!");
     },

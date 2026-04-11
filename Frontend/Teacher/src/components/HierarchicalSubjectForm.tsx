@@ -1,10 +1,16 @@
-'use client';
+"use client";
 
-import React, { useState, useMemo } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import apiClient from '@/lib/api';
-import { toast } from 'react-toastify';
-import type { AcademicStudyLevel, AcademicBoard, AcademicFaculty, AcademicSubject } from '@/lib/types';
+import React, { useState, useMemo } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "react-toastify";
+import {
+  useStudyLevels,
+  useBoards,
+  useFaculties,
+  useSubjects,
+} from "@/lib/hooks/useAcademics";
+import type { StudyLevel, Board, Faculty, Subject } from "@/lib/types";
+import apiClient from "@/lib/api";
 
 interface HierarchicalSubjectFormProps {
   onSuccess?: () => void;
@@ -14,7 +20,7 @@ interface HierarchicalSubjectFormProps {
  * HierarchicalSubjectForm Component
  * Implements a 4-level cascading form for subject selection:
  * StudyLevel → Board → Faculty → Subject
- * 
+ *
  * Features:
  * - Dependent select fields that enable as parent selections are made
  * - Loading states for each level
@@ -22,86 +28,52 @@ interface HierarchicalSubjectFormProps {
  * - Metadata fields: Rate Per Session & Years of Experience
  * - Subject list below form for management
  */
-export function HierarchicalSubjectForm({ onSuccess }: HierarchicalSubjectFormProps) {
+export function HierarchicalSubjectForm({
+  onSuccess,
+}: HierarchicalSubjectFormProps) {
   const queryClient = useQueryClient();
 
   // Form state with camelCase naming
-  const [selectedStudyLevelId, setSelectedStudyLevelId] = useState<string>('');
-  const [selectedBoardId, setSelectedBoardId] = useState<string>('');
-  const [selectedFacultyId, setSelectedFacultyId] = useState<string>('');
-  const [selectedSubjectId, setSelectedSubjectId] = useState<string>('');
-  const [selectedUnitValue, setSelectedUnitValue] = useState<string>('');
-  const [ratePerSession, setRatePerSession] = useState<string>('');
-  const [yearsOfExperience, setYearsOfExperience] = useState<string>('');
+  const [selectedStudyLevelId, setSelectedStudyLevelId] = useState<string>("");
+  const [selectedBoardId, setSelectedBoardId] = useState<string>("");
+  const [selectedFacultyId, setSelectedFacultyId] = useState<string>("");
+  const [selectedSubjectId, setSelectedSubjectId] = useState<string>("");
+  const [selectedUnitValue, setSelectedUnitValue] = useState<string>("");
+  const [ratePerSession, setRatePerSession] = useState<string>("");
+  const [yearsOfExperience, setYearsOfExperience] = useState<string>("");
 
   // Fetch Study Levels (independent query)
   const {
     data: studyLevels = [],
     isLoading: isLoadingStudyLevels,
     error: studyLevelsError,
-  } = useQuery<AcademicStudyLevel[]>({
-    queryKey: ['studyLevels'],
-    queryFn: async () => {
-      const response = await apiClient.get('/academics/study-levels');
-      return response.data.data || [];
-    },
-  });
+  } = useStudyLevels();
 
   // Fetch Boards (depends on studyLevelId)
   const {
     data: boards = [],
     isLoading: isLoadingBoards,
     error: boardsError,
-  } = useQuery<AcademicBoard[]>({
-    queryKey: ['boards', selectedStudyLevelId],
-    queryFn: async () => {
-      if (!selectedStudyLevelId) return [];
-      const response = await apiClient.get('/academics/boards', {
-        params: { studyLevelId: selectedStudyLevelId },
-      });
-      return response.data.data || [];
-    },
-    enabled: !!selectedStudyLevelId,
-  });
+  } = useBoards(selectedStudyLevelId);
 
   // Fetch Faculties (depends on boardId)
   const {
     data: faculties = [],
     isLoading: isLoadingFaculties,
     error: facultiesError,
-  } = useQuery<AcademicFaculty[]>({
-    queryKey: ['faculties', selectedBoardId],
-    queryFn: async () => {
-      if (!selectedBoardId) return [];
-      const response = await apiClient.get('/academics/faculties', {
-        params: { boardId: selectedBoardId },
-      });
-      return response.data.data || [];
-    },
-    enabled: !!selectedBoardId,
-  });
+  } = useFaculties(selectedBoardId);
 
   // Fetch Subjects (depends on facultyId)
   const {
     data: subjects = [],
     isLoading: isLoadingSubjects,
     error: subjectsError,
-  } = useQuery<AcademicSubject[]>({
-    queryKey: ['subjects', selectedFacultyId],
-    queryFn: async () => {
-      if (!selectedFacultyId) return [];
-      const response = await apiClient.get('/academics/subjects', {
-        params: { facultyId: selectedFacultyId },
-      });
-      return response.data.data || [];
-    },
-    enabled: !!selectedFacultyId,
-  });
+  } = useSubjects(selectedFacultyId);
 
   // Get the selected faculty to determine unit type
   const selectedFaculty = useMemo(
-    () => faculties.find((f: AcademicFaculty) => f.id === selectedFacultyId),
-    [selectedFacultyId, faculties]
+    () => faculties.find((f: Faculty) => f.id === selectedFacultyId),
+    [selectedFacultyId, faculties],
   );
 
   // Generate unit options based on faculty totalUnits
@@ -111,7 +83,7 @@ export function HierarchicalSubjectForm({ onSuccess }: HierarchicalSubjectFormPr
     for (let i = 1; i <= selectedFaculty.totalUnits; i++) {
       options.push({
         value: i.toString(),
-        label: `${selectedFaculty.unitType === 'SEMESTER' ? 'Semester' : selectedFaculty.unitType === 'YEAR' ? 'Year' : 'Grade'} ${i}`,
+        label: `${selectedFaculty.unitType === "SEMESTER" ? "Semester" : selectedFaculty.unitType === "YEAR" ? "Year" : "Grade"} ${i}`,
       });
     }
     return options;
@@ -130,7 +102,7 @@ export function HierarchicalSubjectForm({ onSuccess }: HierarchicalSubjectFormPr
   // Add subject mutation
   const addSubjectMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiClient.post('/teachers/me/subjects', {
+      const response = await apiClient.post("/teachers/me/subjects", {
         subjectId: selectedSubjectId,
         ratePerSession: parseInt(ratePerSession),
         yearsOfExperience: parseInt(yearsOfExperience),
@@ -138,22 +110,22 @@ export function HierarchicalSubjectForm({ onSuccess }: HierarchicalSubjectFormPr
       return response.data;
     },
     onSuccess: () => {
-      toast.success('Subject added successfully');
+      toast.success("Subject added successfully");
       // Reset form
-      setSelectedStudyLevelId('');
-      setSelectedBoardId('');
-      setSelectedFacultyId('');
-      setSelectedSubjectId('');
-      setSelectedUnitValue('');
-      setRatePerSession('');
-      setYearsOfExperience('');
+      setSelectedStudyLevelId("");
+      setSelectedBoardId("");
+      setSelectedFacultyId("");
+      setSelectedSubjectId("");
+      setSelectedUnitValue("");
+      setRatePerSession("");
+      setYearsOfExperience("");
       // Refetch teacher subjects
-      queryClient.invalidateQueries({ queryKey: ['teacherSubjects'] });
+      queryClient.invalidateQueries({ queryKey: ["teacherSubjects"] });
       onSuccess?.();
     },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     onError: (error: any) => {
-      toast.error(error?.response?.data?.message || 'Failed to add subject');
+      toast.error(error?.response?.data?.message || "Failed to add subject");
     },
   });
 
@@ -167,23 +139,23 @@ export function HierarchicalSubjectForm({ onSuccess }: HierarchicalSubjectFormPr
   // Reset dependent fields when parent changes
   const handleStudyLevelChange = (value: string) => {
     setSelectedStudyLevelId(value);
-    setSelectedBoardId('');
-    setSelectedFacultyId('');
-    setSelectedSubjectId('');
-    setSelectedUnitValue('');
+    setSelectedBoardId("");
+    setSelectedFacultyId("");
+    setSelectedSubjectId("");
+    setSelectedUnitValue("");
   };
 
   const handleBoardChange = (value: string) => {
     setSelectedBoardId(value);
-    setSelectedFacultyId('');
-    setSelectedSubjectId('');
-    setSelectedUnitValue('');
+    setSelectedFacultyId("");
+    setSelectedSubjectId("");
+    setSelectedUnitValue("");
   };
 
   const handleFacultyChange = (value: string) => {
     setSelectedFacultyId(value);
-    setSelectedSubjectId('');
-    setSelectedUnitValue('');
+    setSelectedSubjectId("");
+    setSelectedUnitValue("");
   };
 
   return (
@@ -194,7 +166,10 @@ export function HierarchicalSubjectForm({ onSuccess }: HierarchicalSubjectFormPr
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Study Level */}
           <div>
-            <label htmlFor="studyLevel" className="block text-sm font-medium mb-2">
+            <label
+              htmlFor="studyLevel"
+              className="block text-sm font-medium mb-2"
+            >
               Study Level <span className="text-destructive">*</span>
             </label>
             <select
@@ -205,15 +180,19 @@ export function HierarchicalSubjectForm({ onSuccess }: HierarchicalSubjectFormPr
               disabled={isLoadingStudyLevels}
             >
               <option value="">
-                {isLoadingStudyLevels ? 'Loading...' : 'Select a study level'}
+                {isLoadingStudyLevels ? "Loading..." : "Select a study level"}
               </option>
-              {studyLevels.map((level: AcademicStudyLevel) => (
+              {studyLevels.map((level: StudyLevel) => (
                 <option key={level.id} value={level.id}>
                   {level.name}
                 </option>
               ))}
             </select>
-            {studyLevelsError && <p className="text-destructive text-sm mt-1">Failed to load study levels</p>}
+            {studyLevelsError && (
+              <p className="text-destructive text-sm mt-1">
+                Failed to load study levels
+              </p>
+            )}
           </div>
 
           {/* Board */}
@@ -230,18 +209,22 @@ export function HierarchicalSubjectForm({ onSuccess }: HierarchicalSubjectFormPr
             >
               <option value="">
                 {!selectedStudyLevelId
-                  ? 'Select a study level first'
+                  ? "Select a study level first"
                   : isLoadingBoards
-                    ? 'Loading...'
-                    : 'Select a board'}
+                    ? "Loading..."
+                    : "Select a board"}
               </option>
-              {boards.map((board: AcademicBoard) => (
+              {boards.map((board: Board) => (
                 <option key={board.id} value={board.id}>
                   {board.name}
                 </option>
               ))}
             </select>
-            {boardsError && <p className="text-destructive text-sm mt-1">Failed to load boards</p>}
+            {boardsError && (
+              <p className="text-destructive text-sm mt-1">
+                Failed to load boards
+              </p>
+            )}
           </div>
 
           {/* Faculty */}
@@ -258,20 +241,59 @@ export function HierarchicalSubjectForm({ onSuccess }: HierarchicalSubjectFormPr
             >
               <option value="">
                 {!selectedBoardId
-                  ? 'Select a board first'
+                  ? "Select a board first"
                   : isLoadingFaculties
-                    ? 'Loading...'
-                    : 'Select a faculty'}
+                    ? "Loading..."
+                    : "Select a faculty"}
               </option>
-              {faculties.map((faculty: AcademicFaculty) => (
+              {faculties.map((faculty: Faculty) => (
                 <option key={faculty.id} value={faculty.id}>
                   {faculty.name}
                 </option>
               ))}
             </select>
-            {facultiesError && <p className="text-destructive text-sm mt-1">Failed to load faculties</p>}
+            {facultiesError && (
+              <p className="text-destructive text-sm mt-1">
+                Failed to load faculties
+              </p>
+            )}
           </div>
-
+          {/* Unit Value Selector (appears after subject selection) */}
+          {selectedFacultyId && selectedFaculty && (
+            <div>
+              <label
+                htmlFor="unitValue"
+                className="block text-sm font-medium mb-2"
+              >
+                {selectedFaculty.unitType === "SEMESTER"
+                  ? "Semester"
+                  : selectedFaculty.unitType === "YEAR"
+                    ? "Year"
+                    : "Grade"}{" "}
+                <span className="text-destructive">*</span>
+              </label>
+              <select
+                id="unitValue"
+                value={selectedUnitValue}
+                onChange={(e) => setSelectedUnitValue(e.target.value)}
+                className="w-full px-4 py-2 border border-input rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+              >
+                <option value="">
+                  Select{" "}
+                  {selectedFaculty.unitType === "SEMESTER"
+                    ? "semester"
+                    : selectedFaculty.unitType === "YEAR"
+                      ? "year"
+                      : "grade"}
+                </option>
+                {unitOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           {/* Subject */}
           <div>
             <label htmlFor="subject" className="block text-sm font-medium mb-2">
@@ -286,56 +308,43 @@ export function HierarchicalSubjectForm({ onSuccess }: HierarchicalSubjectFormPr
             >
               <option value="">
                 {!selectedFacultyId
-                  ? 'Select a faculty first'
+                  ? "Select a faculty first"
                   : isLoadingSubjects
-                    ? 'Loading...'
-                    : 'Select a subject'}
+                    ? "Loading..."
+                    : "Select a subject"}
               </option>
-              {subjects.map((subject: AcademicSubject) => (
-                <option key={subject.id} value={subject.id}>
-                  {subject.name}
-                </option>
-              ))}
-            </select>
-            {subjectsError && <p className="text-destructive text-sm mt-1">Failed to load subjects</p>}
-          </div>
-
-          {/* Unit Value Selector (appears after subject selection) */}
-          {selectedFacultyId && selectedFaculty && (
-            <div>
-              <label htmlFor="unitValue" className="block text-sm font-medium mb-2">
-                {selectedFaculty.unitType === 'SEMESTER'
-                  ? 'Semester'
-                  : selectedFaculty.unitType === 'YEAR'
-                    ? 'Year'
-                    : 'Grade'}{' '}
-                <span className="text-destructive">*</span>
-              </label>
-              <select
-                id="unitValue"
-                value={selectedUnitValue}
-                onChange={(e) => setSelectedUnitValue(e.target.value)}
-                className="w-full px-4 py-2 border border-input rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-              >
-                <option value="">
-                  Select {selectedFaculty.unitType === 'SEMESTER' ? 'semester' : selectedFaculty.unitType === 'YEAR' ? 'year' : 'grade'}
-                </option>
-                {unitOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
+              {subjects
+                .filter(
+                  (subject: Subject) =>
+                    subject.unitValue === parseInt(selectedUnitValue) &&
+                    subject.faculty.id === selectedFacultyId &&
+                    subject.board.id === selectedBoardId &&
+                    subject.studyLevel.id === selectedStudyLevelId,
+                )
+                .map((subject: Subject) => (
+                  <option key={subject.id} value={subject.id}>
+                    {subject.name}
                   </option>
                 ))}
-              </select>
-            </div>
-          )}
+            </select>
+            {subjectsError && (
+              <p className="text-destructive text-sm mt-1">
+                Failed to load subjects
+              </p>
+            )}
+          </div>
 
           {/* Metadata Fields (active after hierarchy is selected) */}
           {selectedSubjectId && (
             <>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label htmlFor="ratePerSession" className="block text-sm font-medium mb-2">
-                    Rate Per Session (NPR) <span className="text-destructive">*</span>
+                  <label
+                    htmlFor="ratePerSession"
+                    className="block text-sm font-medium mb-2"
+                  >
+                    Rate Per Session (NPR){" "}
+                    <span className="text-destructive">*</span>
                   </label>
                   <input
                     id="ratePerSession"
@@ -349,8 +358,12 @@ export function HierarchicalSubjectForm({ onSuccess }: HierarchicalSubjectFormPr
                   />
                 </div>
                 <div>
-                  <label htmlFor="yearsOfExperience" className="block text-sm font-medium mb-2">
-                    Years of Experience <span className="text-destructive">*</span>
+                  <label
+                    htmlFor="yearsOfExperience"
+                    className="block text-sm font-medium mb-2"
+                  >
+                    Years of Experience{" "}
+                    <span className="text-destructive">*</span>
                   </label>
                   <input
                     id="yearsOfExperience"
@@ -375,7 +388,9 @@ export function HierarchicalSubjectForm({ onSuccess }: HierarchicalSubjectFormPr
               disabled={!isFormValid || addSubjectMutation.isPending}
               className="px-6 py-2 bg-primary text-primary-foreground font-medium rounded-md hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              {addSubjectMutation.isPending ? 'Adding Subject...' : 'Add Subject'}
+              {addSubjectMutation.isPending
+                ? "Adding Subject..."
+                : "Add Subject"}
             </button>
           </div>
         </form>

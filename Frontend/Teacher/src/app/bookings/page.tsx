@@ -225,7 +225,7 @@ Rs {totalEarned.toLocaleString("en-IN", {
             <div className="text-center">
               {activeTab === "requests" ? (
                 <>
-                  <p className="text-xl font-medium text-foreground">All caught up! 🎉</p>
+                  <p className="text-xl font-medium text-foreground">All caught up!</p>
                   <p className="mt-2 text-sm text-muted-foreground">
                     No pending booking requests right now
                   </p>

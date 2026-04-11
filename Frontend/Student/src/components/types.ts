@@ -43,22 +43,19 @@ export enum UnitType {
   SEMESTER = 'SEMESTER',
   GRADE = 'GRADE',
   YEAR = 'YEAR',
-  MONTH = 'MONTH',
 }
 
 export interface Subject {
   id: string;
   name: string;
   studyLevel: StudyLevel;
-  studyLevelId: string;
   board: Board;
-  boardId: string;
   faculty: Faculty;
-  facultyId: string;
   unitValue: number;
   createdAt?: string;
   updatedAt?: string;
 }
+
 
 export interface SubjectWithContext extends Subject {
   fullContext: string; // e.g., "Bachelor > Tribhuvan University > CSIT > Semester 5"
