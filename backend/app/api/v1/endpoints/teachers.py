@@ -404,7 +404,7 @@ async def get_teacher_public_profile(
 
 @router.get("/{teacher_id}/subjects", response_model=list[TeacherSubjectRead])
 async def get_teacher_public_subjects(
-    teacher_id: Annotated[UUID, Path(..., alias="teacherId")], db: DbSession
+    teacher_id: UUID, db: DbSession
 ):
     """
     Fetch a teacher's list of subjects and rates.
