@@ -94,6 +94,9 @@ class TeacherProfileUpdate(SharedConfig):
 
     bio: str | None = None
     tagline: str | None = None
+    first_name: str | None = None
+    middle_name: str | None = None
+    last_name: str | None = None
 
 
 class TeacherOnboardingRequest(SharedConfig):

@@ -124,11 +124,18 @@ async def update_my_profile(
         raise TeacherNotFoundError(teacher_id=str(current_user.id))
 
     update_data = body.model_dump(exclude_unset=True)
-    for key, value in update_data.items():
-        setattr(profile, key, value)
+    # Update profile fields
+    for key in ["bio", "tagline"]:
+        if key in update_data:
+            setattr(profile, key, update_data[key])
+
+    # Update user fields if present
+    for key in ["first_name", "middle_name", "last_name"]:
+        if key in update_data:
+            setattr(current_user, key, update_data[key])
 
     await db.commit()
-    
+
     result = await db.execute(
         select(TeacherProfile)
         .options(
@@ -292,18 +299,6 @@ async def get_my_bookings(current_user: Annotated[User, RequireTeacher], db: DbS
 
 # ── Subject management ────────────────────────────────────────────────────────
 
-@router.get("/me/subjects", response_model=list[TeacherSubjectRead])
-async def list_my_subjects(current_user: Annotated[User, RequireTeacher], db: DbSession):
-    result = await db.execute(
-        select(TeacherSubject)
-        .where(
-            TeacherSubject.teacher_id == current_user.id,
-            TeacherSubject.is_active == True
-        )
-        .options(selectinload(TeacherSubject.subject))
-        .limit(100)  # Internal safety limit
-    )
-    return list(result.scalars().all())
 
 @router.post("/me/subjects", response_model=TeacherSubjectRead, status_code=201)
 async def add_subject(
