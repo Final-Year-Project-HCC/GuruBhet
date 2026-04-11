@@ -113,7 +113,7 @@ class StudentInBooking(SharedConfig):
                 'id': data.user_id,
                 'first_name': data.user.first_name,
                 'last_name': data.user.last_name,
-                'profile_picture_url': data.avatar_url,
+                'profile_picture_url': data.user.avatar_url,
             }
         return data
 
@@ -135,7 +135,7 @@ class TeacherInBooking(SharedConfig):
                 'id': data.user_id,
                 'first_name': data.user.first_name,
                 'last_name': data.user.last_name,
-                'profile_picture_url': data.avatar_url,
+                'profile_picture_url': data.user.avatar_url,
             }
         return data
 

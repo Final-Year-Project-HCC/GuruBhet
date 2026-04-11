@@ -3,7 +3,7 @@ from datetime import UTC, datetime
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Path
+from fastapi import APIRouter, HTTPException, Path, BackgroundTasks
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
@@ -48,6 +48,7 @@ async def request_session_completion(
     session_id: Annotated[UUID, Path(..., alias="sessionId")],
     current_user: Annotated[User, RequireProfessionalTeacher],
     db: DbSession,
+    background_tasks: BackgroundTasks,
 ):
     """
     Teacher requests to complete a session prematurely or at the end of duration.
@@ -109,7 +110,8 @@ async def request_session_completion(
         sio_manager = get_socketio_manager()
         if sio_manager:
             remaining_seconds = int(required_duration_seconds - elapsed_seconds)
-            await sio_manager.emit_to_user(
+            background_tasks.add_task(
+                sio_manager.emit_to_user,
                 user_id=booking.student_id,
                 event="premature_session_completion_requested",
                 data={

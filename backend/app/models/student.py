@@ -15,8 +15,7 @@ class StudentProfile(Base, TimestampMixin):
         ForeignKey("users.id", ondelete="CASCADE"),
         primary_key=True,
     )
-    bio: Mapped[str | None] = mapped_column(Text, nullable=True)
-    avatar_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # bio and avatar_url removed; use User.avatar_url
 
     # ── Relationships ─────────────────────────────────────────────────────────
     user: Mapped["User"] = relationship(back_populates="student_profile")  # noqa: F821

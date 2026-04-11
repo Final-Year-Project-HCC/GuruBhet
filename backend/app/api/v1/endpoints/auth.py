@@ -161,7 +161,7 @@ async def register(body: RegisterRequest, db: DbSession):
     elif user.role == UserRole.TEACHER:
         db.add(TeacherProfile(user_id=user.id))
 
-    await db.flush()
+    await db.commit()
     await db.refresh(user)
 
     # Trigger email verification token generation & celery task
@@ -437,8 +437,7 @@ async def verify_email(token: str, db: DbSession):
     if user and user.role in (UserRole.STUDENT, UserRole.TEACHER):
         user.is_email_verified = True
         await cache_delete(f"verify_email:{user_id_str}")
-        await db.flush()
+        await db.commit()
         return {"message": "Email verified successfully."}
         
     raise InvalidTokenError(detail="User not found")
-

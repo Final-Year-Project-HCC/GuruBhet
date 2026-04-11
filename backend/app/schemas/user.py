@@ -42,19 +42,25 @@ class UserRead(UserBase):
     is_banned: bool
     is_superuser: bool
     created_at: datetime
+    avatar_url: str | None = None
+
+
+class UserPublicRead(SharedConfig):
+    first_name: str
+    middle_name: str | None = None
+    last_name: str
+    avatar_url: str | None = None
 
 
 class StudentProfileRead(SharedConfig):
 
     user_id: UUID
     bio: str | None
-    avatar_url: str | None
 
 
 class StudentProfileUpdate(SharedConfig):
 
     bio: str | None = None
-    avatar_url: str | None = None
 
 
 class TeacherDocumentRead(SharedConfig):
@@ -70,18 +76,18 @@ class TeacherProfileRead(SharedConfig):
 
     user_id: UUID
     bio: str | None
-    avatar_url: str | None
-    headline: str | None
-    document_status: VerificationStatus
+    tagline: str | None
+    user: UserPublicRead
 
 class TeacherProfilePrivateRead(TeacherProfileRead):
+    user: UserRead
     documents: list[TeacherDocumentRead] = []
+    document_status: VerificationStatus
 
 class TeacherProfileUpdate(SharedConfig):
 
     bio: str | None = None
-    avatar_url: str | None = None
-    headline: str | None = None
+    tagline: str | None = None
 
 
 class TeacherOnboardingRequest(SharedConfig):

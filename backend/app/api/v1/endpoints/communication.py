@@ -19,7 +19,7 @@ import logging
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Path, status
+from fastapi import APIRouter, Depends, Path, status, BackgroundTasks
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -54,6 +54,7 @@ async def send_message(
     message_create: MessageCreate,
     current_user_id: UUID = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_async_session),
+    background_tasks: BackgroundTasks = None,
 ) -> MessageResponse:
     """
     Send a message from current user to a recipient.
@@ -93,6 +94,9 @@ async def send_message(
             raise UserNotFoundError(user_id=str(message_create.receiver_id))
 
         # Save message to database (Database-First)
+        # NOTE: Ensure save_and_send_message commits DB OR we commit immediately after
+        # To be safe, we perform the commit here to wrap the DB work.
+        
         message = await CommunicationService.save_and_send_message(
             db=db,
             sender_id=current_user_id,
@@ -103,11 +107,26 @@ async def send_message(
             file_key=message_create.file_key,
             booking_id=message_create.booking_id,
             session_id=message_create.session_id,
-            socketio_manager=socketio_manager,
+            socketio_manager=None, # Disable internal emission
         )
 
-        # Commit transaction
-        await db.commit()
+        # Ensure persistence before concluding the request logic
+        if db.in_transaction():
+            await db.commit()
+
+        # Move Socket.IO emission to background
+        background_tasks.add_task(
+            socketio_manager.emit_to_user,
+            user_id=message_create.receiver_id,
+            event="message_received",
+            data={
+                "id": str(message.id),
+                "sender_id": str(current_user_id),
+                "content": message.content,
+                "message_type": message.message_type.value,
+                "created_at": message.created_at.isoformat(),
+            }
+        )
 
         logger.info(
             f"Message {message.id} sent from {current_user_id} to {message_create.receiver_id}"

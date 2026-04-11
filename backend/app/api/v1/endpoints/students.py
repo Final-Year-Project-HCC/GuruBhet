@@ -23,7 +23,7 @@ router = APIRouter()
 # ── Own profile ───────────────────────────────────────────────────────────────
 
 
-@router.get("/me", response_model=StudentProfileRead)
+@router.get("/me/profile", response_model=StudentProfileRead)
 async def get_my_profile(current_user: CurrentUser, db: DbSession):
     """Return the logged-in student's profile."""
     if current_user.role != UserRole.STUDENT:
@@ -38,7 +38,7 @@ async def get_my_profile(current_user: CurrentUser, db: DbSession):
     return profile
 
 
-@router.patch("/me", response_model=StudentProfileRead)
+@router.patch("/me/profile", response_model=StudentProfileRead)
 async def update_my_profile(
     body: StudentProfileUpdate,
     current_user: CurrentUser,
@@ -57,10 +57,8 @@ async def update_my_profile(
 
     if body.bio is not None:
         profile.bio = body.bio
-    if body.avatar_url is not None:
-        profile.avatar_url = body.avatar_url
 
-    await db.flush()
+    await db.commit()
     await db.refresh(profile)
     return profile
 

@@ -1,3 +1,5 @@
+import logging
+from contextlib import asynccontextmanager
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
     async_sessionmaker,
@@ -6,6 +8,8 @@ from sqlalchemy.ext.asyncio import (
 )
 from typing import AsyncGenerator
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 class DatabaseSessionManager:
@@ -49,9 +53,12 @@ class DatabaseSessionManager:
         async with self._sessionmaker() as session:
             try:
                 yield session
-                await session.commit()
-            except Exception:
-                await session.rollback()
+                if session.in_transaction():
+                    await session.commit()
+            except Exception as e:
+                if session.in_transaction():
+                    logger.error(f"Database session error: {e}")
+                    await session.rollback()
                 raise
 
 
@@ -63,20 +70,11 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
         yield session
 
 
-def get_db_session() -> AsyncSession:
+@asynccontextmanager
+async def get_db_context() -> AsyncGenerator[AsyncSession, None]:
     """
-    Get a synchronous-style database session for Celery tasks.
-    
-    Note: Even though this returns an AsyncSession, it can be used in async contexts.
-    For Celery tasks, use this to get a session for the current task.
-    
-    Returns:
-        AsyncSession: A database session
-    
-    Example:
-        session = get_db_session()
-        # Use session in async context
+    Async context manager for database sessions.
+    Ideal for use in Celery tasks or standalone scripts.
     """
-    if not sessionmanager._sessionmaker:
-        raise RuntimeError("DatabaseSessionManager not initialised")
-    return sessionmanager._sessionmaker()
+    async for session in sessionmanager.session():
+        yield session

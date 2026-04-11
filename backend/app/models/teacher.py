@@ -27,8 +27,7 @@ class TeacherProfile(Base, TimestampMixin):
         primary_key=True,
     )
     bio: Mapped[str | None] = mapped_column(Text, nullable=True)
-    avatar_url: Mapped[str | None] = mapped_column(Text, nullable=True)
-    headline: Mapped[str | None] = mapped_column(Text, nullable=True)
+    tagline: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # eSewa verified separately from document verification
     document_status: Mapped[VerificationStatus] = mapped_column(

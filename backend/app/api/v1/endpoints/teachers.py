@@ -1,13 +1,17 @@
+import logging
+import sqlalchemy as sa
+import time
 from decimal import Decimal
 from typing import Annotated
-from uuid import UUID
+from uuid import UUID, uuid4
 
-from fastapi import APIRouter, Path, Query, File, Form, UploadFile
+from fastapi import APIRouter, Path, Query, File, Form, UploadFile, status, HTTPException
+from fastapi.concurrency import run_in_threadpool
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from app.core.dependencies import CurrentUser, DbSession, RequireTeacher
-from app.core.enums import SessionStatus, UserRole, VerificationStatus, DocumentType
+from app.core.enums import SessionStatus, UserRole, VerificationStatus, DocumentType, BookingStatus
 from app.core.exceptions import (
     ConflictError,
     PermissionDeniedError,
@@ -20,59 +24,50 @@ from app.core.exceptions import (
 from app.models.booking import Booking, Session
 from app.models.student import StudentProfile
 from app.models.subject import Subject
+from app.models.rating import Rating
 from app.models.teacher import TeacherProfile
 from app.models.teacher_subject import TeacherSubject
 from app.models.user import User
 from app.repositories.teacher_subject_repo import TeacherSubjectRepository
 from app.repositories.user_repo import UserRepository
 from app.schemas.booking import BookingDetailedReadForTeacher
+from app.schemas.rating import RatingRead
 from app.schemas.session import TeacherSessionRead
 from app.schemas.subject import TeacherSearchResult, TeacherSubjectCreate, TeacherSubjectRead
 from app.schemas.user import TeacherProfileRead, TeacherProfilePrivateRead, TeacherProfileUpdate
 from app.models.teacher_document import TeacherDocument
 from app.utils.cloudinary import get_cloudinary_manager
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
-
 # ── List all teachers (unauthenticated) ──────────────────────────────────────
-# TODO: TEMPORARY ENDPOINT - Remove this after frontend integration with search
-#       This is a debug/development endpoint. In production, use /search with filters.
-
 
 @router.get("/", response_model=list[TeacherProfileRead])
-async def list_all_teachers(db: DbSession):
+async def list_all_teachers(db: DbSession, limit: int = Query(default=100, le=100)):
     """
-    Fetch all registered teachers without authentication.
-
-    ⚠️  TEMPORARY ENDPOINT - For development/debugging only.
-    Will be removed in production. Use /search endpoint for production queries.
+    Fetch registered teachers without authentication (Dev/Debug only).
+    Includes a default limit for safety.
     """
     result = await db.execute(
         select(TeacherProfile)
         .options(selectinload(TeacherProfile.user))
         .order_by(TeacherProfile.created_at.desc())
+        .limit(limit)
     )
     return list(result.scalars().all())
 
-
 # ── Public search (students use this) ────────────────────────────────────────
-
 
 @router.get("/search", response_model=list[TeacherSearchResult])
 async def search_teachers(
-    subject_id: Annotated[UUID, Path(..., alias="subjectId")],
+    subject_id: Annotated[UUID, Query(..., alias="subjectId")],
     db: DbSession,
     min_rating: float = Query(default=0.0, ge=0.0, le=5.0),
     max_rate: Decimal | None = Query(default=None),
     limit: int = Query(default=20, le=50),
     offset: int = Query(default=0, ge=0),
 ):
-    """
-    Search for teachers by subject.
-    Results are ordered by recommendation score:
-      score = (avg_rating × 0.6) + (log(sessions_completed + 1) × 0.4)
-    """
     repo = TeacherSubjectRepository(db)
     results = await repo.search(
         subject_id=subject_id,
@@ -91,95 +86,21 @@ async def search_teachers(
             rating_count=ts.rating_count,
             total_sessions_completed=ts.total_sessions_completed,
             teacher_name=f"{ts.teacher.user.first_name} {ts.teacher.user.last_name}",
-            teacher_headline=ts.teacher.headline,
-            teacher_avatar_url=ts.teacher.avatar_url,
+            teacher_tagline=ts.teacher.tagline,
+            teacher_avatar_url=ts.teacher.user.avatar_url,
             subject=ts.subject,
         )
         for ts in results
     ]
-
-
-@router.get("/{subject_id}/search", response_model=list[TeacherSearchResult])
-async def search_teachers_by_subject(
-    subject_id: Annotated[UUID, Path(..., alias="subjectId")],
-    db: DbSession,
-    min_rating: float = Query(default=0.0, ge=0.0, le=5.0),
-    min_years_of_experience: int = Query(default=0, ge=0),
-    min_rate_per_session: Decimal | None = Query(default=None),
-    max_rate_per_session: Decimal | None = Query(default=None),
-    limit: int = Query(default=20, le=50),
-    offset: int = Query(default=0, ge=0),
-):
-    """
-    Search for teachers that teach a specific subject.
-    Results are ordered by recommendation score:
-      score = (avg_rating × 0.6) + (log(sessions_completed + 1) × 0.4)
-    """
-    repo = TeacherSubjectRepository(db)
-
-    # We will need to update the TeacherSubjectRepository search method or build the query directly here
-    stmt = (
-        select(TeacherSubject)
-        .options(
-            selectinload(TeacherSubject.teacher).selectinload(TeacherProfile.user),
-            selectinload(TeacherSubject.subject).selectinload(Subject.study_level),
-            selectinload(TeacherSubject.subject).selectinload(Subject.board),
-            selectinload(TeacherSubject.subject).selectinload(Subject.faculty),
-        )
-        .where(TeacherSubject.subject_id == subject_id)
-        .where(TeacherSubject.is_active == True)
-        .where(TeacherSubject.avg_rating >= min_rating)
-        .where(TeacherSubject.years_of_experience >= min_years_of_experience)
-    )
-
-    if min_rate_per_session is not None:
-        stmt = stmt.where(TeacherSubject.rate_per_session >= min_rate_per_session)
-    if max_rate_per_session is not None:
-        stmt = stmt.where(TeacherSubject.rate_per_session <= max_rate_per_session)
-
-    # Simplified scoring function using SQL math: (avg_rating * 0.6) + ln(total_sessions_completed + 1) * 0.4
-    import sqlalchemy as sa
-
-    score_expr = (TeacherSubject.avg_rating * 0.6) + (
-        sa.func.ln(TeacherSubject.total_sessions_completed + 1) * 0.4
-    )
-    stmt = stmt.order_by(score_expr.desc())
-    stmt = stmt.limit(limit).offset(offset)
-
-    result = await db.execute(stmt)
-    results = result.scalars().all()
-
-    return [
-        TeacherSearchResult(
-            teacher_id=ts.teacher_id,
-            subject_id=ts.subject_id,
-            rate_per_session=ts.rate_per_session,
-            years_of_experience=ts.years_of_experience,
-            avg_rating=ts.avg_rating,
-            rating_count=ts.rating_count,
-            total_sessions_completed=ts.total_sessions_completed,
-            teacher_name=f"{ts.teacher.user.first_name} {ts.teacher.user.last_name}",
-            teacher_headline=ts.teacher.headline,
-            teacher_avatar_url=ts.teacher.avatar_url,
-            subject=ts.subject,
-        )
-        for ts in results
-    ]
-
 
 # ── Own profile (teacher only) ────────────────────────────────────────────────
-# Note: /me must be defined BEFORE /{teacher_id} to avoid UUID parsing conflicts
 
-
-@router.get("/me", response_model=TeacherProfilePrivateRead)
-async def get_my_profile(current_user: CurrentUser, db: DbSession):
+@router.get("/me/profile", response_model=TeacherProfilePrivateRead)
+async def get_my_profile(current_user: Annotated[User, RequireTeacher], db: DbSession):
     """Return the logged-in teacher's own profile."""
-    if current_user.role != UserRole.TEACHER:
-        raise PermissionDeniedError(detail="Only teachers can access this")
-
     result = await db.execute(
         select(TeacherProfile)
-        .options(selectinload(TeacherProfile.documents))
+        .options(selectinload(TeacherProfile.documents), selectinload(TeacherProfile.user))
         .where(TeacherProfile.user_id == current_user.id)
     )
     profile = result.scalar_one_or_none()
@@ -187,43 +108,36 @@ async def get_my_profile(current_user: CurrentUser, db: DbSession):
         raise TeacherNotFoundError(teacher_id=str(current_user.id))
     return profile
 
-
-@router.patch("/me", response_model=TeacherProfilePrivateRead)
+@router.patch("/me/profile", response_model=TeacherProfilePrivateRead)
 async def update_my_profile(
     body: TeacherProfileUpdate,
     current_user: Annotated[User, RequireTeacher],
     db: DbSession,
 ):
-    """Update the logged-in teacher's bio, avatar, and headline."""
-    if current_user.role != UserRole.TEACHER:
-        raise PermissionDeniedError(detail="Only teachers can access this")
-
+    """Update the logged-in teacher's bio, avatar, and tagline."""
     result = await db.execute(
         select(TeacherProfile)
-        .options(selectinload(TeacherProfile.documents))
         .where(TeacherProfile.user_id == current_user.id)
     )
     profile = result.scalar_one_or_none()
     if not profile:
         raise TeacherNotFoundError(teacher_id=str(current_user.id))
 
-    if body.bio is not None:
-        profile.bio = body.bio
-    if body.avatar_url is not None:
-        profile.avatar_url = body.avatar_url
-    if body.headline is not None:
-        profile.headline = body.headline
+    update_data = body.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(profile, key, value)
 
     await db.commit()
-    # Re-fetch to ensure eager loaded relationships are intact before returning to Pydantic
+    
     result = await db.execute(
         select(TeacherProfile)
-        .options(selectinload(TeacherProfile.documents))
+        .options(
+            selectinload(TeacherProfile.documents), 
+            selectinload(TeacherProfile.user)
+        )
         .where(TeacherProfile.user_id == current_user.id)
     )
-    profile = result.scalar_one_or_none()
-    return profile
-
+    return result.scalar_one()
 
 @router.patch("/onboarding/documents", response_model=TeacherProfilePrivateRead)
 async def submit_onboarding_documents(
@@ -235,21 +149,17 @@ async def submit_onboarding_documents(
     selfie_with_nid: Annotated[UploadFile, File(..., alias="selfieWithNid")],
     phone: Annotated[str | None, Form()] = None,
 ):
-    """Upload onboarding documents for the current teacher (KYC). Ensures files are saved to Cloudinary."""
+    """Upload KYC documents. Handles async Cloudinary uploads and DB transaction safety."""
     
-    if current_user.role != UserRole.TEACHER:
-        raise PermissionDeniedError(detail="Only teachers can access this")
-    
+    # 1. Verification and Phone logic
     if not current_user.phone and not phone:
-        raise InvalidDocumentError(detail="Phone number is required for KYC if not provided during registration.")
+        raise InvalidDocumentError(detail="Phone number is required for KYC.")
 
     if not current_user.phone and phone:
         repo = UserRepository(db)
         if await repo.phone_exists(phone):
             raise PhoneAlreadyRegisteredError(phone=phone)
         current_user.phone = phone
-        db.add(current_user)
-
 
     result = await db.execute(
         select(TeacherProfile)
@@ -261,10 +171,9 @@ async def submit_onboarding_documents(
         raise TeacherNotFoundError(teacher_id=str(current_user.id))
 
     if profile.document_status == VerificationStatus.APPROVED:
-        raise ConflictError(detail="KYC documents are already approved. You cannot upload new documents.")
+        raise ConflictError(detail="KYC documents are already approved.")
 
-    profile.document_status = VerificationStatus.PENDING
-
+    # 2. Upload preparation
     docs_to_upload = [
         (DocumentType.NID_FRONT, nid_front),
         (DocumentType.NID_BACK, nid_back),
@@ -277,75 +186,66 @@ async def submit_onboarding_documents(
     uploaded_public_ids = []
 
     try:
-        for doc_type, file_obj in docs_to_upload:
-            if not file_obj.filename:
-                raise InvalidDocumentError(detail=f"Missing file for {doc_type.value}")
-            content_type = file_obj.content_type
-            if not content_type or not content_type.startswith("image/"):
-                raise InvalidDocumentError(detail=f"File {file_obj.filename} is not an image.")
+        for doc_type, upload_file in docs_to_upload:
+            if not upload_file.content_type or not upload_file.content_type.startswith("image/"):
+                raise InvalidDocumentError(detail=f"File {upload_file.filename} is not a valid image.")
 
-            upload_result = cloudinary_mgr.upload_file(
-                file_obj=file_obj.file,
+            # Read content before passing to threadpool
+            content = await upload_file.read()
+
+            # Offload blocking Cloudinary call to threadpool
+            upload_result = await run_in_threadpool(
+                cloudinary_mgr.upload_file,
+                file_obj=content,
                 folder=folder_path,
             )
-            uploaded_public_ids.append(upload_result.get("public_id"))
+            
+            public_id = upload_result.get("public_id")
+            uploaded_public_ids.append(public_id)
 
             doc = TeacherDocument(
                 teacher_id=profile.user_id,
                 type=doc_type,
                 file_url=upload_result.get("secure_url"),
-                file_key=upload_result.get("public_id"),
+                file_key=public_id,
                 status=VerificationStatus.PENDING
             )
             db.add(doc)
 
+        profile.document_status = VerificationStatus.PENDING
         await db.commit()
     except Exception as e:
-        # Rollback DB and delete uploaded files
         await db.rollback()
-        for public_id in uploaded_public_ids:
+        # Clean up orphaned Cloudinary files in threadpool
+        for pid in uploaded_public_ids:
             try:
-                cloudinary_mgr.delete_file(public_id)
-            except Exception as del_exc:
-                # Log but do not raise further
-                logger = __import__("logging").getLogger(__name__)
-                logger.error(f"Failed to delete Cloudinary file {public_id}: {del_exc}")
-        raise UploadFailedError(detail=f"Failed to upload KYC documents. Error: {str(e)}", cause=e)
+                await run_in_threadpool(cloudinary_mgr.delete_file, pid)
+            except Exception as del_err:
+                logger.error(f"Cleanup failed for {pid}: {del_err}")
+        
+        if isinstance(e, HTTPException):
+            raise e
+        raise UploadFailedError(detail=f"KYC upload failed: {str(e)}", cause=e)
 
-    # We must re-fetch the profile with documents eagerly loaded after commit
+    # 3. Refresh and Return
     result = await db.execute(
         select(TeacherProfile)
-        .options(selectinload(TeacherProfile.documents))
+        .options(
+            selectinload(TeacherProfile.documents), 
+            selectinload(TeacherProfile.user)
+        )
         .where(TeacherProfile.user_id == current_user.id)
     )
-    profile = result.scalar_one_or_none()
-
-    return profile
-
+    return result.scalar_one()
 
 # ── Own bookings ──────────────────────────────────────────────────────────────
 
-
 @router.get("/me/sessions", response_model=list[TeacherSessionRead])
 async def get_my_sessions(
-    current_user: CurrentUser,
+    current_user: Annotated[User, RequireTeacher],
     db: DbSession,
-    in_progress: bool = Query(default=True, description="Filter for in-progress sessions"),
+    in_progress: bool = Query(default=True),
 ):
-    """
-    Return sessions for the logged-in teacher.
-    By default, only returns sessions with status IN_PROGRESS.
-    """
-    if current_user.role != UserRole.TEACHER:
-        raise PermissionDeniedError(detail="Only teachers can access this")
-
-    # Verify teacher profile exists
-    profile_result = await db.execute(
-        select(TeacherProfile).where(TeacherProfile.user_id == current_user.id)
-    )
-    if not profile_result.scalar_one_or_none():
-        raise TeacherNotFoundError(teacher_id=str(current_user.id))
-
     query = (
         select(
             Session.id,
@@ -365,8 +265,6 @@ async def get_my_sessions(
         query = query.where(Session.status == SessionStatus.IN_PROGRESS)
 
     result = await db.execute(query)
-    rows = result.all()
-
     return [
         {
             "id": row.id,
@@ -375,16 +273,11 @@ async def get_my_sessions(
             "student_name": f"{row.first_name} {row.last_name}",
             "subject_name": row.subject_name,
         }
-        for row in rows
+        for row in result.all()
     ]
 
-
 @router.get("/me/bookings", response_model=list[BookingDetailedReadForTeacher])
-async def get_my_bookings(current_user: CurrentUser, db: DbSession):
-    """Return all bookings for the logged-in teacher with student and subject details."""
-    if current_user.role != UserRole.TEACHER:
-        raise PermissionDeniedError(detail="Only teachers can access this")
-
+async def get_my_bookings(current_user: Annotated[User, RequireTeacher], db: DbSession):
     result = await db.execute(
         select(Booking)
         .options(
@@ -397,119 +290,170 @@ async def get_my_bookings(current_user: CurrentUser, db: DbSession):
     )
     return list(result.scalars().all())
 
-
 # ── Subject management ────────────────────────────────────────────────────────
 
-
 @router.get("/me/subjects", response_model=list[TeacherSubjectRead])
-async def list_my_subjects(current_user: CurrentUser, db: DbSession):
-    """Teacher: list all subjects they have registered."""
-    if current_user.role != UserRole.TEACHER:
-        raise PermissionDeniedError(detail="Only teachers can access this")
-
+async def list_my_subjects(current_user: Annotated[User, RequireTeacher], db: DbSession):
     result = await db.execute(
         select(TeacherSubject)
-        .where(TeacherSubject.teacher_id == current_user.id)
+        .where(
+            TeacherSubject.teacher_id == current_user.id,
+            TeacherSubject.is_active == True
+        )
         .options(selectinload(TeacherSubject.subject))
+        .limit(100)  # Internal safety limit
     )
     return list(result.scalars().all())
-
 
 @router.post("/me/subjects", response_model=TeacherSubjectRead, status_code=201)
 async def add_subject(
     body: TeacherSubjectCreate,
-    current_user: CurrentUser,
+    current_user: Annotated[User, RequireTeacher],
     db: DbSession,
 ):
-    """Teacher: register a subject they can teach."""
-    if current_user.role != UserRole.TEACHER:
-        raise PermissionDeniedError(detail="Only teachers can access this")
-
     repo = TeacherSubjectRepository(db)
+    # Check if the relationship exists (even if inactive)
     existing = await repo.get_by_teacher_and_subject(current_user.id, body.subject_id)
+    
     if existing:
-        raise ConflictError(detail="Subject already registered")
+        if existing.is_active:
+            raise ConflictError(detail="Subject already registered")
+        # Reactivate soft-deleted subject
+        existing.is_active = True
+        existing.rate_per_session = body.rate_per_session
+        existing.years_of_experience = body.years_of_experience
+    else:
+        ts = TeacherSubject(
+            teacher_id=current_user.id,
+            subject_id=body.subject_id,
+            rate_per_session=body.rate_per_session,
+            years_of_experience=body.years_of_experience,
+        )
+        db.add(ts)
 
-    ts = TeacherSubject(
-        teacher_id=current_user.id,
-        subject_id=body.subject_id,
-        rate_per_session=body.rate_per_session,
-        years_of_experience=body.years_of_experience,
-    )
-    db.add(ts)
-    await db.flush()
-
-    # Explicitly load the subject relationship before returning
+    await db.commit()
+    
+    # Re-fetch for relationships
     result = await db.execute(
         select(TeacherSubject)
-        .where(
-            (TeacherSubject.teacher_id == current_user.id)
-            & (TeacherSubject.subject_id == body.subject_id)
-        )
         .options(selectinload(TeacherSubject.subject))
+        .where(TeacherSubject.teacher_id == current_user.id, TeacherSubject.subject_id == body.subject_id)
     )
-    ts = result.scalar_one()
-    await db.commit()
-    return ts
+    return result.scalar_one()
 
-
-@router.patch("/me/subjects/{subject_id}", response_model=TeacherSubjectRead)
-async def update_subject(
+@router.delete("/me/subjects/{subject_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_my_subject(
     subject_id: Annotated[UUID, Path(..., alias="subjectId")],
-    body: TeacherSubjectCreate,
-    current_user: CurrentUser,
+    current_user: Annotated[User, RequireTeacher],
     db: DbSession,
 ):
-    """Teacher: update rate or experience for a registered subject."""
-    if current_user.role != UserRole.TEACHER:
-        raise PermissionDeniedError(detail="Only teachers can access this")
+    """
+    Soft-delete a subject from the teacher's active catalog.
+    """
+    # 1. Check for active or pending bookings first
+    # We prevent deletion if there are commitments that haven't reached a terminal state
+    active_booking_check = await db.execute(
+        select(Booking).where(
+            Booking.teacher_id == current_user.id,
+            Booking.subject_id == subject_id,
+            Booking.status.in_([
+                BookingStatus.PENDING_APPROVAL,
+                BookingStatus.PENDING_PAYMENT,
+                BookingStatus.ACTIVE
+            ])
+        ).limit(1)
+    )
+    if active_booking_check.scalar_one_or_none():
+        raise ConflictError(detail="Cannot delete subject with active or pending bookings. Please complete or cancel them first.")
 
-    repo = TeacherSubjectRepository(db)
-    ts = await repo.get_by_teacher_and_subject(current_user.id, subject_id)
+    result = await db.execute(
+        select(TeacherSubject).where(
+            TeacherSubject.teacher_id == current_user.id,
+            TeacherSubject.subject_id == subject_id,
+            TeacherSubject.is_active == True
+        )
+    )
+    ts = result.scalar_one_or_none()
     if not ts:
-        raise SubjectNotFoundError(subject_id=str(subject_id))
-
-    ts.rate_per_session = body.rate_per_session
-    ts.years_of_experience = body.years_of_experience
-    await db.flush()
-    await db.refresh(ts)
-    return ts
-
-
-@router.delete("/me/subjects/{subject_id}", status_code=204)
-async def remove_subject(
-    subject_id: Annotated[UUID, Path(..., alias="subjectId")],
-    current_user: CurrentUser,
-    db: DbSession,
-):
-    """Teacher: deactivate a subject offering (soft delete)."""
-    if current_user.role != UserRole.TEACHER:
-        raise PermissionDeniedError(detail="Only teachers can access this")
-
-    repo = TeacherSubjectRepository(db)
-    ts = await repo.get_by_teacher_and_subject(current_user.id, subject_id)
-    if not ts:
-        raise SubjectNotFoundError(subject_id=str(subject_id))
+        raise HTTPException(status_code=404, detail="Active subject registration not found.")
 
     ts.is_active = False
-    await db.flush()
-
+    await db.commit()
 
 # ── Public profile (viewable by anyone) ──────────────────────────────────────
-# Note: /{teacher_id} is defined LAST to avoid conflicts with /me and /search
 
-
-@router.get("/{teacher_id}", response_model=TeacherProfileRead)
-async def get_teacher_profile(
+@router.get("/{teacher_id}/profile", response_model=TeacherProfileRead)
+async def get_teacher_public_profile(
     teacher_id: Annotated[UUID, Path(..., alias="teacherId")], db: DbSession
 ):
     """
     Fetch a teacher's public profile.
-    Accessible by any authenticated or unauthenticated user.
-    Only shows approved teachers.
+    Only profiles of teachers with APPROVED document status are visible.
     """
-    result = await db.execute(select(TeacherProfile).where(TeacherProfile.user_id == teacher_id))
+    result = await db.execute(
+        select(TeacherProfile)
+        .options(selectinload(TeacherProfile.user))
+        .where(
+            TeacherProfile.user_id == teacher_id,
+            TeacherProfile.document_status == VerificationStatus.APPROVED
+        )
+    )
     profile = result.scalar_one_or_none()
+    
+    # If teacher doesn't exist or is not yet verified, we return 404 
+    # to avoid leaking that an unverified teacher exists at this ID.
     if not profile:
         raise TeacherNotFoundError(teacher_id=str(teacher_id))
+
     return profile
+
+@router.get("/{teacher_id}/subjects", response_model=list[TeacherSubjectRead])
+async def get_teacher_public_subjects(
+    teacher_id: Annotated[UUID, Path(..., alias="teacherId")], db: DbSession
+):
+    """
+    Fetch a teacher's list of subjects and rates.
+    Only visible for teachers with APPROVED document status.
+    """
+    # We join with TeacherProfile to ensure the teacher is verified
+    result = await db.execute(
+        select(TeacherSubject)
+        .join(TeacherProfile, TeacherSubject.teacher_id == TeacherProfile.user_id)
+        .options(selectinload(TeacherSubject.subject))
+        .where(
+            TeacherSubject.teacher_id == teacher_id,
+            TeacherSubject.is_active == True,
+            TeacherProfile.document_status == VerificationStatus.APPROVED
+        )
+        .limit(100)  # Internal safety limit
+    )
+    subjects = result.scalars().all()
+    
+    # We return an empty list if no active subjects found for a verified teacher,
+    # or if the teacher is unverified/non-existent.
+    return list(subjects)
+
+@router.get("/{teacher_id}/ratings", response_model=list[RatingRead])
+async def get_teacher_latest_ratings(
+    teacher_id: Annotated[UUID, Path(..., alias="teacherId")], db: DbSession
+):
+    """
+    Fetch the latest 3 ratings for a verified teacher.
+    """
+    # Ensure the teacher is verified (consistent with other public teacher routes)
+    teacher_check = await db.execute(
+        select(TeacherProfile.user_id).where(
+            TeacherProfile.user_id == teacher_id,
+            TeacherProfile.document_status == VerificationStatus.APPROVED
+        )
+    )
+    if not teacher_check.scalar_one_or_none():
+        raise TeacherNotFoundError(teacher_id=str(teacher_id))
+
+    result = await db.execute(
+        select(Rating)
+        .where(Rating.teacher_id == teacher_id)
+        .order_by(Rating.created_at.desc())
+        .limit(3)
+    )
+    return list(result.scalars().all())

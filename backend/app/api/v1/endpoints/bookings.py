@@ -4,7 +4,7 @@ from decimal import Decimal
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Path, Request
+from fastapi import APIRouter, Path, Request, BackgroundTasks
 from sqlalchemy import select
 
 from app.core.dependencies import CurrentUser, DbSession, RequireProfessionalTeacher, RequirePaymentSetup
@@ -173,6 +173,7 @@ async def request_session(
     booking_id: Annotated[UUID, Path(..., alias="bookingId")],
     current_user: Annotated[User, RequireProfessionalTeacher],
     db: DbSession,
+    background_tasks: BackgroundTasks,
 ):
     """
     Step 4a: Teacher requests a new session with PRESENCE CHECK.
@@ -338,6 +339,9 @@ async def request_session(
         student_id=booking.student_id,
         db=db,
     )
+    
+    # Commit DB changes (Message & Redis key) before triggering external side effects
+    await db.commit()
 
     # ── Step 5b: Queue Celery task to handle 60-second timeout ──
     # After 60s, check if message status is still ONGOING, if so mark as MISSED
@@ -348,7 +352,8 @@ async def request_session(
     # ── Step 6: Emit Socket.IO event to student ──
     sio_manager = get_socketio_manager()
     if sio_manager:
-        await sio_manager.emit_to_user(
+        background_tasks.add_task(
+            sio_manager.emit_to_user,
             user_id=booking.student_id,
             event="session_request",
             data={
@@ -363,9 +368,6 @@ async def request_session(
                 "message": f"{current_user.full_name} has requested a session. You have 60 seconds to accept.",
             },
         )
-
-    # Commit all messages to database
-    await db.commit()
 
     # ── Step 7: Return success ──
     return {
@@ -385,6 +387,7 @@ async def accept_session_request(
     current_user: CurrentUser,
     db: DbSession,
     request: Request,
+    background_tasks: BackgroundTasks,
 ):
     """
     Step 4b: Student accepts the session request.
@@ -463,18 +466,17 @@ async def accept_session_request(
         student_accepted_at=datetime.now(tz=UTC),
     )
     db.add(session)
-    await db.flush()
+    
+    # 1. Commit the Session record first. If this fails, no room is created.
+    await db.commit()
     await db.refresh(session)
-
-    # Update session_id in response (the one created)
     actual_session_id = session.id
-
-    # Create LiveKit room on acceptance
-    # Note: webhook will set status to IN_PROGRESS and actual_start_at when room_started event fires
+    
+    # 2. Now perform external side effects
     try:
         room_name = await create_room(str(actual_session_id), booking.session_duration_minutes)
         session.livekit_room_name = room_name
-        await db.flush()
+        await db.commit() # Save the room name
         logger.info(
             f"Successfully created LiveKit room for session {actual_session_id}",
             extra={
@@ -493,8 +495,6 @@ async def accept_session_request(
                 "error_type": type(e).__name__,
             },
         )
-        # Rollback the session creation since room creation failed
-        await db.rollback()
         from app.core.exceptions import LiveKitError
 
         raise LiveKitError(cause=e)
@@ -555,7 +555,7 @@ async def accept_session_request(
         request_message = message_result.scalar_one_or_none()
         if request_message:
             request_message.status = MessageStatus.ACCEPTED
-            await db.flush()
+            await db.commit()
     except Exception as e:
         # Log message update error but don't fail the whole request
         logger.warning(
@@ -570,42 +570,15 @@ async def accept_session_request(
     await clear_pending_session_key(str(booking_id))
 
     # ── Emit Socket.IO event to teacher with their token ──
-    try:
-        from app.core.config import settings
-        from app.core.socketio import get_socketio_manager
-
-        sio_manager = get_socketio_manager()
-        if sio_manager:
-            # Generate token for teacher
-            teacher_token = generate_room_token(
-                user_id=str(booking.teacher_id),
-                session_id=str(actual_session_id),
-                display_name=f"{booking.teacher.first_name} {booking.teacher.last_name}",
-                is_teacher=True,
-            )
-
-            # Emit event to teacher
-            await sio_manager.emit_to_user(
-                user_id=booking.teacher_id,
-                event="session_ready",
-                data={
-                    "token": teacher_token,
-                    "room_name": session.livekit_room_name,
-                    "livekit_url": settings.LIVEKIT_URL,
-                },
-            )
-    except Exception as e:
-        # Log Socket.IO error but don't fail the request
-        logger.warning(
-            f"Failed to emit Socket.IO event to teacher: {type(e).__name__}: {e}",
-            extra={
-                "teacher_id": str(booking.teacher_id),
-                "session_id": str(actual_session_id),
-            },
+    sio_manager = get_socketio_manager()
+    if sio_manager:
+        background_tasks.add_task(
+            _emit_session_ready_to_teacher,
+            sio_manager=sio_manager,
+            booking=booking,
+            session=session,
+            actual_session_id=actual_session_id
         )
-
-    # Commit all changes (session creation, room name, message status updates)
-    await db.commit()
 
     # Refresh to get the latest state from database
     await db.refresh(session)
@@ -633,6 +606,7 @@ async def reject_session_request(
     booking_id: Annotated[UUID, Path(..., alias="bookingId")],
     current_user: CurrentUser,
     db: DbSession,
+    background_tasks: BackgroundTasks,
 ):
     """
     Step 4c: Student explicitly rejects the session request.
@@ -707,7 +681,8 @@ async def reject_session_request(
 
     sio_manager = get_socketio_manager()
     if sio_manager:
-        await sio_manager.emit_to_user(
+        background_tasks.add_task(
+            sio_manager.emit_to_user,
             user_id=booking.teacher_id,
             event="session_rejected",
             data={
@@ -726,6 +701,35 @@ async def reject_session_request(
         "booking_id": str(booking_id),
         "message": "Session request rejected.",
     }
+
+
+async def _emit_session_ready_to_teacher(sio_manager, booking, session, actual_session_id):
+    """Internal helper for background Socket.IO emission."""
+    try:
+        from app.core.config import settings
+        
+        # Generate token for teacher
+        teacher_token = generate_room_token(
+            user_id=str(booking.teacher_id),
+            session_id=str(actual_session_id),
+            display_name=f"{booking.teacher.first_name} {booking.teacher.last_name}",
+            is_teacher=True,
+        )
+
+        # Emit event to teacher
+        await sio_manager.emit_to_user(
+            user_id=booking.teacher_id,
+            event="session_ready",
+            data={
+                "token": teacher_token,
+                "room_name": session.livekit_room_name,
+                "livekit_url": settings.LIVEKIT_URL,
+            },
+        )
+    except Exception as e:
+        logger.warning(
+            f"Background Socket.IO emission failed for teacher {booking.teacher_id}: {e}"
+        )
 
 
 @router.get("/", response_model=list[BookingRead])
