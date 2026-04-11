@@ -31,7 +31,7 @@ async def upload_avatar(
     current_user: CurrentUser,
     db: DbSession,
     redis: Annotated[aioredis.Redis, Depends(get_redis)],
-    file: UploadFile = File(...),
+    avatar: UploadFile = File(...),
 ):
     """
     Upload or update the authenticated user's avatar. Rate limited to 3 uploads/hour.
@@ -53,11 +53,11 @@ async def upload_avatar(
         raise RateLimitError(detail="Rate limit exceeded. Try again later.")
 
     # 2. Validation
-    if not file.content_type.startswith("image/"):
+    if not avatar.content_type.startswith("image/"):
         raise ValidationError(detail="Only image uploads are allowed.")
 
     # Basic size check before reading into memory
-    if file.size and file.size > MAX_FILE_SIZE:
+    if avatar.size and avatar.size > MAX_FILE_SIZE:
         raise ValidationError(detail="Image size exceeds the 5MB limit.")
 
     # 3. Cloudinary Upload
@@ -67,7 +67,7 @@ async def upload_avatar(
     public_id = f"user_{current_user.id}_avatar"
 
     try:
-        file_bytes = await file.read()
+        file_bytes = await avatar.read()
         if len(file_bytes) > MAX_FILE_SIZE:
             raise ValidationError(detail="Image size exceeds the 5MB limit.")
 
