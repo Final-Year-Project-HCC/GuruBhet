@@ -338,7 +338,7 @@ async def add_subject(
 
 @router.delete("/me/subjects/{subject_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_my_subject(
-    subject_id: Annotated[UUID, Path(..., alias="subjectId")],
+    subject_id: UUID,
     current_user: Annotated[User, RequireTeacher],
     db: DbSession,
 ):
@@ -379,7 +379,7 @@ async def delete_my_subject(
 
 @router.get("/{teacher_id}/profile", response_model=TeacherProfileRead)
 async def get_teacher_public_profile(
-    teacher_id: Annotated[UUID, Path(..., alias="teacherId")], db: DbSession
+    teacher_id:UUID, db: DbSession
 ):
     """
     Fetch a teacher's public profile.
