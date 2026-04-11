@@ -430,7 +430,7 @@ async def get_teacher_public_subjects(
 
 @router.get("/{teacher_id}/ratings", response_model=list[RatingRead])
 async def get_teacher_latest_ratings(
-    teacher_id: Annotated[UUID, Path(..., alias="teacherId")], db: DbSession
+    teacher_id: UUID, db: DbSession
 ):
     """
     Fetch the latest 3 ratings for a verified teacher.
