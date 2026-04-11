@@ -1,6 +1,7 @@
 import time
 import uuid
 import logging
+from typing import Annotated
 from fastapi import APIRouter, UploadFile, File, status, HTTPException, Depends
 from fastapi.concurrency import run_in_threadpool
 import redis.asyncio as aioredis
@@ -13,6 +14,7 @@ from app.core.exceptions import (
 )
 from app.core.security import hash_password, verify_password
 from app.schemas.user import PasswordChangeRequest, UserRead
+from app.db.redis import get_redis
 from app.utils.cloudinary import get_cloudinary_manager
 from app.core.config import settings
 from app.repositories.user_repo import UserRepository
@@ -22,28 +24,14 @@ router = APIRouter()
 REDIS_RATE_LIMIT_KEY = "avatar_upload:{user_id}"
 RATE_LIMIT_MAX = 3
 RATE_LIMIT_WINDOW = 60 * 60  # 1 hour
-
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
-logger = logging.getLogger(__name__)
-
-async def get_redis():
-    # Using modern redis-py (aioredis is now built-in)
-    redis = await aioredis.from_url(
-        str(settings.REDIS_URL), 
-        encoding="utf-8", 
-        decode_responses=True
-    )
-    try:
-        yield redis
-    finally:
-        await redis.close()
 
 @router.post("/avatar", response_model=UserRead, status_code=200)
 async def upload_avatar(
+    current_user: CurrentUser,
+    db: DbSession,
+    redis: Annotated[aioredis.Redis, Depends(get_redis)],
     file: UploadFile = File(...),
-    current_user: CurrentUser = Depends(),
-    db: DbSession = Depends(),
-    redis: aioredis.Redis = Depends(get_redis),
 ):
     """
     Upload or update the authenticated user's avatar. Rate limited to 3 uploads/hour.
@@ -121,8 +109,8 @@ async def upload_avatar(
 @router.patch("/me/password", status_code=status.HTTP_204_NO_CONTENT)
 async def change_password(
     body: PasswordChangeRequest,
-    current_user: CurrentUser = Depends(),
-    db: DbSession = Depends(),
+    current_user: CurrentUser,
+    db: DbSession,
 ):
     """Change password for any logged-in user."""
     if not verify_password(body.current_password, current_user.password_hash):
@@ -137,8 +125,8 @@ async def change_password(
 
 @router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
 async def deactivate_account(
-    current_user: CurrentUser = Depends(), 
-    db: DbSession = Depends()
+    current_user: CurrentUser,
+    db: DbSession
 ):
     """
     Soft-delete: marks the account inactive.

@@ -1,7 +1,7 @@
-"""Remove is_active field from Subject for hard delete only
+"""Keep is_active field on Subject
 
-Subjects will now use hard deletes only. No soft-delete via is_active.
-Removes the is_active column from the subjects table.
+This migration was neutralized to keep the is_active field for 
+staff management purposes.
 
 Revision ID: remove_is_active_from_subject
 Revises: remove_junction_timestamp
@@ -22,14 +22,10 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    """Upgrade: Drop is_active column and index from subjects table."""
-    op.drop_index('ix_subjects_is_active', table_name='subjects')
-    op.drop_column('subjects', 'is_active')
+    """Upgrade: No-op (field is kept)."""
+    pass
 
 
 def downgrade() -> None:
-    """Downgrade: Restore is_active column to subjects table."""
-    op.add_column('subjects',
-        sa.Column('is_active', sa.Boolean(), server_default=sa.text('true'), nullable=False)
-    )
-    op.create_index('ix_subjects_is_active', 'subjects', ['is_active'])
+    """Downgrade: No-op."""
+    pass

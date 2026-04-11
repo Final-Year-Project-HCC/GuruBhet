@@ -1,6 +1,6 @@
 import logging
 from datetime import UTC, datetime
-from typing import Annotated
+from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Header, Query, Request
@@ -19,16 +19,13 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-def _session_id_from_room(room_name: Annotated[str, Query(..., alias="roomName")]) -> str | None:
-    if room_name.startswith("session-"):
-        return room_name[len("session-") :]
-    return None
+def _session_id_from_room(room_name: str) -> Optional[str]:
+    if room_name and room_name.startswith("session-"):
+        return room_name[len("session-"):]
+    return room_name # Fallback if no prefix but valid UUID
 
 
-async def _get_session_and_booking(
-    db: DbSession,
-    room_name: Annotated[str, Query(..., alias="roomName")],
-) -> tuple[Session, Booking] | tuple[None, None]:
+async def _get_session_and_booking(db: DbSession, room_name: str) -> tuple[Optional[Session], Optional[Booking]]:
     if not _session_id_from_room(room_name):
         return None, None
     result = await db.execute(
@@ -79,7 +76,7 @@ async def livekit_webhook(
         if session and session.status == SessionStatus.READY:
             session.status = SessionStatus.IN_PROGRESS
             session.actual_start_at = now
-            await db.flush()
+            await db.commit()
 
     # ── participant_joined ────────────────────────────────────────────────────
     elif event.event == "participant_joined" and event.room and event.participant:
@@ -88,11 +85,12 @@ async def livekit_webhook(
             return {"status": "ignored"}
 
         identity = event.participant.identity
-        if not identity.startswith("user-"):
-            return {"status": "ignored"}
-
         try:
-            user_id = UUID(identity[len("user-") :])
+            # Handle identity with or without 'user-' prefix
+            if identity.startswith("user-"):
+                user_id = UUID(identity[len("user-"):])
+            else:
+                user_id = UUID(identity)
         except ValueError:
             return {"status": "ignored"}
 
@@ -100,6 +98,6 @@ async def livekit_webhook(
             session.teacher_joined_at = now
         elif user_id == booking.student_id and not session.student_joined_at:
             session.student_joined_at = now
-        await db.flush()
+        await db.commit()
 
     return {"status": "ok"}

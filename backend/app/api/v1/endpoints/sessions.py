@@ -86,6 +86,7 @@ async def request_session_completion(
             db=db,
             completion_status=SessionStatus.COMPLETED,
         )
+        await db.commit()
         return session
 
     # Premature completion: Check if a request already exists
@@ -133,6 +134,7 @@ async def accept_premature_session_completion(
     session_id: Annotated[UUID, Path(..., alias="sessionId")],
     current_user: CurrentUser,
     db: DbSession,
+    background_tasks: BackgroundTasks,
 ):
     """
     Student accepts the teacher's request for premature session completion.
@@ -181,6 +183,27 @@ async def accept_premature_session_completion(
         completion_status=SessionStatus.COMPLETED,
     )
 
+    # Emit Socket.IO event to teacher
+    try:
+        from app.core.socketio import get_socketio_manager
+
+        sio_manager = get_socketio_manager()
+        if sio_manager:
+            background_tasks.add_task(
+                sio_manager.emit_to_user,
+                user_id=booking.teacher_id,
+                event="premature_session_completion_accepted",
+                data={
+                    "session_id": str(session_id),
+                    "booking_id": str(booking.id),
+                    "accepted_at": now.isoformat(),
+                },
+            )
+    except Exception as exc:
+        logger.warning(f"Failed to emit completion notification to teacher: {exc}")
+
+    await db.commit()
+
     return session
 
 
@@ -189,6 +212,7 @@ async def reject_premature_session_completion(
     session_id: Annotated[UUID, Path(..., alias="sessionId")],
     current_user: CurrentUser,
     db: DbSession,
+    background_tasks: BackgroundTasks,
 ):
     """
     Student rejects the teacher's request for premature session completion.
@@ -228,19 +252,23 @@ async def reject_premature_session_completion(
 
     # Emit Socket.IO event to teacher
     try:
-        from app.core.socketio import sio
+        from app.core.socketio import get_socketio_manager
 
-        await sio.emit(
-            "premature-session-completion-rejected",
-            {
-                "session_id": str(session_id),
-                "booking_id": str(booking.id),
-                "rejected_at": now.isoformat(),
-            },
-            room=f"user:{booking.teacher_id}",  # Send to teacher
-        )
-    except Exception:
-        pass  # Socket.IO may not be available in all contexts
+        sio_manager = get_socketio_manager()
+        if sio_manager:
+            background_tasks.add_task(
+                sio_manager.emit_to_user,
+                user_id=booking.teacher_id,
+                event="premature_session_completion_rejected",
+                data={
+                    "session_id": str(session_id),
+                    "booking_id": str(booking.id),
+                    "rejected_at": now.isoformat(),
+                    "message": f"{current_user.full_name} has rejected the completion request."
+                },
+            )
+    except Exception as exc:
+        logger.warning(f"Failed to emit premature_session_completion_rejected event: {exc}")
 
     await db.commit()
     return session
@@ -289,4 +317,5 @@ async def cancel_session(
         completion_status=cancel_status,
     )
 
+    await db.commit()
     return session

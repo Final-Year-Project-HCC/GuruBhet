@@ -20,6 +20,7 @@ from app.core.exceptions import (
     ValidationError,
 )
 from app.core.socketio import get_socketio_manager
+from app.core.config import settings
 from app.models.booking import Booking, Session
 from app.models.communication import Message, MessageStatus, MessageType
 from app.models.subject import Subject
@@ -123,7 +124,7 @@ async def approve_booking_request(
 
     booking.status = BookingStatus.PENDING_PAYMENT
     booking.teacher_approved_at = datetime.now(tz=UTC)
-    await db.flush()
+    await db.commit()
     await db.refresh(booking)
     return booking
 
@@ -301,10 +302,7 @@ async def request_session(
     # ── Step 3: Check student presence (PRESENCE CHECK) ──
     student_online = await is_user_online(booking.student_id, use_redis=True)
 
-    # TODO: Remove this bypass after testing
-    BYPASS_ONLINE_CHECK = True  # Set to False in production
-
-    if not student_online and not BYPASS_ONLINE_CHECK:
+    if not student_online and not settings.BYPASS_PRESENCE_CHECK:
         # Student is offline - create error message and return 480
         await create_offline_notification_message(
             booking_id=booking_id,
@@ -314,14 +312,10 @@ async def request_session(
         )
         await db.commit()
 
-        logger = logging.getLogger(__name__)
         logger.info(
             f"Session request rejected: student offline. "
             f"Teacher={current_user.id}, Student={booking.student_id}, Booking={booking_id}"
         )
-
-        # Return 480 Subscriber Offline with custom exception
-        from app.core.exceptions import ExternalServiceError
 
         raise ExternalServiceError(
             detail="Student is currently offline. Please try again when they are online.",
@@ -474,7 +468,8 @@ async def accept_session_request(
     
     # 2. Now perform external side effects
     try:
-        room_name = await create_room(str(actual_session_id), booking.session_duration_minutes)
+        room_name_with_prefix = f"session-{actual_session_id}"
+        room_name = await create_room(room_name_with_prefix, booking.session_duration_minutes)
         session.livekit_room_name = room_name
         await db.commit() # Save the room name
         logger.info(
@@ -892,7 +887,7 @@ async def sync_session(
     elif not is_teacher and not session.student_joined_at:
         session.student_joined_at = now
 
-    await db.flush()
+    await db.commit()
 
     # Generate fresh LiveKit token
     token = generate_room_token(
@@ -953,6 +948,6 @@ async def cancel_booking(
     booking.cancellation_reason = body.reason
     booking.cancelled_at = datetime.now(tz=UTC)
 
-    await db.flush()
+    await db.commit()
     await db.refresh(booking)
     return booking

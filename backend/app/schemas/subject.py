@@ -77,9 +77,9 @@ class SubjectRead(SharedConfig):
     name: str
     study_level: StudyLevelRead
     board: BoardRead
+    is_active: bool
     faculty: FacultyRead
     unit_value: int
-    is_active: bool
     created_at: datetime
     updated_at: datetime
 
@@ -188,6 +188,6 @@ class TeacherSearchResult(SharedConfig):
     rating_count: int
     total_sessions_completed: int
     teacher_name: str
-    teacher_headline: str | None
+    teacher_tagline: str | None
     teacher_avatar_url: str | None
     subject: SubjectRead

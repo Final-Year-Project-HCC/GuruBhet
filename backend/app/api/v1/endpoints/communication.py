@@ -30,11 +30,11 @@ from app.core.exceptions import (
     UserNotFoundError,
     ValidationError,
 )
-from app.core.socketio import socketio_manager
+from app.core.socketio import get_socketio_manager
 from app.db.session import get_async_session
 from app.models.booking import Booking, BookingStatus
 from app.models.communication import Message
-from app.models.user import User
+from app.models.user import User, UTC, datetime
 from app.schemas.booking import BookingCreate
 from app.schemas.communication import MessageCreate, MessageResponse
 from app.services.communication import CommunicationService, NotificationService
@@ -54,7 +54,7 @@ async def send_message(
     message_create: MessageCreate,
     current_user_id: UUID = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_async_session),
-    background_tasks: BackgroundTasks = None,
+    background_tasks: BackgroundTasks,
 ) -> MessageResponse:
     """
     Send a message from current user to a recipient.
@@ -110,6 +110,8 @@ async def send_message(
             socketio_manager=None, # Disable internal emission
         )
 
+        socketio_manager = get_socketio_manager()
+
         # Ensure persistence before concluding the request logic
         if db.in_transaction():
             await db.commit()
@@ -147,8 +149,6 @@ async def send_message(
         )
 
     except ValidationError:
-        raise
-    except ValidationError as e:
         logger.warning(f"Validation error in send_message: {e}")
         raise ValidationError(detail=str(e), context={"error_type": "validation"})
     except Exception as e:
@@ -276,6 +276,8 @@ async def create_booking_request(
         db.add(booking)
         await db.flush()
 
+        socketio_manager = get_socketio_manager()
+
         logger.info(
             f"Booking {booking.id} created: student={current_user_id}, teacher={booking_create.teacher_id}"
         )
@@ -359,10 +361,11 @@ async def approve_booking_request(
 
         # Update status
         booking.status = BookingStatus.PENDING_PAYMENT
-        booking.teacher_approved_at = logging.datetime.utcnow()
+        booking.teacher_approved_at = datetime.now(tz=UTC)
 
         await db.flush()
 
+        socketio_manager = get_socketio_manager()
         # Emit notification to student
         await NotificationService.create_and_emit_notification(
             db=db,
@@ -434,10 +437,11 @@ async def reject_booking_request(
         # Update booking status
         booking.status = BookingStatus.CANCELLED_BY_TEACHER
         booking.cancellation_reason = rejection_reason
-        booking.cancelled_at = logging.datetime.utcnow()
+        booking.cancelled_at = datetime.now(tz=UTC)
 
         await db.flush()
 
+        socketio_manager = get_socketio_manager()
         # Emit notification to student
         await NotificationService.create_and_emit_notification(
             db=db,

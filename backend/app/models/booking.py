@@ -145,6 +145,5 @@ class Session(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     booking: Mapped["Booking"] = relationship(back_populates="sessions")  # noqa: F821
 
     __table_args__ = (
-        CheckConstraint("duration_minutes > 0", name="chk_duration_positive"),
         Index("ix_session_booking_number", "booking_id", "session_number"),
     )

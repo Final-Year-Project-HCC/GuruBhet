@@ -186,7 +186,7 @@ async def update_staff_permissions(
         description=f"Updated permissions for staff email {target_user.email}",
     )
     db.add(audit_log)
-    await db.flush()
+    await db.commit()
 
     return target_user
 
@@ -248,4 +248,3 @@ async def verify_teacher_documents(
     await db.refresh(profile)
     
     return {"msg": f"Teacher verification updated to {body.document_status.value}"}
-

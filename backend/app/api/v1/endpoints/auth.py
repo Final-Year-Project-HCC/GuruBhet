@@ -86,9 +86,7 @@ def get_subdomain(request: Request) -> str | None:
     return ""
 
 
-def validate_subdomain_matches_role(
-    request: Request, user_role: Annotated[UserRole, Query(..., alias="userRole")]
-) -> None:
+def validate_subdomain_matches_role(request: Request, user_role: UserRole) -> None:
     subdomain = get_subdomain(request)
 
     # Localhost / Dev bypass

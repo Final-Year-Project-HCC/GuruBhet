@@ -24,7 +24,11 @@ async def search_subjects(
     limit: int = Query(default=50, le=200),
 ):
     """Search subjects by name prefix and return flattened contextual details."""
-    stmt = select(Subject).where(Subject.name.ilike(f"{name}%")).limit(limit)
+    stmt = (
+        select(Subject)
+        .where(Subject.name.ilike(f"{name}%"), Subject.is_active == True)
+        .limit(limit)
+    )
     result = await db.execute(stmt)
     subjects = result.scalars().all()
 
@@ -52,7 +56,7 @@ async def list_subjects(
     offset: int = Query(default=0, ge=0),
 ):
     """List or search the subject catalog. Public endpoint."""
-    stmt = select(Subject)
+    stmt = select(Subject).where(Subject.is_active == True)
     if search:
         stmt = stmt.where(Subject.name.ilike(f"%{search}%"))
     stmt = stmt.limit(limit).offset(offset)
@@ -103,7 +107,12 @@ async def bulk_create_subjects(
 
 @router.get("/{subject_id}", response_model=SubjectRead)
 async def get_subject(subject_id: Annotated[UUID, Path(..., alias="subjectId")], db: DbSession):
-    result = await db.execute(select(Subject).where(Subject.id == subject_id))
+    result = await db.execute(
+        select(Subject).where(
+            Subject.id == subject_id, 
+            Subject.is_active == True
+        )
+    )
     subject = result.scalar_one_or_none()
     if not subject:
         raise ResourceNotFoundError(detail="Subject not found")
@@ -118,4 +127,4 @@ async def delete_subject(subject_id: Annotated[UUID, Path(..., alias="subjectId"
     if not subject:
         raise ResourceNotFoundError(detail="Subject not found")
     await db.delete(subject)
-    await db.flush()
+    await db.commit()
