@@ -36,13 +36,19 @@ class PasswordChangeRequest(SharedConfig):
 class UserRead(UserBase):
 
     id: UUID
+    first_name: str
+    middle_name: str | None = None
+    last_name: str
+    email: EmailStr
+    phone: str | None = None
+    avatar_url: str | None = None
     role: UserRole
     is_email_verified: bool
     is_active: bool
     is_banned: bool
     is_superuser: bool
     created_at: datetime
-    avatar_url: str | None = None
+    updated_at: datetime
 
 
 class UserPublicRead(SharedConfig):
