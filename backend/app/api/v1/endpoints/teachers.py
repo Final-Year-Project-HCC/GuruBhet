@@ -64,6 +64,7 @@ async def search_teachers(
     subject_id: Annotated[UUID, Query(..., alias="subjectId")],
     db: DbSession,
     min_rating: float = Query(default=0.0, ge=0.0, le=5.0),
+    min_rate: Decimal | None = Query(default=None),
     max_rate: Decimal | None = Query(default=None),
     limit: int = Query(default=20, le=50),
     offset: int = Query(default=0, ge=0),
@@ -72,6 +73,7 @@ async def search_teachers(
     results = await repo.search(
         subject_id=subject_id,
         min_rating=min_rating,
+        min_rate=min_rate,
         max_rate=max_rate,
         limit=limit,
         offset=offset,

@@ -1,130 +1,78 @@
-from typing import Annotated
-from uuid import UUID
 
-from fastapi import APIRouter, Path, Query
-from sqlalchemy import select
-
+from fastapi import APIRouter, Query, Request, status
+from sqlalchemy import select, text
+import redis.asyncio as aioredis
 from app.core.dependencies import DbSession
-from app.core.exceptions import InvalidRequestError, ResourceNotFoundError
+from app.db.redis import get_redis
 from app.models.subject import Subject
-from app.schemas.subject import (
-    BulkSubjectCreateRequest,
-    SubjectCreate,
-    SubjectRead,
-    SubjectSearchResponse,
-)
+from uuid import UUID
+from fastapi.responses import JSONResponse
 
 router = APIRouter()
 
-
-@router.get("/search", response_model=list[SubjectSearchResponse])
-async def search_subjects(
-    db: DbSession,
-    name: str = Query(..., min_length=1, description="Prefix match for subject name"),
-    limit: int = Query(default=50, le=200),
+@router.get("/suggest")
+async def suggest_subjects(
+    q: str = Query(..., min_length=1, description="Prefix search for subject name"),
+    db: DbSession = None,
+    redis: aioredis.Redis = Depends(get_redis),
+    request: Request = None,
 ):
-    """Search subjects by name prefix and return flattened contextual details."""
-    stmt = (
-        select(Subject)
-        .where(Subject.name.ilike(f"{name}%"), Subject.is_active == True)
-        .limit(limit)
-    )
-    result = await db.execute(stmt)
-    subjects = result.scalars().all()
+    # 1. Validate query length
+    if len(q) < 3:
+        return []
 
-    return [
-        {
-            "id": s.id,
-            "name": s.name,
-            "unit_value": s.unit_value,
-            "study_level_name": s.study_level.name if s.study_level else "",
-            "board_name": s.board.name if s.board else "",
-            "faculty_name": s.faculty.name if s.faculty else "",
-            "unit_type": s.faculty.unit_type
-            if s.faculty
-            else "GRADE",  # Fallback if somehow missing
-        }
-        for s in subjects
-    ]
-
-
-@router.get("/", response_model=list[SubjectRead])
-async def list_subjects(
-    db: DbSession,
-    search: str | None = Query(default=None),
-    limit: int = Query(default=50, le=200),
-    offset: int = Query(default=0, ge=0),
-):
-    """List or search the subject catalog. Public endpoint."""
-    stmt = select(Subject).where(Subject.is_active == True)
-    if search:
-        stmt = stmt.where(Subject.name.ilike(f"%{search}%"))
-    stmt = stmt.limit(limit).offset(offset)
-    result = await db.execute(stmt)
-    return list(result.scalars().all())
-
-
-@router.post("/", response_model=SubjectRead, status_code=201)
-async def create_subject(body: SubjectCreate, db: DbSession):
-    """Add a new subject to the catalog."""
-    subject = Subject(**body.model_dump())
-    db.add(subject)
-    await db.flush()
-    await db.refresh(subject)
-    return subject
-
-
-@router.post("/bulk", response_model=list[SubjectRead], status_code=201)
-async def bulk_create_subjects(
-    body: BulkSubjectCreateRequest,
-    db: DbSession,
-):
-    """Bulk create subjects."""
-    subjects_data = body.subjects
-    if not subjects_data:
-        raise InvalidRequestError(detail="No subjects provided")
-
-    created_subjects = []
-
-    for subject_data in subjects_data:
-        # Check if subject with this name already exists
-        stmt = select(Subject).where(Subject.name == subject_data.name)
-        existing = await db.execute(stmt)
-        if existing.scalar_one_or_none():
-            continue  # Skip duplicates
-
-        subject = Subject(**subject_data.model_dump())
-        db.add(subject)
-        created_subjects.append(subject)
-
-    if created_subjects:
-        await db.flush()
-        for subject in created_subjects:
-            await db.refresh(subject)
-
-    return created_subjects
-
-
-@router.get("/{subject_id}", response_model=SubjectRead)
-async def get_subject(subject_id: Annotated[UUID, Path(..., alias="subjectId")], db: DbSession):
-    result = await db.execute(
-        select(Subject).where(
-            Subject.id == subject_id, 
-            Subject.is_active == True
+    # 2. Rate limiting (60 RPM per IP)
+    ip = request.client.host if request and request.client else "unknown"
+    rl_key = f"suggestion_rl:{ip}"
+    window = 60
+    max_requests = 60
+    reqs = await redis.incr(rl_key)
+    if reqs == 1:
+        await redis.expire(rl_key, window)
+    ttl = await redis.ttl(rl_key)
+    if reqs > max_requests:
+        return JSONResponse(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            content={"detail": "Too Many Requests"},
+            headers={"Retry-After": str(ttl if ttl > 0 else window)},
         )
-    )
-    subject = result.scalar_one_or_none()
-    if not subject:
-        raise ResourceNotFoundError(detail="Subject not found")
-    return subject
 
+    # 3. Caching
+    cache_key = f"suggestion_cache:{q.lower()}"
+    cached = await redis.get(cache_key)
+    if cached:
+        import json
+        return JSONResponse(content=json.loads(cached))
 
-@router.delete("/{subject_id}", status_code=204)
-async def delete_subject(subject_id: Annotated[UUID, Path(..., alias="subjectId")], db: DbSession):
-    """Hard-delete a subject from the catalog (if not referenced)."""
-    result = await db.execute(select(Subject).where(Subject.id == subject_id))
-    subject = result.scalar_one_or_none()
-    if not subject:
-        raise ResourceNotFoundError(detail="Subject not found")
-    await db.delete(subject)
-    await db.commit()
+    # 4. Optimized DB search (prefix match at any word boundary)
+    # Pattern: match start of any word
+    # Example: 'Bio' matches 'Biology', 'Molecular Biology'
+    stmt = select(Subject.id, Subject.name).where(
+        text("name ILIKE :pattern AND is_active = true")
+    ).params(pattern=f"% {q}%").limit(10)
+    # Also match at the start of the string
+    stmt2 = select(Subject.id, Subject.name).where(
+        Subject.name.ilike(f"{q}%"),
+        Subject.is_active == True
+    ).limit(10)
+
+    result = await db.execute(stmt)
+    matches = list(result.all())
+    # Add matches from start of string if not already included
+    result2 = await db.execute(stmt2)
+    matches2 = list(result2.all())
+    seen_ids = {m[0] for m in matches}
+    for m in matches2:
+        if m[0] not in seen_ids:
+            matches.append(m)
+            seen_ids.add(m[0])
+    # Limit to 10
+    matches = matches[:10]
+    suggestions = [{"id": str(m[0]), "name": m[1]} for m in matches]
+
+    # 5. Cache result for 60 minutes
+    import json
+    await redis.set(cache_key, json.dumps(suggestions), ex=60*60)
+
+    return suggestions
+
