@@ -77,10 +77,10 @@ async def suggest_subjects(
             or_(
                 Subject.name.ilike(f"{query_str}%"),      # Prefix match
                 Subject.name.ilike(f"% {query_str}%"),    # Word boundary match
-                text("name % :val")                       # Trigram similarity
+                text("subjects.name % :val")              # Trigram similarity
             )
         )
-        .order_by(text("similarity(name, :val) DESC"))
+        .order_by(text("similarity(subjects.name, :val) DESC"))
         .params(val=query_str)
         .limit(10)
     )
