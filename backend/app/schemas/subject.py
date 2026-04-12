@@ -189,3 +189,17 @@ class TeacherSearchResult(SharedConfig):
     teacher_tagline: str | None
     teacher_avatar_url: str | None
     subject: SubjectRead
+
+
+
+
+#Suggestion 
+
+class SubjectSuggestion(SharedConfig):
+    id: UUID
+    name: str
+    study_level_name: str
+    board_name: str
+    faculty_name: str
+    unit_type: UnitType
+    unit_value: int

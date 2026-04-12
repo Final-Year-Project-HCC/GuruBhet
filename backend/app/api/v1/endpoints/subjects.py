@@ -1,11 +1,15 @@
 import orjson
-from fastapi import APIRouter, Query, Request, status, Depends, BackgroundTasks
+from typing import List
+from fastapi import APIRouter, Query, Request, Depends, BackgroundTasks, HTTPException
+from fastapi.responses import JSONResponse
 from sqlalchemy import select, text, or_
+from sqlalchemy.orm import joinedload
 import redis.asyncio as aioredis
+
 from app.core.dependencies import DbSession
 from app.db.redis import get_redis
 from app.models.subject import Subject
-from fastapi.responses import JSONResponse
+from app.schemas.subject import SubjectSuggestion
 from app.core.exceptions import RateLimitError
 
 router = APIRouter()
@@ -14,7 +18,7 @@ async def update_cache(redis: aioredis.Redis, key: str, data: list):
     """Background task to update cache without blocking the response."""
     await redis.set(key, orjson.dumps(data), ex=3600)
 
-@router.get("/suggest")
+@router.get("/suggest", response_model=List[SubjectSuggestion])
 async def suggest_subjects(
     request: Request,
     db: DbSession,
@@ -22,8 +26,15 @@ async def suggest_subjects(
     q: str = Query(..., min_length=1, description="Search for subject name"),
     redis: aioredis.Redis = Depends(get_redis),
 ):
-    # 1. Validate query length
-    if len(q) < 3:
+    # 1. Validate query parameter
+    query_str = q.strip()
+    if not query_str:
+        raise HTTPException(
+            status_code=400, 
+            detail="Query parameter 'q' is required and must be a non-empty string."
+        )
+    
+    if len(query_str) < 3:
         return []
 
     # 2. Rate limiting (60 RPM per IP)
@@ -32,8 +43,8 @@ async def suggest_subjects(
     window = 60
     max_requests = 60
     
-    # Use a pipeline for slightly better atomic behavior in Redis
     async with redis.pipeline(transaction=True) as pipe:
+        # Increment and get TTL in one go
         res = await pipe.incr(rl_key).ttl(rl_key).execute()
         reqs, ttl = res[0], res[1]
         if reqs == 1:
@@ -45,38 +56,55 @@ async def suggest_subjects(
             context={"retry_after": ttl if ttl > 0 else window}
         )
 
-    # 3. Caching (Using orjson for faster parsing)
-    cache_key = f"suggestion_cache:{q.lower().strip()}"
+    # 3. Caching
+    cache_key = f"suggestion_cache:{query_str.lower()}"
     cached = await redis.get(cache_key)
     if cached:
+        # Return directly to skip Pydantic validation/DB logic
         return JSONResponse(content=orjson.loads(cached))
 
-    # 4. Single-Query Similarity Search
-    # This combines your prefix match and word-boundary match into one indexed operation.
-    # It ranks results based on how closely they match 'q'.
+    # 4. Single-Query Similarity Search with Eager Loading
+    # Using joinedload avoids the N+1 problem by fetching relations in the same query
     stmt = (
-        select(Subject.id, Subject.name)
+        select(Subject)
+        .options(
+            joinedload(Subject.study_level),
+            joinedload(Subject.board),
+            joinedload(Subject.faculty)
+        )
         .where(
             Subject.is_active == True,
             or_(
-                Subject.name.ilike(f"{q}%"),         # Start of string (Fastest)
-                Subject.name.ilike(f"% {q}%"),       # Start of any word
-                text("name % :val")                  # Trigram similarity (Fuzzy)
+                Subject.name.ilike(f"{query_str}%"),      # Prefix match
+                Subject.name.ilike(f"% {query_str}%"),    # Word boundary match
+                text("name % :val")                       # Trigram similarity
             )
         )
-        .params(val=q)
-        .order_by(text(f"similarity(name, :val) DESC"))
+        .order_by(text("similarity(name, :val) DESC"))
+        .params(val=query_str)
         .limit(10)
     )
 
     result = await db.execute(stmt)
-    rows = result.all()
-    
-    suggestions = [{"id": str(row.id), "name": row.name} for row in rows]
+    subjects = result.scalars().all()
+
+    suggestions = [
+        SubjectSuggestion(
+            id=s.id,
+            name=s.name,
+            study_level_name=s.study_level.name if s.study_level else None,
+            board_name=s.board.name if s.board else None,
+            faculty_name=s.faculty.name if s.faculty else None,
+            unit_type=s.faculty.unit_type if s.faculty else None,
+            unit_value=s.unit_value,
+        )
+        for s in subjects
+    ]
 
     # 5. Background Caching
-    # We return the response immediately; the cache update happens after the send.
     if suggestions:
-        background_tasks.add_task(update_cache, redis, cache_key, suggestions)
+        # model_dump() is used to prepare the list for orjson serialization
+        data_to_cache = [s.model_dump(mode='json') for s in suggestions]
+        background_tasks.add_task(update_cache, redis, cache_key, data_to_cache)
 
     return suggestions
