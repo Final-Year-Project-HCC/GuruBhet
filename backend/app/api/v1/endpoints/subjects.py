@@ -1,19 +1,24 @@
-
-from fastapi import APIRouter, Query, Request, status
-from sqlalchemy import select, text
+import orjson
+from fastapi import APIRouter, Query, Request, status, Depends, BackgroundTasks
+from sqlalchemy import select, text, or_
 import redis.asyncio as aioredis
 from app.core.dependencies import DbSession
 from app.db.redis import get_redis
 from app.models.subject import Subject
-from uuid import UUID
 from fastapi.responses import JSONResponse
+from app.core.exceptions import RateLimitError
 
 router = APIRouter()
 
+async def update_cache(redis: aioredis.Redis, key: str, data: list):
+    """Background task to update cache without blocking the response."""
+    await redis.set(key, orjson.dumps(data), ex=3600)
+
 @router.get("/suggest")
 async def suggest_subjects(
-    q: str = Query(..., min_length=1, description="Prefix search for subject name"),
-    db: DbSession = None,
+    background_tasks: BackgroundTasks,
+    q: str = Query(..., min_length=1, description="Search for subject name"),
+    db: DbSession = Depends(), # Ensure dependency injection is active
     redis: aioredis.Redis = Depends(get_redis),
     request: Request = None,
 ):
@@ -26,53 +31,52 @@ async def suggest_subjects(
     rl_key = f"suggestion_rl:{ip}"
     window = 60
     max_requests = 60
-    reqs = await redis.incr(rl_key)
-    if reqs == 1:
-        await redis.expire(rl_key, window)
-    ttl = await redis.ttl(rl_key)
+    
+    # Use a pipeline for slightly better atomic behavior in Redis
+    async with redis.pipeline(transaction=True) as pipe:
+        res = await pipe.incr(rl_key).ttl(rl_key).execute()
+        reqs, ttl = res[0], res[1]
+        if reqs == 1:
+            await redis.expire(rl_key, window)
+
     if reqs > max_requests:
-        return JSONResponse(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            content={"detail": "Too Many Requests"},
-            headers={"Retry-After": str(ttl if ttl > 0 else window)},
+        raise RateLimitError(
+            detail="Too Many Requests",
+            context={"retry_after": ttl if ttl > 0 else window}
         )
 
-    # 3. Caching
-    cache_key = f"suggestion_cache:{q.lower()}"
+    # 3. Caching (Using orjson for faster parsing)
+    cache_key = f"suggestion_cache:{q.lower().strip()}"
     cached = await redis.get(cache_key)
     if cached:
-        import json
-        return JSONResponse(content=json.loads(cached))
+        return JSONResponse(content=orjson.loads(cached))
 
-    # 4. Optimized DB search (prefix match at any word boundary)
-    # Pattern: match start of any word
-    # Example: 'Bio' matches 'Biology', 'Molecular Biology'
-    stmt = select(Subject.id, Subject.name).where(
-        text("name ILIKE :pattern AND is_active = true")
-    ).params(pattern=f"% {q}%").limit(10)
-    # Also match at the start of the string
-    stmt2 = select(Subject.id, Subject.name).where(
-        Subject.name.ilike(f"{q}%"),
-        Subject.is_active == True
-    ).limit(10)
+    # 4. Single-Query Similarity Search
+    # This combines your prefix match and word-boundary match into one indexed operation.
+    # It ranks results based on how closely they match 'q'.
+    stmt = (
+        select(Subject.id, Subject.name)
+        .where(
+            Subject.is_active == True,
+            or_(
+                Subject.name.ilike(f"{q}%"),         # Start of string (Fastest)
+                Subject.name.ilike(f"% {q}%"),       # Start of any word
+                text("name % :val")                  # Trigram similarity (Fuzzy)
+            )
+        )
+        .params(val=q)
+        .order_by(text(f"similarity(name, :val) DESC"))
+        .limit(10)
+    )
 
     result = await db.execute(stmt)
-    matches = list(result.all())
-    # Add matches from start of string if not already included
-    result2 = await db.execute(stmt2)
-    matches2 = list(result2.all())
-    seen_ids = {m[0] for m in matches}
-    for m in matches2:
-        if m[0] not in seen_ids:
-            matches.append(m)
-            seen_ids.add(m[0])
-    # Limit to 10
-    matches = matches[:10]
-    suggestions = [{"id": str(m[0]), "name": m[1]} for m in matches]
+    rows = result.all()
+    
+    suggestions = [{"id": str(row.id), "name": row.name} for row in rows]
 
-    # 5. Cache result for 60 minutes
-    import json
-    await redis.set(cache_key, json.dumps(suggestions), ex=60*60)
+    # 5. Background Caching
+    # We return the response immediately; the cache update happens after the send.
+    if suggestions:
+        background_tasks.add_task(update_cache, redis, cache_key, suggestions)
 
     return suggestions
-

@@ -1,32 +1,167 @@
 services:
-  # --- CACHE & TASK BROKER ---
+  # --- INFRASTRUCTURE SERVICES ---
   redis:
     image: redis:7-alpine
     restart: always
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    ports:
+      - "6379:6379"
+    networks:
+      - gurubhet-network
 
-  # --- BACKEND CLUSTER ---
-  api:
-    build: ./backend
-    env_file: .env
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips='*'
-    depends_on: [redis]
-
-  # --- LIVEKIT SFU ---
   livekit:
     image: livekit/livekit-server:latest
     command: --config /etc/livekit.yaml
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z localhost 7880 || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    ports:
+      - "7880:7880"
+      - "7881:7881"
+      - "50000-50100:50000-50100/udp"
     volumes:
       - ./livekit.yaml:/etc/livekit.yaml
-    environment:
-      - LIVEKIT_KEYS=${LIVEKIT_API_KEY}:${LIVEKIT_API_SECRET}
-      - EXTERNAL_IP=${AZURE_PUBLIC_IP}
+    networks:
+      - gurubhet-network
 
-  # --- FRONTEND CLUSTER ---
+  # --- FASTAPI BACKEND ---
+  api:
+    image: gurubhet-local-api # <-- Added image name
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./backend:/app
+    environment:
+      - ENVIRONMENT=development2 # Triggering your new cookie logic
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis:6379/2
+      - LIVEKIT_URL=http://livekit:7880
+    # No changes needed to command unless you want to remove --proxy-headers,
+    # but keeping them doesn't hurt.
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --proxy-headers --forwarded-allow-ips='*'
+    ports:
+      - "8000:8000" # Exposing port 8000 directly to your Mac
+    depends_on:
+      redis:
+        condition: service_healthy
+      livekit:
+        condition: service_healthy
+    networks:
+      - gurubhet-network
+
+  # --- CELERY INFRASTRUCTURE ---
+  worker:
+    image: gurubhet-local-api # <-- Reuses the api image
+    volumes:
+      - ./backend:/app
+    environment:
+      - ENVIRONMENT=development2
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis:6379/2
+    command: celery -A app.celery worker --loglevel=info
+    depends_on:
+      redis:
+        condition: service_healthy
+      api:
+        condition: service_started
+    networks:
+      - gurubhet-network
+
+  beat:
+    image: gurubhet-local-api # <-- Reuses the api image
+    volumes:
+      - ./backend:/app
+    environment:
+      - ENVIRONMENT=development2
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis:6379/2
+    command: celery -A app.celery beat --loglevel=info
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - gurubhet-network
+
+  flower:
+    image: gurubhet-local-api # <-- Reuses the api image
+    volumes:
+      - ./backend:/app
+    environment:
+      - ENVIRONMENT=development2
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis:6379/2
+    command: celery -A app.celery flower --port=5555 --broker=redis://redis:6379/1
+    ports:
+      - "5555:5555"
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - gurubhet-network
+
+  # --- FRONTEND APPS (Updated to HTTP & Port 8000) ---
   student-app:
-    build: ./Frontend/Student
+    build:
+      context: ./Frontend/Student
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./Frontend/Student:/app
+      - /app/node_modules
+      - /app/.next
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1 # HTTP and Direct Port
+    # Updated to your dev2 command
+    command: npm run dev2
+    ports:
+      - "3000:3000"
+    networks:
+      - gurubhet-network
 
   teacher-app:
-    build: ./Frontend/Teacher
+    build:
+      context: ./Frontend/Teacher
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./Frontend/Teacher:/app
+      - /app/node_modules
+      - /app/.next
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1 # HTTP and Direct Port
+    # Updated to your dev2 command
+    command: npm run dev2
+    ports:
+      - "3001:3001"
+    networks:
+      - gurubhet-network
 
   staff-app:
-    build: ./Frontend/Staff
+    build:
+      context: ./Frontend/Staff
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./Frontend/Staff:/app
+      - /app/node_modules
+      - /app/.next
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1 # HTTP and Direct Port
+    # Updated to your dev2 command
+    command: npm run dev2
+    ports:
+      - "3002:3002"
+    networks:
+      - gurubhet-network
+
+networks:
+  gurubhet-network:
+    driver: bridge
