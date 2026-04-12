@@ -14,7 +14,6 @@ env/
 
 # Poetry
 .python-version
-poetry.lock
 # Note: Keep pyproject.toml as it's needed for build
 
 # Environment and Secrets
