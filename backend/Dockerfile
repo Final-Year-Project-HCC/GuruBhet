@@ -29,7 +29,7 @@ COPY pyproject.toml poetry.lock ./
 # Step 4: Install Python dependencies
 # Docker will cache this layer. It only re-runs if pyproject.toml or poetry.lock changes.
 # We use --no-root because we haven't copied the actual app code yet.
-RUN poetry install --no-root --only main
+RUN poetry install --no-root --without dev
 
 # Step 5: Copy the rest of the application code
 # This layer will change frequently. By putting it last, we don't break the cache above.
