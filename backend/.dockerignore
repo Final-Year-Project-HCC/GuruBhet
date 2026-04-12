@@ -1,0 +1,29 @@
+# Git and GitHub
+.git
+.github
+.gitignore
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.venv/
+venv/
+env/
+
+# Poetry
+.python-version
+# Note: Keep pyproject.toml as it's needed for build
+
+# Environment and Secrets
+.env
+.env.*
+!.env.example
+
+# Docker
+Dockerfile
+docker-compose.yml
+
+# OS files
+.DS_Store

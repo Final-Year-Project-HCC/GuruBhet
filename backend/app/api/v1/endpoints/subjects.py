@@ -16,11 +16,11 @@ async def update_cache(redis: aioredis.Redis, key: str, data: list):
 
 @router.get("/suggest")
 async def suggest_subjects(
+    request: Request,
+    db: DbSession,
     background_tasks: BackgroundTasks,
     q: str = Query(..., min_length=1, description="Search for subject name"),
-    db: DbSession = Depends(), # Ensure dependency injection is active
     redis: aioredis.Redis = Depends(get_redis),
-    request: Request = None,
 ):
     # 1. Validate query length
     if len(q) < 3:

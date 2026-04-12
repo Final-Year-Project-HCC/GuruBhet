@@ -1,3 +1,6 @@
+
+
+
 from datetime import datetime
 from uuid import UUID
 from decimal import Decimal
@@ -12,12 +15,32 @@ class StudyLevelRead(SharedConfig):
     description: str | None = None
     is_active: bool
 
+
+class StudyLevelCreate(SharedConfig):
+    name: str
+    description: str | None = None
+
+    @field_validator("name")
+    @classmethod
+    def name_not_empty(cls, v: str) -> str:
+        if not v or not v.strip(): raise ValueError("StudyLevel name cannot be empty")
+        return v.strip()
 class BoardRead(SharedConfig):
     id: UUID
     name: str
     description: str | None = None
     is_active: bool
 
+class BoardCreate(SharedConfig):
+    study_level_ids: list[UUID]
+    name: str
+    description: str | None = None
+
+    @field_validator("name")
+    @classmethod
+    def name_not_empty(cls, v: str) -> str:
+        if not v or not v.strip(): raise ValueError("Board name cannot be empty")
+        return v.strip()
 class FacultyRead(SharedConfig):
     id: UUID
     name: str
@@ -28,14 +51,25 @@ class FacultyRead(SharedConfig):
     total_units: int
     is_active: bool
 
-    @classmethod
+class FacultyCreate(SharedConfig):
+    board_id: UUID
     study_level_id: UUID
+    name: str
     description: str | None = None
+    unit_type: UnitType
+    total_units: int
 
+    @field_validator("name")
+    @classmethod
+    def name_not_empty(cls, v: str) -> str:
+        if not v or not v.strip(): raise ValueError("Faculty name cannot be empty")
+        return v.strip()
+
+    @field_validator("total_units")
+    @classmethod
     def total_units_valid(cls, v: int) -> int:
         if v < 1: raise ValueError("total_units must be >= 1")
         return v
-
 class SubjectRead(SharedConfig):
     id: UUID
     name: str
