@@ -2,6 +2,12 @@ import { useQuery } from '@tanstack/react-query';
 import apiClient from '../api';
 import { StudyLevel, Board, Faculty, Subject, SubjectWithContext, TeacherSearchResult } from '@/components/types';
 
+export interface TeacherSearchFilters {
+  minRating?: number;
+  minRate?: number;
+  maxRate?: number;
+}
+
 /**
  * Fetch all study levels
  */
@@ -115,14 +121,24 @@ export const useSubjects = () => {
 };
 
 /**
- * Fetch teachers for a specific subject
+ * Fetch teachers for a specific subject with optional server-side filters
  */
-export const useTeachersBySubject = (subjectId: string | null) => {
+export const useTeachersBySubject = (
+  subjectId: string | null,
+  filters?: TeacherSearchFilters
+) => {
+  const { minRating, minRate, maxRate } = filters ?? {};
   return useQuery({
-    queryKey: ['teachersBySubject', subjectId],
+    queryKey: ['teachersBySubject', subjectId, minRating, minRate, maxRate],
     queryFn: async () => {
       const { data } = await apiClient.get<TeacherSearchResult[]>('/teachers/search/', {
-        params: { subjectId, limit: 50 },
+        params: {
+          subjectId,
+          limit: 50,
+          ...(minRating !== undefined && minRating > 0 && { minRating }),
+          ...(minRate !== undefined && { minRate }),
+          ...(maxRate !== undefined && { maxRate }),
+        },
       });
       return data;
     },

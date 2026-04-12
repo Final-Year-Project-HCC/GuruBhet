@@ -161,7 +161,7 @@ export interface TeacherSearchResult {
   ratingCount: number;
   totalSessionsCompleted: number;
   teacherName: string;
-  teacherHeadline?: string;
+  teacherTagline?: string;
   teacherAvatarUrl?: string;
   subject: Subject;
 }

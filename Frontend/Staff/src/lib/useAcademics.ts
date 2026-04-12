@@ -70,7 +70,6 @@ export function useFetchBoardsByStudyLevel(studyLevelId: string | null) {
   return useQuery({
     queryKey: ["boards", studyLevelId],
     queryFn: async () => {
-      if (!studyLevelId) return [];
       const { data } = await apiClient.get<Board[]>("/academics/boards", {
         params: { studyLevelId },
       });
@@ -130,7 +129,6 @@ export function useFetchFacultiesByHierarchy(
   return useQuery({
     queryKey: ["faculties", studyLevelId, boardId],
     queryFn: async () => {
-      if (!studyLevelId || !boardId) return [];
       const { data } = await apiClient.get<Faculty[]>("/academics/faculties", {
         params: {
           studyLevelId,
@@ -204,7 +202,6 @@ export function useFetchSubjectsByHierarchy(
   return useQuery({
     queryKey: ["subjects", studyLevelId, boardId, facultyId],
     queryFn: async () => {
-      if (!studyLevelId || !boardId || !facultyId) return [];
       const { data } = await apiClient.get<Subject[]>("/academics/subjects", {
         params: {
           studyLevelId,

@@ -29,7 +29,7 @@ export function TabNavigationLayout({
   return (
     <div className="flex flex-col md:flex-row gap-6 min-h-screen">
       {/* Sidebar Navigation */}
-      <aside className="w-full md:w-48 flex-shrink-0">
+      <aside className="w-full md:w-48 shrink-0">
         <nav className="space-y-2">
           {tabs.map((tab) => (
             <button

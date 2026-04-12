@@ -6,12 +6,16 @@ import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import apiClient from "@/lib/api";
 import { Booking } from "@/lib/types";
-import { useLogout } from "@/hooks";
+import { useLogout, useUser } from "@/hooks";
 
 export default function TeacherNavbar() {
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const { mutate: logout, isPending } = useLogout();
+  const { data: user } = useUser();
+  
+  const avatarUrl = user?.avatarUrl;
+  const initial = user?.firstName?.[0]?.toUpperCase() || "T";
 
   // Fetch pending approval count
   const { data: bookings = [] } = useQuery<Booking[]>({
@@ -123,8 +127,17 @@ export default function TeacherNavbar() {
               onClick={() => setOpen((v) => !v)}
               className="relative flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-black text-sm font-medium text-white ring-1 ring-border hover:opacity-90 dark:bg-white dark:text-black"
             >
-              {/* Simple avatar fallback (could be replaced with user image) */}
-              <span className="select-none">T</span>
+              {avatarUrl ? (
+                <Image
+                  src={avatarUrl}
+                  alt="Profile"
+                  fill
+                  sizes="36px"
+                  className="rounded-full object-cover"
+                />
+              ) : (
+                <span className="select-none">{initial}</span>
+              )}
               {/* Chevron indicator overlay (down/up based on open) */}
               <span
                 aria-hidden="true"

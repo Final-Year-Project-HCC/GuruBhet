@@ -1,98 +1,217 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import GlobalSearchBar from '@/components/SearchTeacher/GlobalSearchBar';
 import HierarchicalSidebar from '@/components/SearchTeacher/HierarchicalSidebar';
-import { TeacherSearchResult, SubjectWithContext, Subject } from '@/components/types';
-import { useRouter } from 'next/navigation';
+import SearchFilterBar from '@/components/SearchTeacher/SearchFilterBar';
+import TeacherResultCard from '@/components/SearchTeacher/TeacherResultCard';
+import { TeacherSearchResult, Subject, SubjectWithContext } from '@/components/types';
+import {
+  useTeachersBySubject,
+  TeacherSearchFilters,
+} from '@/lib/hooks/useAcademics';
+import { TeacherCardSkeletonGrid } from '@/components/SearchTeacher/SkeletonLoaders';
+
+// ─── Types ───────────────────────────────────────────────────────────────────
+
+type SearchMode = 'search-bar' | 'sidebar' | null;
+
+// ─── Empty state ─────────────────────────────────────────────────────────────
+
+const EmptyState: React.FC = () => (
+  <div className="flex flex-col items-center justify-center py-24 text-center">
+    <div className="w-20 h-20 rounded-full bg-muted/50 flex items-center justify-center mb-6">
+      <svg
+        className="w-10 h-10 text-muted-foreground/40"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={1.5}
+          d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+        />
+      </svg>
+    </div>
+    <h3 className="text-xl font-black text-foreground mb-2">Start your search</h3>
+    <p className="text-muted-foreground text-sm max-w-xs leading-relaxed">
+      Use the search bar above to find a subject by name, or drill down through the
+      hierarchy on the left to find your exact course.
+    </p>
+  </div>
+);
+
+// ─── No results state ────────────────────────────────────────────────────────
+
+const NoResults: React.FC<{ subjectName: string; onNewSearch: () => void }> = ({
+  subjectName,
+  onNewSearch,
+}) => (
+  <div className="flex flex-col items-center justify-center py-24 text-center">
+    <div className="w-20 h-20 rounded-full bg-muted/50 flex items-center justify-center mb-6">
+      <svg
+        className="w-10 h-10 text-muted-foreground/40"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={1.5}
+          d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+        />
+      </svg>
+    </div>
+    <h3 className="text-xl font-black text-foreground mb-2">No teachers found</h3>
+    <p className="text-muted-foreground text-sm mb-6 max-w-xs leading-relaxed">
+      No verified teachers are available for <span className="font-bold text-foreground">{subjectName}</span> with
+      the selected filters. Try relaxing your filters or searching a different subject.
+    </p>
+    <button
+      onClick={onNewSearch}
+      className="bg-primary text-primary-foreground px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-primary/90 active:scale-95 transition-all"
+    >
+      New Search
+    </button>
+  </div>
+);
+
+// ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function SearchTeacherPage() {
   const router = useRouter();
-  const [teachersFromSearch, setTeachersFromSearch] = useState<TeacherSearchResult[]>([]);
-  const [teachersFromSidebar, setTeachersFromSidebar] = useState<TeacherSearchResult[]>([]);
-  const [selectedSubjectFromSearch, setSelectedSubjectFromSearch] = useState<SubjectWithContext | null>(
-    null
+
+  // Active search state
+  const [activeSubject, setActiveSubject] = useState<Subject | null>(null);
+  const [activeSearchMode, setActiveSearchMode] = useState<SearchMode>(null);
+  const [filters, setFilters] = useState<TeacherSearchFilters>({});
+
+  // Fetch teachers from backend when a subject is selected
+  const {
+    data: teachers = [],
+    isLoading: teachersLoading,
+    isFetching,
+  } = useTeachersBySubject(activeSubject?.id ?? null, filters);
+
+  const hasSearched = activeSubject !== null;
+  const isResultsLoading = teachersLoading || isFetching;
+
+  // ── Handlers ─────────────────────────────────────────────────────────────
+
+  const handleSearchBarSelect = useCallback((subject: SubjectWithContext) => {
+    setActiveSubject(subject);
+    setActiveSearchMode('search-bar');
+    setFilters({});
+  }, []);
+
+  const handleSidebarTeachersFound = useCallback(
+    (_teachers: TeacherSearchResult[], subject: Subject) => {
+      setActiveSubject(subject);
+      setActiveSearchMode('sidebar');
+      setFilters({});
+    },
+    []
   );
-  const [selectedSubjectFromSidebar, setSelectedSubjectFromSidebar] = useState<Subject | null>(null);
 
-  const handleGlobalSearchSelect = (subject: SubjectWithContext) => {
-    setSelectedSubjectFromSearch(subject);
-    // Navigate to teacher profile or show teachers for this subject
-    router.push(
-      `/search-teacher?subjectId=${subject.id}&subjectName=${encodeURIComponent(subject.name)}`
-    );
-  };
+  const handleFiltersChange = useCallback((newFilters: TeacherSearchFilters) => {
+    setFilters(newFilters);
+  }, []);
 
-  const handleSidebarTeachersFound = (teachers: TeacherSearchResult[], subject: Subject) => {
-    setTeachersFromSidebar(teachers);
-    setSelectedSubjectFromSidebar(subject);
-  };
+  const handleNewSearch = useCallback(() => {
+    setActiveSubject(null);
+    setActiveSearchMode(null);
+    setFilters({});
+  }, []);
+
+  const handleViewProfile = useCallback(
+    (teacherId: string) => {
+      router.push(`/teacher-profile/${teacherId}`);
+    },
+    [router]
+  );
+
+  // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="bg-surface-muted min-h-screen pt-12 pb-24">
-      <div className="max-w-7xl mx-auto px-4">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-foreground mb-2">Find Your Tutor</h1>
-          <p className="text-muted-foreground">Search for qualified teachers in your subject area</p>
+    <div className="bg-background min-h-screen">
+      <div className="max-w-7xl mx-auto px-4 pt-10 pb-24">
+
+        {/* ── Page Header ─────────────────────────────────────────────────── */}
+        <div className="mb-10">
+          <h1 className="text-4xl font-black tracking-tight text-foreground mb-2">
+            Find Your Tutor
+          </h1>
+          <p className="text-muted-foreground text-sm">
+            Search by subject name, or use the hierarchy on the left to narrow down your exact course.
+          </p>
         </div>
 
-        {/* Global Search Bar */}
-        <div className="mb-12">
-          <GlobalSearchBar onSubjectSelect={handleGlobalSearchSelect} />
-        </div>
-
-        {/* Main Layout: Sidebar + Results */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-          {/* Sidebar Filter */}
-          <div className="lg:col-span-1">
-            <HierarchicalSidebar onTeachersFound={handleSidebarTeachersFound} />
+        {/* ── Search Bar — always visible ──────────────────────────────────── */}
+        {!hasSearched && (
+          <div className="mb-10">
+            <GlobalSearchBar onSubjectSelect={handleSearchBarSelect} />
           </div>
+        )}
 
-          {/* Results Area */}
-          <div className="lg:col-span-3">
-            {selectedSubjectFromSearch && (
-              <div className="bg-surface border border-border rounded-2xl p-6 shadow-lg">
-                <h2 className="text-2xl font-bold text-foreground mb-4">
-                  Teachers for: {selectedSubjectFromSearch.name}
-                </h2>
-                <p className="text-sm text-muted-foreground mb-6">
-                  {selectedSubjectFromSearch.fullContext}
-                </p>
-                <p className="text-center text-muted-foreground py-12">
-                  Teacher search results would load here based on the subject selection
-                </p>
-              </div>
+        {/* ── Main Layout ─────────────────────────────────────────────────── */}
+        <div className="flex flex-col lg:flex-row gap-8 items-start">
+
+          {/* ── Left: Sidebar ── */}
+          <aside className="w-full lg:w-72 shrink-0">
+            <HierarchicalSidebar
+              onTeachersFound={handleSidebarTeachersFound}
+              hideInlineResults
+            />
+          </aside>
+
+          {/* ── Right: Results ── */}
+          <div className="flex-1 min-w-0">
+
+            {/* Post-search: filter bar */}
+            {hasSearched && (
+              <SearchFilterBar
+                filters={filters}
+                onFiltersChange={handleFiltersChange}
+                resultCount={teachers.length}
+                isLoading={isResultsLoading}
+                subjectName={activeSubject?.name}
+                onNewSearch={handleNewSearch}
+              />
             )}
 
-            {selectedSubjectFromSidebar && teachersFromSidebar.length === 0 && (
-              <div className="bg-surface border border-border rounded-2xl p-6 shadow-lg text-center">
-                <p className="text-muted-foreground">
-                  No teachers available for {selectedSubjectFromSidebar.name}
-                </p>
-              </div>
+            {/* Loading skeleton */}
+            {hasSearched && isResultsLoading && (
+              <TeacherCardSkeletonGrid count={6} />
             )}
 
-            {!selectedSubjectFromSearch && !selectedSubjectFromSidebar && (
-              <div className="bg-subtle border border-border rounded-2xl p-12 text-center">
-                <svg
-                  className="w-16 h-16 mx-auto mb-4 text-muted-foreground/40"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={1.5}
-                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+            {/* Teacher result cards */}
+            {hasSearched && !isResultsLoading && teachers.length > 0 && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+                {teachers.map((teacher) => (
+                  <TeacherResultCard
+                    key={teacher.teacherId}
+                    teacher={teacher}
+                    onViewProfile={handleViewProfile}
                   />
-                </svg>
-                <p className="text-muted-foreground">
-                  Use the search bar or filters above to find your tutor
-                </p>
+                ))}
               </div>
             )}
+
+            {/* No results */}
+            {hasSearched && !isResultsLoading && teachers.length === 0 && (
+              <NoResults
+                subjectName={activeSubject?.name ?? ''}
+                onNewSearch={handleNewSearch}
+              />
+            )}
+
+            {/* Initial empty state */}
+            {!hasSearched && <EmptyState />}
+
           </div>
         </div>
       </div>
