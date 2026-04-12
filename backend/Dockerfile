@@ -1,38 +1,28 @@
-# Use a specific slim image for a smaller footprint
 FROM python:3.12-slim
 
-# Prevent Python from writing .pyc files and enable unbuffered logging
+# Standard Python environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    POETRY_VERSION=1.8.2 \
-    POETRY_VIRTUALENVS_CREATE=false \
-    POETRY_NO_INTERACTION=1
+    PIP_ROOT_USER_ACTION=ignore
 
 WORKDIR /app
 
-# Step 1: Install system dependencies
-# These change the least often, so they stay at the top.
+# Step 1: Install system dependencies & Poetry
+# We use your original logic here as it was confirmed working
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libpq-dev \
-    curl \
-    build-essential \
-    && rm -rf /var/lib/apt/lists/*
+    libpq-dev curl build-essential \
+    && rm -rf /var/lib/apt/lists/* \
+    && pip install --no-cache-dir poetry
 
-# Step 2: Install Poetry
-# We do this separately so it's cached independently of your app dependencies.
-RUN pip install --no-cache-dir "poetry==$POETRY_VERSION"
+# Step 2: Copy ONLY dependency files
+# This ensures that if you only change code, Docker skips the install step
+COPY pyproject.toml poetry.lock* ./
 
-# Step 3: Copy only the dependency files
-# This is the "Secret Sauce" for speed.
-COPY pyproject.toml poetry.lock ./
+# Step 3: Install dependencies
+# We use your original flags here to ensure compatibility
+RUN poetry config virtualenvs.create false \
+    && poetry install --no-interaction --no-ansi --no-root
 
-# Step 4: Install Python dependencies
-# Docker will cache this layer. It only re-runs if pyproject.toml or poetry.lock changes.
-# We use --no-root because we haven't copied the actual app code yet.
-RUN poetry install --no-root --without dev
-
-# Step 5: Copy the rest of the application code
-# This layer will change frequently. By putting it last, we don't break the cache above.
+# Step 4: Copy the rest of the application code
+# This is placed AFTER the install so it doesn't bust the cache
 COPY . .
-
-# Reminder: Commands like 'python manage.py runserver' are handled in your docker-compose.yml
