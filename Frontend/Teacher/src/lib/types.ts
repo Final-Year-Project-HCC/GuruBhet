@@ -1,16 +1,17 @@
 export interface CurrentUserData {
   id: string;
-  email: string;
   firstName: string;
-  middleName?: string;
+  middleName: string | null;
   lastName: string;
-  phone?: string;
+  email: string;
+  phone: string | null;
   role: string;
   isEmailVerified: boolean;
   isActive: boolean;
   isBanned: boolean;
   isSuperuser: boolean;
-  mfaEnabled: boolean;
+  createdAt: string;
+  avatarUrl: string | null;
   permissions: string[];
 }
 
@@ -20,23 +21,26 @@ export interface TeacherDocument {
   fileUrl: string;
   status: string; // VerificationStatus
   remarks?: string | null;
-  createdAt: string; // ISO datetime string
+  createdAt: string;
 }
 
-export interface TeacherData {
-  id: string;
-  firstName: string;
-  middleName?: string;
-  lastName: string;
-  email: string;
-  phone?: string;
-  documents: TeacherDocument[];
-  // Add more fields as needed based on API response
+export interface TeacherPublicData {
+  userId: string;
+  bio?: string;
+  tagline?: string;
+  user: {
+    firstName: string;
+    middleName: string;
+    lastName: string;
+    avatarUrl: string;
+  };
 }
-/**
- * Academic Domain Hierarchy
- * University -> Faculty -> Semester(s) -> Subject(s)
- */
+
+export interface TeacherData extends Omit<TeacherPublicData, 'user'> {
+  user: CurrentUserData; 
+  documents: TeacherDocument[];
+  documentStatus: VerificationStatus;
+}
 
 export interface University {
   id: string;
@@ -78,17 +82,10 @@ export interface Subject {
   updatedAt?: string;
 }
 
-/**
- * New Academic Hierarchy (4-Level)
- * StudyLevel -> Board -> Faculty -> Subject
- * Used by /academics/* endpoints
- * Fields use camelCase (converted by middleware from backend snake_case)
- */
-
 export enum UnitType {
-  SEMESTER = 'SEMESTER',
-  GRADE = 'GRADE',
-  YEAR = 'YEAR',
+  SEMESTER = "SEMESTER",
+  GRADE = "GRADE",
+  YEAR = "YEAR",
 }
 
 export interface StudyLevel {
@@ -131,17 +128,6 @@ export interface Subject {
   updatedAt?: string;
 }
 
-export interface TeacherAcademicSubject {
-  subjectId: string;
-  ratePerSession: number;
-  yearsOfExperience: number;
-  totalSessionsCompleted: number;
-  avgRating: number;
-  ratingCount: number;
-  isActive: boolean;
-  subject: Subject;
-}
-
 /**
  * Teacher Profile Response from /teachers/me
  * Backend returns camelCase via middleware from snake_case
@@ -150,7 +136,7 @@ export interface TeacherProfileResponse {
   userId: string;
   bio?: string;
   avatarUrl?: string;
-  headline?: string;
+  tagline?: string;
   verificationStatus: VerificationStatus;
 }
 
@@ -158,8 +144,8 @@ export interface TeacherProfileResponse {
  * Teacher Profile & Authentication
  */
 
-export type SubjectLevel = '10' | '11-12' | 'Bachelor' | 'Master' | 'Diploma';
-export type VerificationStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+export type SubjectLevel = "10" | "11-12" | "Bachelor" | "Master" | "Diploma";
+export type VerificationStatus = "PENDING" | "APPROVED" | "REJECTED";
 
 export interface TeacherProfile {
   id: string;
@@ -177,26 +163,23 @@ export interface TeacherProfile {
 }
 
 export interface TeacherSubject {
-  id?: string;
   teacherId: string;
   subjectId: string;
-  subject?: Subject;
   ratePerSession: number;
   yearsOfExperience: number;
-  avgRating?: number;
-  totalReviews?: number;
+  totalSessionsCompleted: number;
+  avgRating: number;
+  ratingCount: number;
   isActive: boolean;
-  createdAt?: string;
-  updatedAt?: string;
+  subject: Subject;
 }
-
 export interface User {
   id: string;
   email: string;
   firstName: string;
   lastName: string;
   phoneNumber?: string;
-  userType: 'TEACHER' | 'STUDENT' | 'ADMIN';
+  userType: "TEACHER" | "STUDENT" | "ADMIN";
   isActive: boolean;
   emailVerified: boolean;
   createdAt?: string;
@@ -208,14 +191,14 @@ export interface User {
  */
 
 export type BookingStatus =
-  | 'PENDING_APPROVAL'
-  | 'PENDING_PAYMENT'
-  | 'ACTIVE'
-  | 'COMPLETED'
-  | 'CANCELLED_BY_STUDENT'
-  | 'CANCELLED_BY_TEACHER';
+  | "PENDING_APPROVAL"
+  | "PENDING_PAYMENT"
+  | "ACTIVE"
+  | "COMPLETED"
+  | "CANCELLED_BY_STUDENT"
+  | "CANCELLED_BY_TEACHER";
 
-export type SessionStatus = 'SCHEDULED' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
+export type SessionStatus = "SCHEDULED" | "ACTIVE" | "COMPLETED" | "CANCELLED";
 
 export interface Student {
   id: string;
@@ -280,8 +263,8 @@ export interface SessionNote {
  * Payment & Financial
  */
 
-export type PaymentStatus = 'PENDING' | 'COMPLETED' | 'FAILED' | 'REFUNDED';
-export type PaymentMethod = 'ESEWA';
+export type PaymentStatus = "PENDING" | "COMPLETED" | "FAILED" | "REFUNDED";
+export type PaymentMethod = "ESEWA";
 
 export interface Payment {
   id: string;
@@ -372,6 +355,17 @@ export interface Rating {
   reviewText?: string;
   createdAt?: string;
   updatedAt?: string;
+}
+
+export interface TeacherRating {
+  id: string;
+  sessionId: string;
+  teacherId: string;
+  subjectId: string;
+  score: number;
+  comment: string | null;
+  isAnonymous: boolean;
+  createdAt: string;
 }
 
 /**

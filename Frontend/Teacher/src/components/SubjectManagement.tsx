@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { HierarchicalSubjectForm } from './HierarchicalSubjectForm';
 import { SubjectList } from './SubjectList';
 
@@ -18,7 +18,7 @@ export function SubjectManagement() {
   };
 
   return (
-    <div className="space-y-12">
+    <div className="space-y-12 border border-border rounded-lg p-6 mx-auto">
       {/* Form Section */}
       <HierarchicalSubjectForm onSuccess={handleSubjectAdded} />
 

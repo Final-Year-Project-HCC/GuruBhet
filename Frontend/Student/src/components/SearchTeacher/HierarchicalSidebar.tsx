@@ -13,9 +13,10 @@ import { DropdownSkeleton, TeacherCardSkeletonGrid, HierarchicalSidebarSkeleton 
 
 interface HierarchicalSidebarProps {
   onTeachersFound?: (teachers: TeacherSearchResult[], subject: Subject) => void;
+  hideInlineResults?: boolean;
 }
 
-const HierarchicalSidebar: React.FC<HierarchicalSidebarProps> = ({ onTeachersFound }) => {
+const HierarchicalSidebar: React.FC<HierarchicalSidebarProps> = ({ onTeachersFound, hideInlineResults = false }) => {
   // Selected values at each level
   const [selectedStudyLevel, setSelectedStudyLevel] = useState<string | null>(null);
   const [selectedBoard, setSelectedBoard] = useState<string | null>(null);
@@ -222,8 +223,8 @@ const HierarchicalSidebar: React.FC<HierarchicalSidebarProps> = ({ onTeachersFou
         )}
       </div>
 
-      {/* Teachers Results Section */}
-      {selectedSubject && (
+      {/* Teachers Results Section — only shown when page is not handling results */}
+      {selectedSubject && !hideInlineResults && (
         <div className="mt-8 border-t border-border pt-8">
           <h3 className="text-lg font-bold text-foreground mb-6">
             Available Teachers ({teachers.length})

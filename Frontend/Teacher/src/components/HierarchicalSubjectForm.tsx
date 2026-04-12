@@ -11,6 +11,8 @@ import {
 } from "@/lib/hooks/useAcademics";
 import type { StudyLevel, Board, Faculty, Subject } from "@/lib/types";
 import apiClient from "@/lib/api";
+import { useTeacher } from "@/hooks/useTeacherProfile";
+import { useUser } from "@/hooks";
 
 interface HierarchicalSubjectFormProps {
   onSuccess?: () => void;
@@ -32,7 +34,7 @@ export function HierarchicalSubjectForm({
   onSuccess,
 }: HierarchicalSubjectFormProps) {
   const queryClient = useQueryClient();
-
+  const {data:teacherData} = useUser();
   // Form state with camelCase naming
   const [selectedStudyLevelId, setSelectedStudyLevelId] = useState<string>("");
   const [selectedBoardId, setSelectedBoardId] = useState<string>("");
@@ -120,7 +122,7 @@ export function HierarchicalSubjectForm({
       setRatePerSession("");
       setYearsOfExperience("");
       // Refetch teacher subjects
-      queryClient.invalidateQueries({ queryKey: ["teacherSubjects"] });
+      queryClient.invalidateQueries({ queryKey: ["teacher", teacherData?.id, "subjects"] });
       onSuccess?.();
     },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

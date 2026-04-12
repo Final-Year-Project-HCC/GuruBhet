@@ -2,7 +2,7 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import apiClient from "@/lib/api";
-import type { CurrentUserData, TeacherData, TeacherDocument } from "@/lib/types";
+import type { CurrentUserData } from "@/lib/types";
 
 const QUERY_KEY = ["auth", "current-user"];
 
@@ -46,35 +46,3 @@ export function useInvalidateCurrentUser() {
 }
 
 
-
-const TEACHER_QUERY_KEY = ["teacher", "me"];
-
-async function fetchTeacher(): Promise<TeacherData | null> {
-  try {
-    const { data } = await apiClient.get<TeacherData>("https://api.gurubhet.tech/api/v1/teachers/me");
-    return data;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } catch (error: any) {
-    return null;
-  }
-}
-
-/**
- * Custom hook to fetch and cache the current teacher
- *
- * Configuration:
- * - staleTime: 1 hour - Data is fresh for 1 hour before refetching
- * - gcTime (cacheTime): 1 hour - Keep data in cache for 1 hour after component unmounts
- * - refetchOnWindowFocus: true - Refetch when window regains focus for security
- * - retry: false - Don't retry on failure
- */
-export function useTeacher() {
-  return useQuery({
-    queryKey: TEACHER_QUERY_KEY,
-    queryFn: fetchTeacher,
-    staleTime: 1000 * 60 * 60, // 1 hour
-    gcTime: 1000 * 60 * 60, // 1 hour cache retention
-    refetchOnWindowFocus: true, // Refetch on window focus for security
-    retry: false, // Don't retry on errors
-  });
-}

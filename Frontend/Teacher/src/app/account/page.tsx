@@ -2,19 +2,26 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { BasicInformation } from '@/components/BasicInformation';
+
+import { ProfileInformation } from '@/components/ProfileInformation';
+import { KycVerification } from '@/components/KycVerification';
 import { SubjectManagement } from '@/components/SubjectManagement';
 import { TabNavigationLayout, TabItem } from '@/components/TabNavigationLayout';
 
 export default function AccountPage() {
-  const [activeTab, setActiveTab] = useState('basic-info');
+  const [activeTab, setActiveTab] = useState('profile-info');
 
   // Define the main tabs
   const tabs: TabItem[] = [
     {
-      id: 'basic-info',
-      label: 'Basic Information',
-      description: 'Personal details & KYC documents',
+      id: 'profile-info',
+      label: 'Profile Information',
+      description: 'Avatar, name, and email',
+    },
+    {
+      id: 'kyc-verification',
+      label: 'KYC Verification',
+      description: 'Phone number & KYC documents',
     },
     {
       id: 'subjects',
@@ -47,7 +54,8 @@ export default function AccountPage() {
         >
           {/* Tab Content */}
           <div>
-            {activeTab === 'basic-info' && <BasicInformation />}
+            {activeTab === 'profile-info' && <ProfileInformation />}
+            {activeTab === 'kyc-verification' && <KycVerification />}
             {activeTab === 'subjects' && <SubjectManagement />}
           </div>
         </TabNavigationLayout>

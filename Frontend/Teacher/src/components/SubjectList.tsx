@@ -2,7 +2,11 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import apiClient from '@/lib/api';
 import { toast } from 'react-toastify';
-import type { TeacherAcademicSubject } from '@/lib/types';
+import type { TeacherSubject } from '@/lib/types';
+import { FiTrash2 } from 'react-icons/fi';
+import { Loader2 } from 'lucide-react';
+import { useTeacherSubjects } from '@/hooks/useTeacherProfile';
+import { useUser } from '@/hooks';
 
 interface SubjectListProps {
   onSubjectDeleted?: () => void;
@@ -10,19 +14,13 @@ interface SubjectListProps {
 
 export function SubjectList({ onSubjectDeleted }: SubjectListProps) {
   const queryClient = useQueryClient();
-
+  const {data: teacherData} = useUser();
   // Fetch teacher subjects
   const {
     data: teacherSubjects = [],
     isLoading,
     error,
-  } = useQuery<TeacherAcademicSubject[]>({
-    queryKey: ['teacherSubjects'],
-    queryFn: async () => {
-      const response = await apiClient.get('/teachers/me/subjects');
-      return response.data.data || [];
-    },
-  });
+  } = useTeacherSubjects(teacherData?.id || null);
 
   // Delete subject mutation
   const deleteSubjectMutation = useMutation({
@@ -31,7 +29,7 @@ export function SubjectList({ onSubjectDeleted }: SubjectListProps) {
     },
     onSuccess: () => {
       toast.success('Subject removed successfully');
-      queryClient.invalidateQueries({ queryKey: ['teacherSubjects'] });
+      queryClient.invalidateQueries({ queryKey: ["teacher", teacherData?.id, "subjects"] });
       onSubjectDeleted?.();
     },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -62,7 +60,7 @@ export function SubjectList({ onSubjectDeleted }: SubjectListProps) {
     );
   }
 
-  if (teacherSubjects.length === 0) {
+  if (teacherSubjects?.length === 0) {
     return (
       <div className="flex justify-center items-center py-12">
         <div className="text-muted-foreground">No subjects added yet.</div>
@@ -88,16 +86,16 @@ export function SubjectList({ onSubjectDeleted }: SubjectListProps) {
               </tr>
             </thead>
             <tbody>
-              {teacherSubjects.map((ts: TeacherAcademicSubject) => (
+              {teacherSubjects?.map((ts: TeacherSubject) => (
                 <tr
                   key={ts.subjectId}
                   className="border-b border-border hover:bg-muted/50 transition-colors"
-                >
+                > 
                   <td className="px-4 py-3 font-medium">{ts.subject.name}</td>
                   <td className="px-4 py-3 text-muted-foreground text-xs">
                     <div>
-                      {ts.subject.studyLevel.name} {ts.subject.board.name}{' '}
-                      {ts.subject.faculty.name} {ts.subject.unitValue}
+                      {ts.subject.studyLevel.name} | {ts.subject.board.name} |
+                      {ts.subject.faculty.name} | {ts.subject.unitValue}
                     </div>
                   </td>
                   <td className="px-4 py-3 text-right">
@@ -110,7 +108,7 @@ export function SubjectList({ onSubjectDeleted }: SubjectListProps) {
                       disabled={deleteSubjectMutation.isPending}
                       className="px-3 py-1 bg-muted text-destructive rounded-md hover:bg-muted/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-xs font-medium border border-destructive"
                     >
-                      {deleteSubjectMutation.isPending ? 'Removing...' : 'Remove'}
+                      {deleteSubjectMutation.isPending && deleteSubjectMutation.variables === ts.subjectId ? <Loader2 className="animate-spin" size={16} /> :  <FiTrash2 size={16} />}
                     </button>
                   </td>
                 </tr>
@@ -121,7 +119,7 @@ export function SubjectList({ onSubjectDeleted }: SubjectListProps) {
 
         {/* Mobile Card View */}
         <div className="md:hidden space-y-4">
-          {teacherSubjects.map((ts: TeacherAcademicSubject) => (
+          {teacherSubjects?.map((ts: TeacherSubject) => (
             <div
               key={ts.subjectId}
               className="border border-border rounded-lg p-4 space-y-3"

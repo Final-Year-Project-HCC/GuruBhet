@@ -1,301 +1,305 @@
-'use client';
+"use client"
+import React, { useState, useMemo } from 'react';
+import Image from 'next/image';
+import { useTeacherForPublic, useTeacherSubjects } from '@/hooks/useTeacherProfile';
+import { useUser } from '@/hooks';
+import LoadingSpinner from '@/components/LoadingSpinner';
+import { TeacherSubject } from '@/lib/types';
+import SubjectCard from '@/components/SubjectCard';
 
-import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import apiClient from '@/lib/api';
-import Link from 'next/link';
-import type { TeacherProfileResponse, TeacherAcademicSubject } from '@/lib/types';
 
-export default function PublicProfile() {
+
+const TeacherDetailPage = () => {
   const [searchQuery, setSearchQuery] = useState('');
+  const { data: user } = useUser();
+  const { data: teacherData } = useTeacherForPublic(user?.id || null);
+  const { data: teacherSubjects } = useTeacherSubjects(user?.id || null);
+  // Mock teacher subjects - in production, fetch from API
+  // This simulates a teacher teaching multiple subjects with different rates
+  // const teacherSubjects: TeacherSubjectRead[] = useMemo(() => {
+  //   const board = { id: 'b-1', name: 'Tribhuvan University', description: undefined, isActive: true };
 
-  // Fetch teacher profile
-  const {
-    data: profile,
-    isLoading: isLoadingProfile,
-    error: profileError,
-  } = useQuery<TeacherProfileResponse>({
-    queryKey: ['myPublicProfile'],
-    queryFn: async () => {
-      const response = await apiClient.get('/teachers/me');
-      return response.data.data;
-    },
-  });
+  //   const subjects = [
+  //     {
+  //       teacherId: teacher?.id || '',
+  //       subjectId: 'subj-1',
+  //       ratePerSession: 1200,
+  //       yearsOfExperience: 5,
+  //       totalSessionsCompleted: 150,
+  //       avgRating: 4.9,
+  //       ratingCount: 48,
+  //       isActive: true,
+  //       subject: {
+  //         id: 'subj-1',
+  //         name: 'Quantum Mechanics',
+  //         studyLevel: { id: 'sl-1', name: 'Bachelor', description: undefined, isActive: true },
+  //         studyLevelId: 'sl-1',
+  //         board,
+  //         boardId: 'b-1',
+  //         faculty: {
+  //           id: 'fac-1',
+  //           name: 'Physics',
+  //           board,
+  //           boardId: 'b-1',
+  //           studyLevelId: 'sl-1',
+  //           description: 'Advanced Physics Track',
+  //           unitType: UnitType.SEMESTER,
+  //           totalUnits: 8,
+  //           isActive: true,
+  //         },
+  //         facultyId: 'fac-1',
+  //         unitValue: 5,
+  //         isActive: true,
+  //         createdAt: new Date().toISOString(),
+  //         updatedAt: new Date().toISOString(),
+  //       },
+  //     },
+  //     {
+  //       teacherId: teacher?.id || '',
+  //       subjectId: 'subj-2',
+  //       ratePerSession: 950,
+  //       yearsOfExperience: 4,
+  //       totalSessionsCompleted: 120,
+  //       avgRating: 4.8,
+  //       ratingCount: 42,
+  //       isActive: true,
+  //       subject: {
+  //         id: 'subj-2',
+  //         name: 'Classical Mechanics',
+  //         studyLevel: { id: 'sl-1', name: 'Bachelor', description: undefined, isActive: true },
+  //         studyLevelId: 'sl-1',
+  //         board,
+  //         boardId: 'b-1',
+  //         faculty: {
+  //           id: 'fac-1',
+  //           name: 'Physics',
+  //           board,
+  //           boardId: 'b-1',
+  //           studyLevelId: 'sl-1',
+  //           description: 'Advanced Physics Track',
+  //           unitType: UnitType.SEMESTER,
+  //           totalUnits: 8,
+  //           isActive: true,
+  //         },
+  //         facultyId: 'fac-1',
+  //         unitValue: 3,
+  //         isActive: true,
+  //         createdAt: new Date().toISOString(),
+  //         updatedAt: new Date().toISOString(),
+  //       },
+  //     },
+  //     {
+  //       teacherId: teacher?.id || '',
+  //       subjectId: 'subj-3',
+  //       ratePerSession: 1100,
+  //       yearsOfExperience: 6,
+  //       totalSessionsCompleted: 200,
+  //       avgRating: 4.9,
+  //       ratingCount: 65,
+  //       isActive: true,
+  //       subject: {
+  //         id: 'subj-3',
+  //         name: 'Thermodynamics',
+  //         studyLevel: { id: 'sl-1', name: 'Bachelor', description: undefined, isActive: true },
+  //         studyLevelId: 'sl-1',
+  //         board,
+  //         boardId: 'b-1',
+  //         faculty: {
+  //           id: 'fac-1',
+  //           name: 'Physics',
+  //           board,
+  //           boardId: 'b-1',
+  //           studyLevelId: 'sl-1',
+  //           description: 'Advanced Physics Track',
+  //           unitType: UnitType.SEMESTER,
+  //           totalUnits: 8,
+  //           isActive: true,
+  //         },
+  //         facultyId: 'fac-1',
+  //         unitValue: 4,
+  //         isActive: true,
+  //         createdAt: new Date().toISOString(),
+  //         updatedAt: new Date().toISOString(),
+  //       },
+  //     },
+  //   ];
+  //   return subjects;
+  // }, [teacher?.id]);
 
-  // Fetch teacher subjects separately
-  const {
-    data: subjects = [],
-    isLoading: isLoadingSubjects,
-    error: subjectsError,
-  } = useQuery<TeacherAcademicSubject[]>({
-    queryKey: ['teacherPublicSubjects'],
-    queryFn: async () => {
-      const response = await apiClient.get('/teachers/me/subjects');
-      return response.data.data || [];
-    },
-    enabled: !!profile?.userId, // Only fetch after profile loads
-  });
+  // Filter subjects based on search query
 
-  const isLoadingProfile_combined = isLoadingProfile || isLoadingSubjects;
-  const hasError = profileError || subjectsError;
-
-  if (isLoadingProfile_combined) {
+  if (!teacherData) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center">
-          <div className="text-lg text-muted-foreground">Loading your public profile...</div>
-        </div>
-      </div>
+      <LoadingSpinner />
     );
   }
-
-  if (hasError || !profile) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center">
-          <div className="text-lg text-destructive">Failed to load your public profile</div>
-          <Link href="/account" className="text-primary hover:underline mt-2 inline-block">
-            Return to Account Settings
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
-  // Filter subjects based on search
-  const filteredSubjects = subjects.filter((ts: TeacherAcademicSubject) =>
-    ts.subject.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    ts.subject.board.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    ts.subject.faculty.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const getUnitTypeLabel = (unitType: string) => {
-    switch (unitType) {
-      case 'SEMESTER':
-        return 'Semester';
-      case 'YEAR':
-        return 'Year';
-      case 'GRADE':
-        return 'Grade';
-      default:
-        return unitType;
-    }
-  };
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Navigation Back */}
-      <div className="border-b border-border py-4 px-4">
-        <Link href="/account" className="text-primary hover:underline text-sm font-medium">
-          ← Back to Account Settings
-        </Link>
-      </div>
+    <>
+      <div className="bg-background min-h-screen py-12 md:py-20">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-12 items-start">
+            {/* Left Column: Bio Card (Simplified) */}
+            <div className="lg:col-span-1">
+              <div className="bg-surface border border-border rounded-[2.5rem] overflow-hidden shadow-xl sticky top-8">
+                <div className="aspect-square relative overflow-hidden">
+                  <Image
+                    src={teacherData.user.avatarUrl || '/avatar-placeholder.png'}
+                    fill
+                    sizes="(max-width: 1024px) 100vw, 25vw"
+                    className="w-full h-full object-cover"
+                    alt={teacherData.user.firstName}
+                  />
+                  <div className="absolute top-6 left-6">
+                    <div className="bg-accent text-accent-foreground p-2 rounded-full shadow-lg border border-background/20">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
 
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-          {/* Left Column - Bio Card (Sticky) */}
-          <div className="lg:col-span-1">
-            <div className="sticky top-8 space-y-6">
-              {/* Profile Card */}
-              <div className="bg-muted rounded-2xl p-6 space-y-4">
-                {/* Profile Image */}
-                <div className="flex justify-center">
-                  <div className="w-32 h-32 rounded-full bg-muted flex items-center justify-center overflow-hidden border-2 border-primary">
-                    {profile?.avatarUrl ? (
-                      <img
-                        src={profile.avatarUrl}
-                        alt="Profile"
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="text-4xl font-bold text-primary">
-                        T
+                <div className="p-8 text-center">
+                  <h1 className="text-3xl font-black tracking-tight mb-1">{teacherData.user.firstName + ' ' + teacherData.user.lastName}</h1>
+                  {/* Stats */}
+                  <div className="space-y-4 mb-6 pb-6 border-b border-border/50">
+                    <div className="flex flex-col items-center">
+                      <span className="text-3xl font-black tracking-tighter">NA</span>
+                      <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Average Rating</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="flex flex-col items-center">
+                        <span className="text-lg font-black tracking-tighter">NA</span>
+                        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Students</span>
                       </div>
-                    )}
+                      <div className="flex flex-col items-center">
+                        <span className="text-lg font-black tracking-tighter">NA</span>
+                        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Years XP</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Expertise Tags */}
+                  <div>
+                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-3">Teaches</p>
+                    <div className="flex flex-wrap gap-2 justify-center">
+                      {/* {(teacherData.levelExpertise || []).slice(0, 3).map((level) => (
+                        <span key={level} className="text-xs font-bold bg-primary/10 text-primary px-2.5 py-1.5 rounded-lg">
+                          {level}
+                        </span>
+                      ))} */}
+                      <span className="text-xs font-bold bg-primary/10 text-primary px-2.5 py-1.5 rounded-lg">
+                        Show this later
+                      </span>
+                    </div>
                   </div>
                 </div>
-
-                {/* Teacher Info */}
-                <div className="text-center space-y-1">
-                  <h1 className="text-2xl font-bold">
-                    {profile?.headline || 'Teacher Profile'}
-                  </h1>
-                  {profile?.verificationStatus === 'APPROVED' && (
-                    <div className="flex items-center justify-center gap-1 text-primary text-sm font-medium">
-                      <span>✓</span> Verified Teacher
-                    </div>
-                  )}
-                </div>
-
-                {/* Stats Grid */}
-                <div className="grid grid-cols-3 gap-3 pt-3 border-t border-border">
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-foreground">
-                      N/A
-                    </div>
-                    <div className="text-xs text-muted-foreground">Rating</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-foreground">
-                      0
-                    </div>
-                    <div className="text-xs text-muted-foreground">Sessions</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-foreground">
-                      {subjects.length > 0 
-                        ? Math.max(...subjects.map(s => s.yearsOfExperience))
-                        : 'N/A'}
-                    </div>
-                    <div className="text-xs text-muted-foreground">Years Exp</div>
-                  </div>
-                </div>
-
-                {/* About Section */}
-                {profile?.bio && (
-                  <div className="pt-4 space-y-2 border-t border-border">
-                    <h3 className="font-semibold text-sm">About</h3>
-                    <p className="text-sm text-muted-foreground leading-relaxed">{profile.bio}</p>
-                  </div>
-                )}
-
-                {/* Expertise Tags */}
-                {subjects.length > 0 && (
-                  <div className="pt-4 space-y-2 border-t border-border">
-                    <h3 className="font-semibold text-sm">Expertise</h3>
-                    <div className="flex flex-wrap gap-2">
-                      {/* Show unique faculties */}
-                      {Array.from(
-                        new Set(subjects.map((ts) => ts.subject.faculty.name))
-                      )
-                        .slice(0, 5)
-                        .map((faculty) => (
-                          <span
-                            key={faculty}
-                            className="px-3 py-1 bg-muted text-foreground rounded-full text-xs font-medium border border-border"
-                          >
-                            {faculty}
-                          </span>
-                        ))}
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
-          </div>
 
-          {/* Right Column - Content (3/4 width) */}
-          <div className="lg:col-span-3 space-y-8">
-            {/* Teaching Catalog Header */}
-            <div>
-              <h2 className="text-3xl font-bold mb-6">Teaching Catalog</h2>
-
-              {/* Search Bar */}
-              <div className="mb-6">
-                <input
-                  type="text"
-                  placeholder="Search subjects, boards, faculties..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full px-4 py-3 border border-input rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-              </div>
-
-              {/* Subject Cards Grid */}
-              {filteredSubjects.length === 0 ? (
-                <div className="text-center py-12">
-                  <p className="text-muted-foreground">
-                    {subjects.length === 0
-                      ? 'No subjects added yet'
-                      : 'No subjects match your search'}
+            {/* Right Column: Content Area */}
+            <div className="lg:col-span-3 space-y-12">
+              {/* About Section */}
+              <section>
+                <h2 className="text-3xl font-black tracking-tight mb-6">About Me</h2>
+                <div className="prose prose-slate max-w-none text-muted-foreground leading-relaxed space-y-4">
+                  <p>
+                    {teacherData.tagline || `Expert educator specializing in multiple subjects. Committed to providing personalized 1-to-1 learning experiences that help students achieve their full academic potential.`}
+                  </p>
+                  <p>
+                    {teacherData.bio || `With over 5 years of experience in the educational sector, I have helped hundreds of students navigate complex curricula including SEE/SLC, A-Levels, and Bachelor-level courses. My teaching methodology focuses on conceptual clarity followed by intensive problem-solving sessions.`}
                   </p>
                 </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {filteredSubjects.map((ts: TeacherAcademicSubject) => (
-                    <div
-                      key={ts.subjectId}
-                      className="border border-border rounded-xl overflow-hidden hover:shadow-lg transition-shadow bg-muted"
+              </section>
+
+              {/* Teaching Catalog Section */}
+              <section>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+                  <h2 className="text-2xl font-black tracking-tight">Teaching Catalog</h2>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder="Search subjects..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full sm:w-64 bg-surface border border-border rounded-2xl px-4 py-2.5 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                    />
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
                     >
-                      {/* Card Header */}
-                      <div className="bg-primary text-primary-foreground p-4">
-                        <h3 className="text-lg font-bold mb-2">{ts.subject.name}</h3>
-                        <div className="flex flex-wrap gap-2">
-                          <span className="px-2 py-1 bg-primary-foreground/20 rounded text-xs font-medium">
-                            {ts.subject.studyLevel.name}
-                          </span>
-                          <span className="px-2 py-1 bg-primary-foreground/20 rounded text-xs font-medium">
-                            {ts.subject.board.name}
-                          </span>
-                          <span className="px-2 py-1 bg-primary-foreground/20 rounded text-xs font-medium">
-                            {ts.subject.faculty.name}
-                          </span>
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                  </div>
+                </div>
+
+                {/* Subject Cards Grid */}
+                {teacherSubjects && teacherSubjects.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                    {teacherSubjects.map((ts) => (
+                      <SubjectCard
+                        key={ts.subjectId}
+                        teacherSubject={ts}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="bg-surface border border-border rounded-3xl p-12 text-center">
+                    <svg
+                      className="w-12 h-12 mx-auto text-muted-foreground mb-3 opacity-50"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={1.5}
+                        d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
+                    </svg>
+                    <p className="text-muted-foreground font-semibold mb-1">No subjects found</p>
+                    <p className="text-sm text-muted-foreground">Try adjusting your search query</p>
+                  </div>
+                )}
+              </section>
+              {/* I will add review part later */}
+              {/* Recent Reviews Section */}
+              <section>
+                <h2 className="text-xl font-black mb-6 uppercase tracking-widest text-muted-foreground">Student Feedback</h2>
+                <div className="space-y-4">
+                  {[
+                    { name: "Anish K.", rating: 5, comment: "Excellent explanation of complex topics. Highly recommended!", subject: "Quantum Mechanics" },
+                    { name: "Priya S.", rating: 4, comment: "Very patient and well-prepared for every session.", subject: "Classical Mechanics" }
+                  ].map((review, i) => (
+                    <div key={i} className="bg-surface border border-border rounded-3xl p-6">
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <h4 className="font-bold">{review.name}</h4>
+                          <p className="text-xs text-muted-foreground mt-1">Studied {review.subject}</p>
+                        </div>
+                        <div className="flex gap-0.5">
+                          {[...Array(review.rating)].map((_, j) => (
+                            <svg key={j} xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 text-warning" viewBox="0 0 20 20" fill="currentColor">
+                              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                            </svg>
+                          ))}
                         </div>
                       </div>
-
-                      {/* Card Body */}
-                      <div className="p-4 space-y-4">
-                        {/* Unit Information */}
-                        <div className="flex justify-between items-center">
-                          <div>
-                            <div className="text-xs text-muted-foreground font-medium">
-                              Unit:
-                            </div>
-                            <div className="font-semibold">
-                              {getUnitTypeLabel(ts.subject.faculty.unitType)} {ts.subject.unitValue}
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <div className="text-xs text-muted-foreground font-medium">
-                              Rate:
-                            </div>
-                            <div className="font-bold text-primary text-lg">
-                              Rs. {ts.ratePerSession}
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Stats Row */}
-                        <div className="grid grid-cols-3 gap-2 py-3 border-y border-border">
-                          <div className="text-center">
-                            <div className="text-xs text-muted-foreground">Rating</div>
-                            <div className="font-semibold">
-                              {ts.avgRating ? ts.avgRating.toFixed(1) : 'N/A'}
-                            </div>
-                          </div>
-                          <div className="text-center">
-                            <div className="text-xs text-muted-foreground">Sessions</div>
-                            <div className="font-semibold">{ts.totalSessionsCompleted}</div>
-                          </div>
-                          <div className="text-center">
-                            <div className="text-xs text-muted-foreground">Exp</div>
-                            <div className="font-semibold">{ts.yearsOfExperience}y</div>
-                          </div>
-                        </div>
-
-                        {/* Experience Badge */}
-                        <div className="text-center pt-2">
-                          <span className="px-3 py-1 bg-muted text-foreground rounded-full text-xs font-medium border border-border">
-                            {ts.yearsOfExperience}+ years teaching experience
-                          </span>
-                        </div>
-                      </div>
+                      <p className="text-muted-foreground text-sm italic">{review.comment}</p>
                     </div>
                   ))}
                 </div>
-              )}
-            </div>
-
-            {/* Reviews Section (Placeholder) */}
-            <div className="border-t border-border pt-8">
-              <h2 className="text-2xl font-bold mb-6">Recent Reviews</h2>
-              <div className="text-center py-12 bg-muted rounded-lg">
-                <p className="text-muted-foreground">Reviews from students will appear here</p>
-              </div>
+              </section>
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
-}
+};
+
+export default TeacherDetailPage;
