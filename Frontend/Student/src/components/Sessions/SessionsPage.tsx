@@ -51,13 +51,13 @@ const SessionsPage: React.FC = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {ACTIVE_SESSIONS.map((session) => {
-              const progress = session.completedSessions && session.totalSessions 
-                ? Math.round((session.completedSessions / session.totalSessions) * 100) 
+              const progress = session.completedSessions && session.totalSessions
+                ? Math.round((session.completedSessions / session.totalSessions) * 100)
                 : 0;
 
               return (
-                <div 
-                  key={session.id} 
+                <div
+                  key={session.id}
                   className="bg-surface rounded-[2.5rem] border border-border p-8 shadow-sm hover:shadow-xl transition-all group flex flex-col"
                 >
                   <div className="flex justify-between items-start mb-6">
@@ -101,18 +101,17 @@ const SessionsPage: React.FC = () => {
                       <span className="text-lg font-black text-primary">{progress}%</span>
                     </div>
                     <div className="w-full bg-subtle rounded-full h-2.5 overflow-hidden mb-8">
-                      <div 
+                      <div
                         style={{ width: `${progress}%` }}
                         className="bg-primary h-full rounded-full transition-all duration-1000 ease-out"
                       />
                     </div>
 
-                    <button 
-                      className={`w-full py-4 rounded-2xl text-[11px] font-black uppercase tracking-widest cursor-pointer transition-all shadow-lg active:scale-95 ${
-                        session.status === 'Live' 
-                        ? 'bg-destructive text-destructive-foreground hover:opacity-90' 
-                        : 'bg-primary text-primary-foreground hover:bg-primary-hover hover:text-primary-hover-foreground'
-                      }`}
+                    <button
+                      className={`w-full py-4 rounded-2xl text-[11px] font-black uppercase tracking-widest cursor-pointer transition-all shadow-lg active:scale-95 ${session.status === 'Live'
+                          ? 'bg-destructive text-destructive-foreground hover:opacity-90'
+                          : 'bg-primary text-primary-foreground hover:bg-primary-hover hover:text-primary-hover-foreground'
+                        }`}
                     >
                       {session.status === 'Live' ? 'Enter Classroom Now' : 'Manage Course'}
                     </button>
@@ -166,7 +165,7 @@ const SessionsPage: React.FC = () => {
                       <td className="px-8 py-6">
                         <div>
                           <p className="font-black text-primary">{typeof session.subject === 'string' ? session.subject : session.subject?.name}</p>
-                          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-tighter">{session.subjectLevel} Level</p>
+                          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-tighter">pending Level</p>
                         </div>
                       </td>
                       <td className="px-8 py-6">
@@ -191,10 +190,10 @@ const SessionsPage: React.FC = () => {
                       <td className="px-8 py-6">
                         <div className="flex gap-0.5">
                           {[...Array(5)].map((_, i) => (
-                            <svg 
-                              key={i} 
-                              className={`w-3.5 h-3.5 ${(session.ratingGiven || 0) > i ? 'text-warning' : 'text-subtle-foreground/30'}`} 
-                              fill="currentColor" 
+                            <svg
+                              key={i}
+                              className={`w-3.5 h-3.5 ${(session.ratingGiven || 0) > i ? 'text-warning' : 'text-subtle-foreground/30'}`}
+                              fill="currentColor"
                               viewBox="0 0 20 20"
                             >
                               <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />

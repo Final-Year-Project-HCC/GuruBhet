@@ -88,7 +88,7 @@ const StudentBookingCard = ({
     : "Unknown Teacher";
 
   // Calculate remaining time until session
-  const sessionDate = new Date(booking.startDate || booking.createdAt);
+  const sessionDate = new Date(booking.createdAt);
   const now = new Date();
   const diffMs = sessionDate.getTime() - now.getTime();
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
@@ -137,17 +137,16 @@ const StudentBookingCard = ({
 
   return (
     <div
-      className={`overflow-hidden rounded-2xl border border-border bg-surface shadow-sm transition-all hover:shadow-lg ${
-        isProcessing ? "opacity-50 pointer-events-none" : ""
-      }`}
+      className={`overflow-hidden rounded-2xl border border-border bg-surface shadow-sm transition-all hover:shadow-lg ${isProcessing ? "opacity-50 pointer-events-none" : ""
+        }`}
     >
       <div className="border-b border-border bg-linear-to-r from-subtle to-surface-muted p-5">
         <div className="flex items-start justify-between gap-4 mb-4">
           <div className="flex gap-3 flex-1 min-w-0">
             <div className="h-14 w-14 shrink-0 overflow-hidden rounded-full border-2 border-accent">
-              {booking.teacher?.profilePictureUrl ? (
+              {booking.teacher?.image ? (
                 <Image
-                  src={booking.teacher.profilePictureUrl}
+                  src={booking.teacher.image}
                   alt={teacherName}
                   width={56}
                   height={56}
@@ -169,11 +168,10 @@ const StudentBookingCard = ({
                   {[...Array(5)].map((_, i) => (
                     <MdStarRate
                       key={i}
-                      className={`h-3 w-3 ${
-                        i < Math.round(booking.teacher?.avgRating || 0)
-                          ? "fill-warning text-warning"
-                          : "text-muted-foreground"
-                      }`}
+                      className={`h-3 w-3 ${i < Math.round(booking.teacher?.avgRating || 0)
+                        ? "fill-warning text-warning"
+                        : "text-muted-foreground"
+                        }`}
                     />
                   ))}
                 </div>
@@ -220,15 +218,15 @@ const StudentBookingCard = ({
                 SESSION DATE & TIME
               </p>
               <p className="font-semibold text-foreground">
-                {booking.startDate
-                  ? new Date(booking.startDate).toLocaleDateString("en-IN", {
-                      weekday: "short",
-                      year: "numeric",
-                      month: "short",
-                      day: "numeric",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })
+                {booking.createdAt
+                  ? new Date(booking.createdAt).toLocaleDateString("en-IN", {
+                    weekday: "short",
+                    year: "numeric",
+                    month: "short",
+                    day: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })
                   : "TBD"}
               </p>
             </div>
@@ -273,7 +271,7 @@ const StudentBookingCard = ({
           <div className="flex items-center gap-2 text-sm">
             <MdVideocam className="h-4 w-4 text-muted-foreground" />
             <span className="text-muted-foreground">
-              {booking.sessionType || "Online Session"}
+              {"Online Session"}
             </span>
           </div>
 
@@ -292,9 +290,8 @@ const StudentBookingCard = ({
             {Array.from({ length: booking.totalSessions }).map((_, i) => (
               <div
                 key={i}
-                className={`h-1.5 flex-1 rounded-full transition-colors ${
-                  i < booking.completedSessions ? "bg-success" : "bg-muted"
-                }`}
+                className={`h-1.5 flex-1 rounded-full transition-colors ${i < booking.completedSessions ? "bg-success" : "bg-muted"
+                  }`}
               />
             ))}
           </div>
@@ -428,11 +425,10 @@ const StudentBookingCard = ({
                   className="transition-transform hover:scale-110"
                 >
                   <MdStarRate
-                    className={`h-6 w-6 ${
-                      star <= reviewRating
-                        ? "fill-warning text-warning"
-                        : "text-muted-foreground"
-                    }`}
+                    className={`h-6 w-6 ${star <= reviewRating
+                      ? "fill-warning text-warning"
+                      : "text-muted-foreground"
+                      }`}
                   />
                 </button>
               ))}

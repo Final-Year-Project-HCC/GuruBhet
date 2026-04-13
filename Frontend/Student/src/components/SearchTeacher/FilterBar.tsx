@@ -1,13 +1,12 @@
 
 import React from 'react';
-import { SubjectLevel } from '../../lib/types';
-import { LEVELS } from '../constants';
+import { StudyLevel } from '../../lib/types';
 
 interface FilterBarProps {
   searchTerm: string;
   setSearchTerm: (val: string) => void;
-  selectedLevel: SubjectLevel | 'All';
-  setSelectedLevel: (val: SubjectLevel | 'All') => void;
+  selectedLevel: StudyLevel | 'All';
+  setSelectedLevel: (val: StudyLevel | 'All') => void;
   maxPrice: number;
   setMaxPrice: (val: number) => void;
   sortBy: 'rating' | 'price-low' | 'price-high';
@@ -44,33 +43,6 @@ const FilterBar: React.FC<FilterBarProps> = ({
             />
           </div>
         </div>
-
-        {/* Academic Level */}
-        <div className="w-full lg:w-55">
-          <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-3 px-1">
-            Academic Level
-          </label>
-          <div className="relative">
-            <select
-              value={selectedLevel}
-              onChange={(e) => setSelectedLevel(e.target.value as SubjectLevel | 'All')}
-              className="w-full bg-surface border border-border rounded-2xl pl-5 pr-10 py-4 text-sm font-semibold focus:border-primary outline-none cursor-pointer appearance-none"
-            >
-              <option value="All">All Levels</option>
-              {LEVELS.map((level) => (
-                <option key={level.id} value={level.id}>
-                  {level.title}
-                </option>
-              ))}
-            </select>
-            <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground/60">
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7-7" />
-              </svg>
-            </div>
-          </div>
-        </div>
-
         {/* Max Price */}
         <div className="w-full lg:w-65">
           <div className="flex justify-between items-center mb-3 px-1">

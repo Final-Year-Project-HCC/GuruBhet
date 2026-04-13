@@ -62,14 +62,11 @@ export enum UnitType {
 export type UserRole = 'STUDENT' | 'TEACHER' | 'ADMIN';
 export type VerificationStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 
-// For backward compatibility with components that reference SubjectLevel
-export type SubjectLevel = string;
-
 export interface Teacher {
   id: string;
-  name: string;
-  email?: string;
-  phoneNumber?: string;
+  firstName: string;
+  middleName: string;
+  lastName: string;
   subject?: string;
   image?: string;
   rating?: number;
@@ -78,6 +75,7 @@ export interface Teacher {
   ratePerSession?: number;
   levelExpertise?: string[];
   verificationStatus?: VerificationStatus;
+  avgRating?: number;
   bio?: string;
   qualification?: string;
   yearsOfExperience?: number;
@@ -184,6 +182,7 @@ export interface Booking {
   cancelledAt?: string;
   cancellationReason?: string;
   nextSessionDate?: string;
+  hasReview?: boolean;
 }
 
 export interface Session {
@@ -205,8 +204,8 @@ export interface Session {
   createdAt?: string;
   updatedAt?: string;
   // UI/Display properties
+  StudyLevel?: string,
   teacherName?: string;
-  subjectLevel?: SubjectLevel;
   completedSessions?: number;
   totalSessions?: number;
   nextSessionTime?: string;
@@ -217,7 +216,6 @@ export interface Session {
 
 export interface SessionWithTeacher extends Session {
   teacherName: string;
-  subjectLevel: SubjectLevel;
   completedSessions: number;
   totalSessions: number;
   nextSessionTime?: string;
@@ -331,7 +329,6 @@ export interface UpdateStudentProfileRequest {
   firstName?: string;
   lastName?: string;
   phoneNumber?: string;
-  educationalLevel?: SubjectLevel;
   profilePictureUrl?: string;
 }
 

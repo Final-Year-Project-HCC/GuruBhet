@@ -3,7 +3,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { TRENDING_TEACHERS, RECOMMENDED_TEACHERS } from '../constants';
-import { SubjectLevel } from '../../lib/types';
+import { StudyLevel } from '../../lib/types';
 import { useRequireAuth } from '@/hooks/useRequireAuth';
 import FilterBar from './FilterBar';
 import ResultsHeader from './ResultsHeader';
@@ -15,7 +15,7 @@ interface SearchPageProps {
 
 const SearchPage: React.FC<SearchPageProps> = ({ onViewProfile }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedLevel, setSelectedLevel] = useState<SubjectLevel | 'All'>('All');
+  const [selectedLevel, setSelectedLevel] = useState<StudyLevel | 'All'>('All');
   const [maxPrice, setMaxPrice] = useState<number>(2000);
   const [sortBy, setSortBy] = useState<'rating' | 'price-low' | 'price-high'>('rating');
   const requireAuth = useRequireAuth();
@@ -29,10 +29,10 @@ const SearchPage: React.FC<SearchPageProps> = ({ onViewProfile }) => {
     return allTeachers
       .filter((t) => {
         const matchesSearch =
-          t.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          t.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
           (t.subject?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false);
         const matchesLevel =
-          selectedLevel === 'All' || (t.levelExpertise?.includes(selectedLevel as SubjectLevel) ?? false);
+          selectedLevel === 'All' || (t.levelExpertise?.includes(selectedLevel.toString()) ?? false);
         const matchesPrice = (t.ratePerSession ?? Infinity) <= maxPrice;
         return matchesSearch && matchesLevel && matchesPrice;
       })

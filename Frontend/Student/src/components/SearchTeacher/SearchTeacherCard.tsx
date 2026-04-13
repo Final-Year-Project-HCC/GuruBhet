@@ -26,7 +26,7 @@ const SearchTeacherCard: React.FC<SearchTeacherCardProps> = ({
           fill
           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
           className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-          alt={teacher.name}
+          alt={teacher.firstName}
         />
 
         {/* Verification Checkmark */}
@@ -60,7 +60,7 @@ const SearchTeacherCard: React.FC<SearchTeacherCardProps> = ({
       <div className="px-6 py-4 grow flex flex-col">
         <div className="mb-6">
           <h3 className="text-2xl font-black tracking-tight text-primary mb-1 truncate">
-            {teacher.name}
+            {teacher.firstName}
           </h3>
           <p className="text-muted-foreground font-black text-[10px] uppercase tracking-widest">
             {teacher.subject}
