@@ -9,7 +9,7 @@ import redis.asyncio as aioredis
 from app.core.dependencies import DbSession
 from app.db.redis import get_redis
 from app.models.subject import Subject
-from app.schemas.subject import SubjectSuggestion
+from app.schemas.subject import SubjectRead
 from app.core.exceptions import RateLimitError
 
 router = APIRouter()
@@ -18,7 +18,7 @@ async def update_cache(redis: aioredis.Redis, key: str, data: list):
     """Background task to update cache without blocking the response."""
     await redis.set(key, orjson.dumps(data), ex=3600)
 
-@router.get("/suggest", response_model=List[SubjectSuggestion])
+@router.get("/suggest", response_model=List[SubjectRead])
 async def suggest_subjects(
     request: Request,
     db: DbSession,

@@ -13,7 +13,7 @@ class StudyLevelRead(SharedConfig):
     id: UUID
     name: str
     description: str | None = None
-    is_active: bool
+    is_active: bool | None = None
 
 
 class StudyLevelCreate(SharedConfig):
@@ -29,7 +29,9 @@ class BoardRead(SharedConfig):
     id: UUID
     name: str
     description: str | None = None
-    is_active: bool
+    is_active: bool | None = None
+    study_levels: list[StudyLevelRead] | None = None
+
 
 class BoardCreate(SharedConfig):
     study_level_ids: list[UUID]
@@ -44,12 +46,12 @@ class BoardCreate(SharedConfig):
 class FacultyRead(SharedConfig):
     id: UUID
     name: str
-    board_id: UUID
-    study_level_id: UUID
+    board: BoardRead | None = None
+    study_level: StudyLevelRead | None = None
     description: str | None = None
     unit_type: UnitType
     total_units: int
-    is_active: bool
+    is_active: bool | None = None
 
 class FacultyCreate(SharedConfig):
     board_id: UUID
@@ -73,13 +75,13 @@ class FacultyCreate(SharedConfig):
 class SubjectRead(SharedConfig):
     id: UUID
     name: str
-    study_level: StudyLevelRead
-    board: BoardRead
-    is_active: bool
-    faculty: FacultyRead
+    study_level: StudyLevelRead | None = None
+    board: BoardRead | None = None
+    is_active: bool | None = None
+    faculty: FacultyRead | None = None
     unit_value: int
-    created_at: datetime
-    updated_at: datetime
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
 class SubjectCreate(SharedConfig):
     name: str
@@ -195,11 +197,4 @@ class TeacherSearchResult(SharedConfig):
 
 #Suggestion 
 
-class SubjectSuggestion(SharedConfig):
-    id: UUID
-    name: str
-    study_level_name: str
-    board_name: str
-    faculty_name: str
-    unit_type: UnitType
-    unit_value: int
+

@@ -101,18 +101,18 @@ async def list_study_levels(
 ) -> list[StudyLevelRead]:
     """[STAFF] List all StudyLevels."""
     await verify_inactive_access(is_active, db, request)
-    stmt = select(StudyLevel)
+    stmt = select(StudyLevel.id, StudyLevel.name)
     stmt = stmt.where(StudyLevel.is_active == is_active)
     stmt = stmt.order_by(StudyLevel.name)
     result = await db.execute(stmt)
-    return [StudyLevelRead.model_validate(sl) for sl in result.scalars().all()]
+    return [StudyLevelRead(id=row.id, name=row.name) for row in result.all()]
 
 
 @router.get("/study-levels/{study_level_id}", response_model=StudyLevelRead)
 async def get_study_level(
-    study_level_id: Annotated[UUID, Path(..., alias="studyLevelId")],
-    request: Request,
     db: DbSession,
+    request: Request,
+    study_level_id: Annotated[UUID, Path(..., alias="studyLevelId")],
     is_active: bool = Query(default=True, alias="isActive"),
 ) -> StudyLevelRead:
     """[STAFF] Get a specific StudyLevel by ID."""
@@ -210,7 +210,7 @@ async def list_boards(
     """
     await verify_inactive_access(is_active, db, request)
 
-    stmt = select(Board).where(Board.is_active == is_active)
+    stmt = select(Board.id, Board.name).where(Board.is_active == is_active)
 
     if study_level_id:
         stmt = stmt.join(board_study_levels).where(
@@ -220,14 +220,14 @@ async def list_boards(
 
     stmt = stmt.order_by(Board.name)
     result = await db.execute(stmt)
-    return [BoardRead.model_validate(b) for b in result.scalars().all()]
+    return [BoardRead(id=row.id, name=row.name) for row in result.all()]
 
 
 @router.get("/boards/{board_id}", response_model=BoardRead)
 async def get_board(
+    db: DbSession,
     board_id: Annotated[UUID, Path(..., alias="boardId")],
     request: Request,
-    db: DbSession,
     is_active: bool = Query(default=True, alias="isActive"),
 ) -> BoardRead:
     """[STAFF] Get a specific Board by ID."""
@@ -347,7 +347,7 @@ async def list_faculties(
                 detail=f"Association between Board '{board_id}' and StudyLevel '{study_level_id}' not found"
             )
 
-    stmt = select(Faculty).where(Faculty.is_active == is_active)
+    stmt = select(Faculty.id, Faculty.name, Faculty.unit_type, Faculty.total_units).where(Faculty.is_active == is_active)
 
     if study_level_id:
         stmt = stmt.where(Faculty.study_level_id == study_level_id)
@@ -358,14 +358,14 @@ async def list_faculties(
     stmt = stmt.order_by(Faculty.name)
 
     result = await db.execute(stmt)
-    return [FacultyRead.model_validate(f) for f in result.scalars().all()]
+    return [FacultyRead(id=row.id, name=row.name, unit_type=row.unit_type, total_units=row.total_units) for row in result.all()]
 
 
 @router.get("/faculties/{faculty_id}", response_model=FacultyRead)
 async def get_faculty(
+    db: DbSession,
     faculty_id: Annotated[UUID, Path(..., alias="facultyId")],
     request: Request,
-    db: DbSession,
     is_active: bool = Query(default=True, alias="isActive"),
 ) -> FacultyRead:
     """[STAFF] Get a specific Faculty by ID."""
@@ -461,8 +461,7 @@ async def create_subject(
 @router.get("/subjects", response_model=list[SubjectRead])
 async def list_subjects(
     db: DbSession,
-    study_level_id: UUID = Query(default=None, alias="studyLevelId"),
-    board_id: UUID = Query(default=None, alias="boardId"),
+    # Removed study_level_id and board_id filters
     faculty_id: UUID = Query(default=None, alias="facultyId"),
     request: Request = None,
     is_active: bool = Query(default=True, alias="isActive"),
@@ -475,44 +474,21 @@ async def list_subjects(
     """
     await verify_inactive_access(is_active, db, request)
 
-    # If study_level_id and board_id are provided, verify the association exists
-    if study_level_id and board_id:
-        assoc_stmt = (
-            select(Board)
-            .join(board_study_levels)
-            .where(
-                Board.id == board_id,
-                board_study_levels.c.study_level_id == study_level_id,
-                board_study_levels.c.is_active == is_active,
-            )
-        )
-        assoc_result = await db.execute(assoc_stmt)
-        if not assoc_result.scalar_one_or_none():
-            raise ResourceNotFoundError(
-                detail=f"Association between Board '{board_id}' and StudyLevel '{study_level_id}' not found"
-            )
-
-    stmt = select(Subject).where(Subject.is_active == is_active)
-
-    if study_level_id:
-        stmt = stmt.where(Subject.study_level_id == study_level_id)
-
-    if board_id:
-        stmt = stmt.where(Subject.board_id == board_id)
+    stmt = select(Subject.id, Subject.name, Subject.unit_value).where(Subject.is_active == is_active)
 
     if faculty_id:
         stmt = stmt.where(Subject.faculty_id == faculty_id)
 
     stmt = stmt.order_by(Subject.name)
     result = await db.execute(stmt)
-    return [SubjectRead.model_validate(s) for s in result.scalars().all()]
+    return [SubjectRead(id=row.id, name=row.name, unit_value=row.unit_value) for row in result.all()]
 
 
 @router.get("/subjects/{subject_id}", response_model=SubjectWithContextRead)
 async def get_subject(
+    db: DbSession,
     subject_id: Annotated[UUID, Path(..., alias="subjectId")],
     request: Request,
-    db: DbSession,
     is_active: bool = Query(default=True, alias="isActive"),
 ) -> SubjectWithContextRead:
     """[STAFF] Get a specific Subject by ID with full context."""
