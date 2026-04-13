@@ -124,7 +124,7 @@ async def get_study_level(
     study_level = result.scalar_one_or_none()
 
     if not study_level:
-        raise ResourceNotFoundError(detail="StudyLevel not found")
+        raise ResourceNotFoundError(detail="StudyLevel not found.")
 
     return StudyLevelRead.model_validate(study_level)
 
