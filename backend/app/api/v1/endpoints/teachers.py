@@ -1,21 +1,18 @@
 import logging
-import sqlalchemy as sa
-import time
 from decimal import Decimal
 from typing import Annotated
-from uuid import UUID, uuid4
+from uuid import UUID
+from sqlalchemy.orm import joinedload, selectinload
 
 from fastapi import APIRouter, Path, Query, File, Form, UploadFile, status, HTTPException
 from fastapi.concurrency import run_in_threadpool
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
-from app.core.dependencies import CurrentUser, DbSession, RequireTeacher
-from app.core.enums import SessionStatus, UserRole, VerificationStatus, DocumentType, BookingStatus
+from app.core.dependencies import  DbSession, RequireTeacher
+from app.core.enums import SessionStatus, VerificationStatus, DocumentType, BookingStatus
 from app.core.exceptions import (
     ConflictError,
-    PermissionDeniedError,
-    SubjectNotFoundError,
     TeacherNotFoundError,
     InvalidDocumentError,
     UploadFailedError,
@@ -23,7 +20,7 @@ from app.core.exceptions import (
 )
 from app.models.booking import Booking, Session
 from app.models.student import StudentProfile
-from app.models.subject import Subject
+from app.models.subject import Subject, Faculty
 from app.models.rating import TeacherRating
 from app.models.teacher import TeacherProfile
 from app.models.teacher_subject import TeacherSubject
@@ -406,29 +403,39 @@ async def get_teacher_public_profile(
 
 @router.get("/{teacher_id}/subjects", response_model=list[TeacherSubjectRead])
 async def get_teacher_public_subjects(
-    teacher_id: UUID, db: DbSession
+    teacher_id: UUID, 
+    db: DbSession
 ):
     """
     Fetch a teacher's list of subjects and rates.
-    Only visible for teachers with APPROVED document status.
+    Optimized for your SharedConfig and CamelCase requirements.
     """
-    # We join with TeacherProfile to ensure the teacher is verified
-    result = await db.execute(
+    query = (
         select(TeacherSubject)
         .join(TeacherProfile, TeacherSubject.teacher_id == TeacherProfile.user_id)
-        .options(selectinload(TeacherSubject.subject))
+        .options(
+            # Start by loading the subject
+            selectinload(TeacherSubject.subject).options(
+                # Deeply join the faculty metadata in the same query
+                joinedload(Subject.faculty).options(
+                    joinedload(Faculty.board),
+                    joinedload(Faculty.study_level)
+                )
+            )
+        )
         .where(
             TeacherSubject.teacher_id == teacher_id,
             TeacherSubject.is_active == True,
             TeacherProfile.document_status == VerificationStatus.APPROVED
         )
-        .limit(100)  # Internal safety limit
     )
-    subjects = result.scalars().all()
     
-    # We return an empty list if no active subjects found for a verified teacher,
-    # or if the teacher is unverified/non-existent.
-    return list(subjects)
+    result = await db.execute(query)
+    subjects = result.scalars().all()
+
+    # Because of from_attributes=True, Pydantic handles the 
+    # snake_case (DB) to camelCase (API) conversion automatically.
+    return subjects
 
 @router.get("/{teacher_id}/ratings", response_model=list[RatingRead])
 async def get_teacher_latest_ratings(

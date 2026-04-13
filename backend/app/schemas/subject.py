@@ -156,13 +156,11 @@ class TeacherSubjectCreate(SharedConfig):
 
 class TeacherSubjectRead(SharedConfig):
     teacher_id: UUID
-    subject_id: UUID
     rate_per_session: Decimal
     years_of_experience: int
     total_sessions_completed: int
     avg_rating: Decimal
     rating_count: int
-    is_active: bool
     subject: SubjectRead
 
 class TeacherSearchResult(SharedConfig):

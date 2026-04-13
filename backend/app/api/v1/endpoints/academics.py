@@ -85,7 +85,7 @@ async def create_study_level(
         await db.flush()
         await db.refresh(study_level)
 
-        return StudyLevelRead.model_validate(study_level)
+        return study_level
 
     except DuplicateResourceError:
         raise
@@ -104,7 +104,7 @@ async def list_study_levels(
     stmt = stmt.where(StudyLevel.is_active == is_active)
     stmt = stmt.order_by(StudyLevel.name)
     result = await db.execute(stmt)
-    return [StudyLevelRead(id=row.id, name=row.name, description=row.description) for row in result.all()]
+    return result.all()
 
 
 @router.get("/study-levels/{study_level_id}", response_model=StudyLevelRead)
@@ -125,7 +125,7 @@ async def get_study_level(
     if not study_level:
         raise ResourceNotFoundError(detail="StudyLevel not found.")
 
-    return StudyLevelRead.model_validate(study_level)
+    return study_level
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -185,7 +185,7 @@ async def create_board(body: BoardCreate, db: DbSession, _=RequireAcademicsManag
         # Refresh to get relationships
         await db.refresh(board)
 
-        return BoardRead.model_validate(board)
+        return board
 
     except ResourceNotFoundError:
         raise
@@ -219,7 +219,7 @@ async def list_boards(
 
     stmt = stmt.order_by(Board.name)
     result = await db.execute(stmt)
-    return [BoardRead(id=row.id, name=row.name, description=row.description) for row in result.all()]
+    return result.all()
 
 
 @router.get("/boards/{board_id}", response_model=BoardRead)
@@ -240,7 +240,7 @@ async def get_board(
     if not board:
         raise ResourceNotFoundError(detail="Board not found")
 
-    return BoardRead.model_validate(board)
+    return board
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -304,7 +304,7 @@ async def create_faculty(
         await db.flush()
         await db.refresh(faculty)
 
-        return FacultyRead.model_validate(faculty)
+        return faculty
 
     except ResourceNotFoundError:
         raise
@@ -357,7 +357,7 @@ async def list_faculties(
     stmt = stmt.order_by(Faculty.name)
 
     result = await db.execute(stmt)
-    return [FacultyRead(id=row.id, name=row.name, description=row.description, unit_type=row.unit_type, total_units=row.total_units) for row in result.all()]
+    return result.all()
 
 
 @router.get("/faculties/{faculty_id}", response_model=FacultyRead)
@@ -378,7 +378,7 @@ async def get_faculty(
     if not faculty:
         raise ResourceNotFoundError(detail="Faculty not found")
 
-    return FacultyRead.model_validate(faculty)
+    return faculty
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -451,7 +451,7 @@ async def create_subject(
         db.add(subject)
         await db.flush()
         await db.refresh(subject)
-        return SubjectRead.model_validate(subject)
+        return subject
 
     except ResourceNotFoundError:
         raise
@@ -469,6 +469,7 @@ async def list_subjects(
     faculty_id: UUID = Query(default=None, alias="facultyId"),
     request: Request = None,
     is_active: bool = Query(default=True, alias="isActive"),
+    
 ) -> list[SubjectRead]:
     """
     [STAFF] List Subjects.
@@ -485,7 +486,7 @@ async def list_subjects(
 
     stmt = stmt.order_by(Subject.name)
     result = await db.execute(stmt)
-    return [SubjectRead(id=row.id, name=row.name, unit_value=row.unit_value) for row in result.all()]
+    return result.all()
 
 
 @router.get("/subjects/{subject_id}", response_model=SubjectRead)
@@ -505,7 +506,7 @@ async def get_subject(
 
     subject.full_context = subject.get_full_context()
     subject.context_dict = subject.get_full_context_dict()
-    return SubjectRead.model_validate(subject)
+    return subject
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
