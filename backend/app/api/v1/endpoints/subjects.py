@@ -60,8 +60,10 @@ async def suggest_subjects(
     cache_key = f"suggestion_cache:{query_str.lower()}"
     cached = await redis.get(cache_key)
     if cached:
-        # Return directly to skip Pydantic validation/DB logic
-        return JSONResponse(content=orjson.loads(cached))
+        # Validate and serialize with Pydantic to ensure camelCase keys
+        cached_data = orjson.loads(cached)
+        suggestions = [SubjectSuggestion.model_validate(item) for item in cached_data]
+        return suggestions
 
     # 4. Single-Query Similarity Search with Eager Loading
     # Using joinedload avoids the N+1 problem by fetching relations in the same query
