@@ -75,8 +75,6 @@ class FacultyCreate(SharedConfig):
 class SubjectRead(SharedConfig):
     id: UUID
     name: str
-    study_level: StudyLevelRead | None = None
-    board: BoardRead | None = None
     is_active: bool | None = None
     faculty: FacultyRead | None = None
     unit_value: int
