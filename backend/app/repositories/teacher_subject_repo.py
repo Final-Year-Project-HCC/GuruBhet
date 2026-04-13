@@ -19,6 +19,7 @@ class TeacherSubjectRepository:
         self,
         subject_id: UUID,
         min_rating: float = 0.0,
+        min_rate: Decimal | None = None,
         max_rate: Decimal | None = None,
         limit: int = 20,
         offset: int = 0,
@@ -36,6 +37,8 @@ class TeacherSubjectRepository:
             TeacherSubject.is_active.is_(True),
             TeacherSubject.avg_rating >= min_rating,
         ]
+        if min_rate is not None:
+            filters.append(TeacherSubject.rate_per_session >= min_rate)
         if max_rate is not None:
             filters.append(TeacherSubject.rate_per_session <= max_rate)
 
