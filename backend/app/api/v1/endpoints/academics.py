@@ -488,13 +488,13 @@ async def list_subjects(
     return [SubjectRead(id=row.id, name=row.name, unit_value=row.unit_value) for row in result.all()]
 
 
-@router.get("/subjects/{subject_id}", response_model=SubjectWithContextRead)
+@router.get("/subjects/{subject_id}", response_model=SubjectRead)
 async def get_subject(
     db: DbSession,
     subject_id: Annotated[UUID, Path(..., alias="subjectId")],
     request: Request,
     is_active: bool = Query(default=True, alias="isActive"),
-) -> SubjectWithContextRead:
+) -> SubjectRead:
     """[STAFF] Get a specific Subject by ID with full context."""
     await verify_inactive_access(is_active, db, request)
     service = SubjectService(db)
@@ -505,7 +505,7 @@ async def get_subject(
 
     subject.full_context = subject.get_full_context()
     subject.context_dict = subject.get_full_context_dict()
-    return SubjectWithContextRead.model_validate(subject)
+    return SubjectRead.model_validate(subject)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
