@@ -101,11 +101,11 @@ async def list_study_levels(
 ) -> list[StudyLevelRead]:
     """[STAFF] List all StudyLevels."""
     await verify_inactive_access(is_active, db, request)
-    stmt = select(StudyLevel.id, StudyLevel.name)
+    stmt = select(StudyLevel.id, StudyLevel.name, StudyLevel.description)
     stmt = stmt.where(StudyLevel.is_active == is_active)
     stmt = stmt.order_by(StudyLevel.name)
     result = await db.execute(stmt)
-    return [StudyLevelRead(id=row.id, name=row.name) for row in result.all()]
+    return [StudyLevelRead(id=row.id, name=row.name, description=row.description) for row in result.all()]
 
 
 @router.get("/study-levels/{study_level_id}", response_model=StudyLevelRead)
@@ -210,7 +210,7 @@ async def list_boards(
     """
     await verify_inactive_access(is_active, db, request)
 
-    stmt = select(Board.id, Board.name).where(Board.is_active == is_active)
+    stmt = select(Board.id, Board.name, Board.description).where(Board.is_active == is_active)
 
     if study_level_id:
         stmt = stmt.join(board_study_levels).where(
@@ -220,7 +220,7 @@ async def list_boards(
 
     stmt = stmt.order_by(Board.name)
     result = await db.execute(stmt)
-    return [BoardRead(id=row.id, name=row.name) for row in result.all()]
+    return [BoardRead(id=row.id, name=row.name, description=row.description) for row in result.all()]
 
 
 @router.get("/boards/{board_id}", response_model=BoardRead)
@@ -347,7 +347,7 @@ async def list_faculties(
                 detail=f"Association between Board '{board_id}' and StudyLevel '{study_level_id}' not found"
             )
 
-    stmt = select(Faculty.id, Faculty.name, Faculty.unit_type, Faculty.total_units).where(Faculty.is_active == is_active)
+    stmt = select(Faculty.id, Faculty.name, Faculty.description, Faculty.unit_type, Faculty.total_units).where(Faculty.is_active == is_active)
 
     if study_level_id:
         stmt = stmt.where(Faculty.study_level_id == study_level_id)
@@ -358,7 +358,7 @@ async def list_faculties(
     stmt = stmt.order_by(Faculty.name)
 
     result = await db.execute(stmt)
-    return [FacultyRead(id=row.id, name=row.name, unit_type=row.unit_type, total_units=row.total_units) for row in result.all()]
+    return [FacultyRead(id=row.id, name=row.name, description=row.description, unit_type=row.unit_type, total_units=row.total_units) for row in result.all()]
 
 
 @router.get("/faculties/{faculty_id}", response_model=FacultyRead)
@@ -387,10 +387,10 @@ async def get_faculty(
 # ═══════════════════════════════════════════════════════════════════════════════
 
 
-@router.post("/subjects", response_model=SubjectWithContextRead, status_code=201)
+@router.post("/subjects", response_model=SubjectRead, status_code=201)
 async def create_subject(
     body: SubjectCreate, db: DbSession, _=RequireAcademicsManage
-) -> SubjectWithContextRead:
+) -> SubjectRead:
     """
     [STAFF] Create a new Subject with numeric unit_value.
 
@@ -442,12 +442,17 @@ async def create_subject(
       403 Forbidden: User is not STAFF
     """
     try:
-        service = SubjectService(db)
-        subject = await service.create_subject(body)
-
-        subject.full_context = subject.get_full_context()
-        subject.context_dict = subject.get_full_context_dict()
-        return SubjectWithContextRead.model_validate(subject)
+        # Direct creation since only faculty_id and unit_value are required
+        subject = Subject(
+            name=body.name,
+            faculty_id=body.faculty_id,
+            unit_value=body.unit_value,
+            is_active=True
+        )
+        db.add(subject)
+        await db.flush()
+        await db.refresh(subject)
+        return SubjectRead.model_validate(subject)
 
     except ResourceNotFoundError:
         raise

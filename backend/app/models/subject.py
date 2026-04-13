@@ -192,21 +192,7 @@ class Subject(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     )
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default='true', nullable=False)
 
-    # ── Level 1: Study Level (Required) ───────────────────────────────────────
-    study_level_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
-        ForeignKey("study_levels.id", ondelete="RESTRICT"),
-        nullable=False,
-        index=True,
-    )
 
-    # ── Level 2: Board (Required) ─────────────────────────────────────────────
-    board_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
-        ForeignKey("boards.id", ondelete="RESTRICT"),
-        nullable=False,
-        index=True,
-    )
 
     # ── Level 3: Faculty (Required) ───────────────────────────────────────
     # Always required. For Grades 1-10, use the 'General' faculty.
@@ -232,8 +218,7 @@ class Subject(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     )
 
     # ── Relationships ─────────────────────────────────────────────────────────
-    study_level: Mapped["StudyLevel"] = relationship(back_populates="subjects", lazy="joined")
-    board: Mapped["Board"] = relationship(back_populates="subjects", lazy="joined")
+    # Removed study_level and board relationships
     faculty: Mapped["Faculty"] = relationship(back_populates="subjects", lazy="joined")
     teacher_subjects: Mapped[list["TeacherSubject"]] = relationship(  # noqa: F821
         back_populates="subject", lazy="noload"

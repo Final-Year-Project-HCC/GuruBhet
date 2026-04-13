@@ -85,8 +85,6 @@ class SubjectRead(SharedConfig):
 
 class SubjectCreate(SharedConfig):
     name: str
-    study_level_id: UUID
-    board_id: UUID
     faculty_id: UUID
     unit_value: int
 
@@ -129,17 +127,6 @@ class SubjectUpdate(SharedConfig):
         if v is not None and v < 1: raise ValueError("unit_value must be >= 1")
         return v
 
-class SubjectWithContextRead(SharedConfig):
-    id: UUID
-    name: str
-    study_level: StudyLevelRead
-    board: BoardRead
-    faculty: FacultyRead
-    unit_value: int
-    full_context: str
-    context_dict: dict
-    created_at: datetime
-    updated_at: datetime
 
 class BulkSubjectCreateRequest(SharedConfig):
     subjects: list[SubjectCreate]
