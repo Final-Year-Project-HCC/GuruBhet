@@ -175,7 +175,7 @@ const TeacherDetailPage: React.FC<TeacherDetailPageProps> = ({ teacherId, onBack
 
       // Mock success response
       console.log('Booking submitted:', {
-        teacher: teacher.name,
+        teacher: teacher.firstName,
         subject: teacherSubject.subject.name,
         sessions: numberOfSessions,
         amount: totalAmount,
@@ -221,7 +221,7 @@ const TeacherDetailPage: React.FC<TeacherDetailPageProps> = ({ teacherId, onBack
                     fill
                     sizes="(max-width: 1024px) 100vw, 25vw"
                     className="w-full h-full object-cover"
-                    alt={teacher.name}
+                    alt={teacher.firstName}
                   />
                   <div className="absolute top-6 left-6">
                     {teacher.verificationStatus === 'APPROVED' && (
@@ -235,7 +235,7 @@ const TeacherDetailPage: React.FC<TeacherDetailPageProps> = ({ teacherId, onBack
                 </div>
 
                 <div className="p-8 text-center">
-                  <h1 className="text-3xl font-black tracking-tight mb-1">{teacher.name}</h1>
+                  <h1 className="text-3xl font-black tracking-tight mb-1">{teacher.firstName}</h1>
                   <p className="text-sm text-muted-foreground mb-6 italic">{teacher.tagline || 'Experienced educator'}</p>
 
                   {/* Stats */}
@@ -385,7 +385,7 @@ const TeacherDetailPage: React.FC<TeacherDetailPageProps> = ({ teacherId, onBack
       <BookingModal
         isOpen={isBookingModalOpen}
         teacherSubject={selectedTeacherSubject}
-        teacherName={teacher.name}
+        teacherName={teacher.firstName}
         onClose={() => {
           setIsBookingModalOpen(false);
           setSelectedTeacherSubject(null);

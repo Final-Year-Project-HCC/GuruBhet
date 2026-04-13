@@ -37,7 +37,7 @@ export interface TeacherPublicData {
 }
 
 export interface TeacherData extends Omit<TeacherPublicData, 'user'> {
-  user: CurrentUserData; 
+  user: CurrentUserData;
   documents: TeacherDocument[];
   documentStatus: VerificationStatus;
 }
