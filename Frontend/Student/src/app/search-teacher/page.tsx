@@ -6,11 +6,11 @@ import GlobalSearchBar from '@/components/SearchTeacher/GlobalSearchBar';
 import HierarchicalSidebar from '@/components/SearchTeacher/HierarchicalSidebar';
 import SearchFilterBar from '@/components/SearchTeacher/SearchFilterBar';
 import TeacherResultCard from '@/components/SearchTeacher/TeacherResultCard';
-import { TeacherSearchResult, Subject, SubjectWithContext } from '@/components/types';
+import { TeacherSearchResult, Subject } from '@/lib/types';
 import {
   useTeachersBySubject,
   TeacherSearchFilters,
-} from '@/lib/hooks/useAcademics';
+} from '@/hooks/useAcademics';
 import { TeacherCardSkeletonGrid } from '@/components/SearchTeacher/SkeletonLoaders';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -102,9 +102,16 @@ export default function SearchTeacherPage() {
 
   // ── Handlers ─────────────────────────────────────────────────────────────
 
-  const handleSearchBarSelect = useCallback((subject: SubjectWithContext) => {
+  const handleSearchBarSelect = useCallback((subject: Subject) => {
     setActiveSubject(subject);
     setActiveSearchMode('search-bar');
+    setFilters({});
+  }, []);
+
+  /** Called when the user clears or edits the search bar — resets results */
+  const handleSearchBarClear = useCallback(() => {
+    setActiveSubject(null);
+    setActiveSearchMode(null);
     setFilters({});
   }, []);
 
@@ -150,12 +157,16 @@ export default function SearchTeacherPage() {
           </p>
         </div>
 
-        {/* ── Search Bar — always visible ──────────────────────────────────── */}
-        {!hasSearched && (
-          <div className="mb-10">
-            <GlobalSearchBar onSubjectSelect={handleSearchBarSelect} />
-          </div>
-        )}
+        {/* ── Search Bar — ALWAYS VISIBLE ──────────────────────────────────── */}
+        <div className={`mb-10 ${hasSearched ? 'pb-5' : ''}`}>
+          <GlobalSearchBar
+            onSubjectSelect={handleSearchBarSelect}
+            onClear={handleSearchBarClear}
+            selectedSubjectName={
+              activeSearchMode === 'search-bar' ? (activeSubject?.name ?? undefined) : undefined
+            }
+          />
+        </div>
 
         {/* ── Main Layout ─────────────────────────────────────────────────── */}
         <div className="flex flex-col lg:flex-row gap-8 items-start">

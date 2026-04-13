@@ -1,5 +1,5 @@
 import React from 'react';
-import { TeacherSubjectRead } from '../types';
+import { TeacherSubjectRead } from '../../lib/types';
 
 interface SubjectCardProps {
   teacherSubject: TeacherSubjectRead;

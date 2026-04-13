@@ -3,7 +3,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { TRENDING_TEACHERS, RECOMMENDED_TEACHERS } from '../constants';
-import { SubjectLevel } from '../types';
+import { SubjectLevel } from '../../lib/types';
 import { useRequireAuth } from '@/hooks/useRequireAuth';
 import FilterBar from './FilterBar';
 import ResultsHeader from './ResultsHeader';
@@ -47,7 +47,7 @@ const SearchPage: React.FC<SearchPageProps> = ({ onViewProfile }) => {
   // Handlers
   const handleMessage = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    requireAuth(() => {});
+    requireAuth(() => { });
   };
 
   const handleReset = () => {

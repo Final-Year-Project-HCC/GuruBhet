@@ -3,7 +3,7 @@ import React, { useState, useMemo } from 'react';
 import Image from 'next/image';
 import { useRequireAuth } from '@/hooks/useRequireAuth';
 import { TRENDING_TEACHERS, RECOMMENDED_TEACHERS } from '../constants';
-import { TeacherSubjectRead, UnitType } from '../types';
+import { TeacherSubjectRead, UnitType } from '../../lib/types';
 import SubjectCard from './SubjectCard';
 import BookingModal from './BookingModal';
 
@@ -26,7 +26,7 @@ const TeacherDetailPage: React.FC<TeacherDetailPageProps> = ({ teacherId, onBack
   // This simulates a teacher teaching multiple subjects with different rates
   const teacherSubjects: TeacherSubjectRead[] = useMemo(() => {
     const board = { id: 'b-1', name: 'Tribhuvan University', description: undefined, isActive: true };
-    
+
     const subjects = [
       {
         teacherId: teacher?.id || '',

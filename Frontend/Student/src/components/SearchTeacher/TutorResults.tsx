@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Teacher } from '../types';
+import { Teacher } from '../../lib/types';
 import SearchTeacherCard from './SearchTeacherCard';
 import NoResultsFound from './NoResultsFound';
 

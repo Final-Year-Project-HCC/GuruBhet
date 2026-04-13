@@ -41,47 +41,6 @@ export interface TeacherData extends Omit<TeacherPublicData, 'user'> {
   documents: TeacherDocument[];
   documentStatus: VerificationStatus;
 }
-
-export interface University {
-  id: string;
-  name: string;
-  description?: string;
-  createdAt?: string;
-  updatedAt?: string;
-}
-
-export interface Faculty {
-  id: string;
-  universityId: string;
-  name: string;
-  description?: string;
-  numberOfSemesters: number;
-  createdAt?: string;
-  updatedAt?: string;
-}
-
-export interface Semester {
-  id: string;
-  universityId: string;
-  facultyId: string;
-  semesterNumber: number;
-  createdAt?: string;
-  updatedAt?: string;
-}
-
-export interface Subject {
-  id: string;
-  universityId: string;
-  facultyId: string;
-  semesterNumber: number;
-  className?: string;
-  name: string;
-  description?: string;
-  isActive: boolean;
-  createdAt?: string;
-  updatedAt?: string;
-}
-
 export enum UnitType {
   SEMESTER = "SEMESTER",
   GRADE = "GRADE",
@@ -108,11 +67,10 @@ export interface Board {
 export interface Faculty {
   id: string;
   name: string;
-  board: Board;
-  boardId: string;
-  description?: string;
   unitType: UnitType;
   totalUnits: number;
+  board?: Board;
+  description?: string;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -120,10 +78,10 @@ export interface Faculty {
 export interface Subject {
   id: string;
   name: string;
-  studyLevel: StudyLevel;
-  board: Board;
-  faculty: Faculty;
   unitValue: number;
+  studyLevel?: StudyLevel;
+  board?: Board;
+  faculty?: Faculty;
   createdAt?: string;
   updatedAt?: string;
 }

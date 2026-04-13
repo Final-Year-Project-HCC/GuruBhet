@@ -1,6 +1,7 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import apiClient from '@/lib/api';
-import { StudyLevel, Board, Faculty, Subject } from '@/lib/types';
+import { CreateTeacherSubjectRequest, StudyLevel, Board, Faculty, Subject } from '@/lib/types';
+import { toast } from 'react-toastify';
 
 /**
  * Fetch all study levels
@@ -67,5 +68,56 @@ export const useSubjects = (facultyId: string | null) => {
     },
     enabled: !!facultyId,
     staleTime: 1000 * 60 * 30,
+  });
+};
+
+
+export const useAddTeacherSubject = (
+  teacherId: string | undefined,
+  options?: { onSuccess?: () => void },
+) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (payload: CreateTeacherSubjectRequest) => {
+      const { data } = await apiClient.post('/teachers/me/subjects', payload);
+      return data;
+    },
+    onSuccess: () => {
+      toast.success('Subject added successfully');
+      queryClient.invalidateQueries({ queryKey: ['teacher', teacherId, 'subjects'] });
+      options?.onSuccess?.();
+    },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.message || 'Failed to add subject');
+    },
+  });
+};
+
+/**
+ * Mutation to remove a subject from the current teacher's profile.
+ * @param teacherId - used for cache invalidation of [`teacher`, teacherId, `subjects`]
+ * @param options.onSuccess - optional callback after a successful delete
+ */
+export const useDeleteTeacherSubject = (
+  teacherId: string | undefined,
+  options?: { onSuccess?: () => void },
+) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (subjectId: string) => {
+      await apiClient.delete(`/teachers/me/subjects/${subjectId}`);
+    },
+    onSuccess: () => {
+      toast.success('Subject removed successfully');
+      queryClient.invalidateQueries({ queryKey: ['teacher', teacherId, 'subjects'] });
+      options?.onSuccess?.();
+    },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.message || 'Failed to delete subject');
+    },
   });
 };

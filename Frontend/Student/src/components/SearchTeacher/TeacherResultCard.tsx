@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Image from 'next/image';
-import { TeacherSearchResult } from '../types';
+import { TeacherSearchResult } from '../../lib/types';
 
 interface TeacherResultCardProps {
   teacher: TeacherSearchResult;

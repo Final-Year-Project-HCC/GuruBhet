@@ -1,20 +1,17 @@
 'use client';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import apiClient from '@/lib/api';
-import { toast } from 'react-toastify';
 import type { TeacherSubject } from '@/lib/types';
 import { FiTrash2 } from 'react-icons/fi';
 import { Loader2 } from 'lucide-react';
 import { useTeacherSubjects } from '@/hooks/useTeacherProfile';
 import { useUser } from '@/hooks';
+import { useDeleteTeacherSubject } from '@/lib/hooks/useAcademics';
 
 interface SubjectListProps {
   onSubjectDeleted?: () => void;
 }
 
 export function SubjectList({ onSubjectDeleted }: SubjectListProps) {
-  const queryClient = useQueryClient();
-  const {data: teacherData} = useUser();
+  const { data: teacherData } = useUser();
   // Fetch teacher subjects
   const {
     data: teacherSubjects = [],
@@ -23,18 +20,9 @@ export function SubjectList({ onSubjectDeleted }: SubjectListProps) {
   } = useTeacherSubjects(teacherData?.id || null);
 
   // Delete subject mutation
-  const deleteSubjectMutation = useMutation({
-    mutationFn: async (subjectId: string) => {
-      await apiClient.delete(`/teachers/me/subjects/${subjectId}`);
-    },
+  const deleteSubjectMutation = useDeleteTeacherSubject(teacherData?.id, {
     onSuccess: () => {
-      toast.success('Subject removed successfully');
-      queryClient.invalidateQueries({ queryKey: ["teacher", teacherData?.id, "subjects"] });
       onSubjectDeleted?.();
-    },
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    onError: (error: any) => {
-      toast.error(error?.response?.data?.message || 'Failed to delete subject');
     },
   });
 
@@ -72,7 +60,7 @@ export function SubjectList({ onSubjectDeleted }: SubjectListProps) {
     <div className="space-y-6">
       <div>
         <h3 className="text-xl font-semibold mb-4">Your Teaching Subjects</h3>
-        
+
         {/* Desktop Table View */}
         <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-sm">
@@ -90,12 +78,12 @@ export function SubjectList({ onSubjectDeleted }: SubjectListProps) {
                 <tr
                   key={ts.subjectId}
                   className="border-b border-border hover:bg-muted/50 transition-colors"
-                > 
+                >
                   <td className="px-4 py-3 font-medium">{ts.subject.name}</td>
                   <td className="px-4 py-3 text-muted-foreground text-xs">
                     <div>
-                      {ts.subject.studyLevel.name} | {ts.subject.board.name} |
-                      {ts.subject.faculty.name} | {ts.subject.unitValue}
+                      {ts.subject.studyLevel?.name} | {ts.subject.board?.name} |
+                      {ts.subject.faculty?.name} | {ts.subject.unitValue}
                     </div>
                   </td>
                   <td className="px-4 py-3 text-right">
@@ -108,7 +96,7 @@ export function SubjectList({ onSubjectDeleted }: SubjectListProps) {
                       disabled={deleteSubjectMutation.isPending}
                       className="px-3 py-1 bg-muted text-destructive rounded-md hover:bg-muted/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-xs font-medium border border-destructive"
                     >
-                      {deleteSubjectMutation.isPending && deleteSubjectMutation.variables === ts.subjectId ? <Loader2 className="animate-spin" size={16} /> :  <FiTrash2 size={16} />}
+                      {deleteSubjectMutation.isPending && deleteSubjectMutation.variables === ts.subjectId ? <Loader2 className="animate-spin" size={16} /> : <FiTrash2 size={16} />}
                     </button>
                   </td>
                 </tr>
@@ -128,7 +116,7 @@ export function SubjectList({ onSubjectDeleted }: SubjectListProps) {
                 <div>
                   <h4 className="font-semibold text-foreground">{ts.subject.name}</h4>
                   <p className="text-xs text-muted-foreground mt-1">
-                    {ts.subject.studyLevel.name} · {ts.subject.board.name} · {ts.subject.faculty.name}
+                    {ts.subject.studyLevel?.name} · {ts.subject.board?.name} · {ts.subject.faculty?.name}
                   </p>
                 </div>
               </div>

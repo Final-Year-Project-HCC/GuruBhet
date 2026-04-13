@@ -6,6 +6,7 @@
   --foreground: #171717;
 
   /* UI layers */
+  --surface: #ffffff;
   --muted: #f5f5f5;
   --muted-foreground: #737373;
 
@@ -19,12 +20,17 @@
   /* Feedback */
   --destructive: #262626;
   --destructive-foreground: #ffffff;
+
+  /* Rating accent (warm gold) */
+  --rating: #c27f0a;
+  --rating-bg: #fef3c7;
 }
 
 @theme inline {
   /* Colors */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
   --color-border: var(--border);
@@ -33,6 +39,8 @@
   --color-primary-foreground: var(--primary-foreground);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
+  --color-rating: var(--rating);
+  --color-rating-bg: var(--rating-bg);
 
   /* Fonts */
   --font-sans: var(--font-geist-sans);
@@ -43,6 +51,7 @@
     --background: #0a0a0a;
     --foreground: #ededed;
 
+    --surface: #111111;
     --muted: #141414;
     --muted-foreground: #a3a3a3;
 
@@ -54,6 +63,10 @@
 
     --destructive: #404040;
     --destructive-foreground: #ededed;
+
+    /* Rating accent (muted gold for dark mode) */
+    --rating: #f5c842;
+    --rating-bg: #2d2200;
   }
 }
 

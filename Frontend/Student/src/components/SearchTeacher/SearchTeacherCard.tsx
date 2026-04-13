@@ -1,7 +1,7 @@
 
 import React from 'react';
 import Image from 'next/image';
-import { Teacher } from '../types';
+import { Teacher } from '../../lib/types';
 
 interface SearchTeacherCardProps {
   teacher: Teacher;
@@ -112,7 +112,7 @@ const SearchTeacherCard: React.FC<SearchTeacherCardProps> = ({
                 />
               </svg>
             </button>
-            <button 
+            <button
               onClick={onClick}
               className="bg-primary cursor-pointer text-primary-foreground px-6 py-3.5 rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-lg hover:bg-primary-hover hover:text-primary-hover-foreground active:scale-95 transition-all"
             >

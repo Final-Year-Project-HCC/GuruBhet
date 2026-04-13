@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import apiClient from '../api';
-import { StudyLevel, Board, Faculty, Subject, SubjectWithContext, TeacherSearchResult } from '@/components/types';
+import apiClient from '../lib/api';
+import { StudyLevel, Board, Faculty, Subject, TeacherSearchResult } from '@/lib/types';
 
 export interface TeacherSearchFilters {
   minRating?: number;
@@ -56,28 +56,6 @@ export const useFaculties = (boardId: string | null) => {
   });
 };
 
-/**
- * Helper function to construct fullContext from a Subject
- */
-const constructFullContext = (subject: Subject): string => {
-  const studyLevelName = subject.studyLevel?.name || 'Unknown';
-  const boardName = subject.board?.name || 'Unknown';
-  const facultyName = subject.faculty?.name || 'Unknown';
-  const unitType = subject.faculty?.unitType || 'Unit';
-  return `${studyLevelName} > ${boardName} > ${facultyName} > ${unitType} ${subject.unitValue}`;
-};
-
-/**
- * Helper function to construct contextDict from a Subject
- */
-const constructContextDict = (subject: Subject) => ({
-  studyLevel: subject.studyLevel?.name || '',
-  board: subject.board?.name || '',
-  faculty: subject.faculty?.name || '',
-  unitValue: subject.unitValue,
-  unitType: subject.faculty?.unitType || '',
-  totalUnits: subject.faculty?.totalUnits || 1,
-});
 
 /**
  * Search subjects with debounce (handles full context)
@@ -85,18 +63,13 @@ const constructContextDict = (subject: Subject) => ({
  */
 export const useSubjectSearchSuggestions = (query: string, enabled: boolean = true) => {
   return useQuery({
-    queryKey: ['subjectSuggestions', query],
+    queryKey: ['SuggestedSubjects', query],
     queryFn: async () => {
-      const { data } = await apiClient.get<Subject[]>('/subjects/', {
-        params: { search: query, limit: 10 },
+      const { data } = await apiClient.get<Subject[]>('/subjects/suggest', {
+        params: { q: query, limit: 10 },
       });
-      
-      // Transform to SubjectWithContext by computing fullContext
-      return data.map((subject) => ({
-        ...subject,
-        fullContext: constructFullContext(subject),
-        contextDict: constructContextDict(subject),
-      })) as SubjectWithContext[];
+
+      return data;
     },
     enabled: enabled && query.length > 0,
     staleTime: 1000 * 60 * 5, // 5 minutes
@@ -107,15 +80,16 @@ export const useSubjectSearchSuggestions = (query: string, enabled: boolean = tr
 /**
  * Fetch all subjects (without search filter)
  */
-export const useSubjects = () => {
+export const useSubjects = (facultyId: string | null) => {
   return useQuery({
     queryKey: ['subjects'],
     queryFn: async () => {
-      const { data } = await apiClient.get<Subject[]>('/subjects/', {
-        params: { limit: 500 },
+      const { data } = await apiClient.get<Subject[]>('academics/subjects/', {
+        params: { facultyId: facultyId },
       });
       return data;
     },
+    enabled: !!facultyId,
     staleTime: 1000 * 60 * 30,
   });
 };
