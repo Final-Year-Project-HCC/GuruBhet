@@ -1,17 +1,14 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { toast } from "react-toastify";
 import {
   useStudyLevels,
   useBoards,
   useFaculties,
   useSubjects,
+  useAddTeacherSubject,
 } from "@/lib/hooks/useAcademics";
 import type { StudyLevel, Board, Faculty, Subject } from "@/lib/types";
-import apiClient from "@/lib/api";
-import { useTeacher } from "@/hooks/useTeacherProfile";
 import { useUser } from "@/hooks";
 
 interface HierarchicalSubjectFormProps {
@@ -33,8 +30,7 @@ interface HierarchicalSubjectFormProps {
 export function HierarchicalSubjectForm({
   onSuccess,
 }: HierarchicalSubjectFormProps) {
-  const queryClient = useQueryClient();
-  const {data:teacherData} = useUser();
+  const { data: teacherData } = useUser();
   // Form state with camelCase naming
   const [selectedStudyLevelId, setSelectedStudyLevelId] = useState<string>("");
   const [selectedBoardId, setSelectedBoardId] = useState<string>("");
@@ -102,17 +98,8 @@ export function HierarchicalSubjectForm({
     yearsOfExperience;
 
   // Add subject mutation
-  const addSubjectMutation = useMutation({
-    mutationFn: async () => {
-      const response = await apiClient.post("/teachers/me/subjects", {
-        subjectId: selectedSubjectId,
-        ratePerSession: parseInt(ratePerSession),
-        yearsOfExperience: parseInt(yearsOfExperience),
-      });
-      return response.data;
-    },
+  const addSubjectMutation = useAddTeacherSubject(teacherData?.id, {
     onSuccess: () => {
-      toast.success("Subject added successfully");
       // Reset form
       setSelectedStudyLevelId("");
       setSelectedBoardId("");
@@ -121,20 +108,18 @@ export function HierarchicalSubjectForm({
       setSelectedUnitValue("");
       setRatePerSession("");
       setYearsOfExperience("");
-      // Refetch teacher subjects
-      queryClient.invalidateQueries({ queryKey: ["teacher", teacherData?.id, "subjects"] });
       onSuccess?.();
-    },
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    onError: (error: any) => {
-      toast.error(error?.response?.data?.message || "Failed to add subject");
     },
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (isFormValid) {
-      addSubjectMutation.mutate();
+      addSubjectMutation.mutate({
+        subjectId: selectedSubjectId,
+        ratePerSession: parseInt(ratePerSession),
+        yearsOfExperience: parseInt(yearsOfExperience),
+      });
     }
   };
 
@@ -319,9 +304,9 @@ export function HierarchicalSubjectForm({
                 .filter(
                   (subject: Subject) =>
                     subject.unitValue === parseInt(selectedUnitValue) &&
-                    subject.faculty.id === selectedFacultyId &&
-                    subject.board.id === selectedBoardId &&
-                    subject.studyLevel.id === selectedStudyLevelId,
+                    subject.faculty?.id === selectedFacultyId &&
+                    subject.board?.id === selectedBoardId &&
+                    subject.studyLevel?.id === selectedStudyLevelId,
                 )
                 .map((subject: Subject) => (
                   <option key={subject.id} value={subject.id}>

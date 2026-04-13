@@ -2,10 +2,10 @@
 "use client";
 
 import { useState } from "react";
-import { useFetchStudyLevels, useFetchBoardsByStudyLevel } from "@/lib/useAcademics";
-import { useFetchFacultiesByHierarchy, useCreateFaculty, useDeleteFaculty } from "@/lib/useAcademics";
+import { useFetchStudyLevels, useFetchBoardsByStudyLevel } from "@/hooks/useAcademics";
+import { useFetchFacultiesByHierarchy, useCreateFaculty, useDeleteFaculty } from "@/hooks/useAcademics";
 import { Faculty, UnitType, Board } from "@/lib/types";
-import { DataTable } from "./DataTable";
+import { Column, DataTable } from "./DataTable";
 import { Modal } from "./Modal";
 
 const UNIT_TYPES: { value: UnitType; label: string; description: string }[] = [
@@ -70,7 +70,7 @@ export default function FacultyManager() {
 
   const isFormEnabled = !!selectedStudyLevelId && !!selectedBoardId;
 
-  const columns = [
+  const columns: Column<any>[] = [
     {
       key: "name" as const,
       label: "Faculty Name",
@@ -105,11 +105,10 @@ export default function FacultyManager() {
       key: "isActive" as const,
       label: "Status",
       render: (value: any) => (
-        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-          value === true
-            ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
-            : "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400"
-        }`}>
+        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${value === true
+          ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
+          : "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400"
+          }`}>
           {value === true ? "Active" : "Inactive"}
         </span>
       ),
@@ -278,7 +277,7 @@ export default function FacultyManager() {
           <h3 className="text-lg font-semibold text-foreground mb-4">
             Faculties for {selectedLevel?.name} in {selectedBoard?.name} ({faculties?.length || 0})
           </h3>
-          
+
           <DataTable<Faculty>
             data={faculties}
             columns={columns}

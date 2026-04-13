@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { SubjectLevel } from '../types';
+import { SubjectLevel } from '../../lib/types';
 import { LEVELS } from '../constants';
 
 interface FilterBarProps {

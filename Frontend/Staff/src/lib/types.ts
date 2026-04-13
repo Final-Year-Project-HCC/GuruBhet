@@ -5,11 +5,11 @@
 
 export type UnitType = 'GRADE' | 'SEMESTER' | 'YEAR';
 
+
 export interface StudyLevel {
   id: string;
   name: string;
   description?: string;
-  isActive: boolean;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -17,24 +17,19 @@ export interface StudyLevel {
 export interface Board {
   id: string;
   name: string;
-  description?: string;
-  isActive: boolean;
   studyLevels?: StudyLevel[];
+  description?: string;
   createdAt?: string;
   updatedAt?: string;
 }
 
 export interface Faculty {
   id: string;
-  boardId: string;
-  studyLevelId: string;
   name: string;
-  description?: string;
   unitType: UnitType;
   totalUnits: number;
-  isActive: boolean;
   board?: Board;
-  studyLevel?: StudyLevel;
+  description?: string;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -42,32 +37,10 @@ export interface Faculty {
 export interface Subject {
   id: string;
   name: string;
-  studyLevelId: string;
-  boardId: string;
-  facultyId: string;
   unitValue: number;
-  isActive: boolean;
   studyLevel?: StudyLevel;
   board?: Board;
   faculty?: Faculty;
-  createdAt?: string;
-  updatedAt?: string;
-}
-
-// Legacy types (kept for backward compatibility)
-export interface University {
-  id: string;
-  name: string;
-  description?: string;
-  createdAt?: string;
-  updatedAt?: string;
-}
-
-export interface Semester {
-  id: string;
-  universityId: string;
-  facultyId: string;
-  semesterNumber: number;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -78,9 +51,9 @@ export interface Semester {
 
 export type UserRole = 'ADMIN' | 'STAFF' | 'MODERATOR' | 'STUDENT' | 'TEACHER';
 export type VerificationStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
-export type Permission = 
-  | 'staff:manage' 
-  | 'teacher:verify' 
+export type Permission =
+  | 'staff:manage'
+  | 'teacher:verify'
   | 'teacher:view_sensitive'
   | 'academic_domains:manage';
 
@@ -117,8 +90,6 @@ export interface User {
 /**
  * Teacher Management
  */
-
-export type SubjectLevel = '10' | '11-12' | 'Bachelor' | 'Master' | 'Diploma';
 
 export interface TeacherProfile {
   id: string;
@@ -176,7 +147,7 @@ export interface Teacher {
 export interface StudentProfile {
   id: string;
   userId: string;
-  educationalLevel?: SubjectLevel;
+  educationalLevel?: StudyLevel;
   profilePictureUrl?: string;
   createdAt?: string;
   updatedAt?: string;
@@ -189,7 +160,7 @@ export interface Student {
   lastName: string;
   email: string;
   phoneNumber?: string;
-  educationalLevel?: SubjectLevel;
+  educationalLevel?: StudyLevel;
   profilePictureUrl?: string;
   isActive: boolean;
   createdAt?: string;

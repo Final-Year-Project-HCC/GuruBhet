@@ -1,8 +1,8 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import apiClient from "./api";
-import { StudyLevel, Board, Faculty, Subject, UnitType } from "./types";
+import apiClient from "../lib/api";
+import { StudyLevel, Board, Faculty, Subject, UnitType } from "../lib/types";
 import { toast } from "react-toastify";
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -177,9 +177,9 @@ export function useCreateFaculty() {
       );
       return data;
     },
-    onSuccess: (data) => {
+    onSuccess: (data, { studyLevelId, boardId }) => {
       queryClient.invalidateQueries({
-        queryKey: ["faculties", data.studyLevelId, data.boardId],
+        queryKey: ["faculties", studyLevelId, boardId],
       });
       toast.success("Faculty created successfully!");
     },
@@ -195,23 +195,19 @@ export function useCreateFaculty() {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export function useFetchSubjectsByHierarchy(
-  studyLevelId: string | null,
-  boardId: string | null,
   facultyId: string | null,
 ) {
   return useQuery({
-    queryKey: ["subjects", studyLevelId, boardId, facultyId],
+    queryKey: ["subjects", facultyId],
     queryFn: async () => {
       const { data } = await apiClient.get<Subject[]>("/academics/subjects", {
         params: {
-          studyLevelId,
-          boardId,
           facultyId,
         },
       });
       return data;
     },
-    enabled: !!studyLevelId && !!boardId && !!facultyId,
+    enabled: !!facultyId
   });
 }
 
@@ -220,8 +216,6 @@ export function useCreateSubject() {
   return useMutation({
     mutationFn: async (payload: {
       name: string;
-      studyLevelId: string;
-      boardId: string;
       facultyId: string;
       unitValue: number;
     }) => {
@@ -231,9 +225,9 @@ export function useCreateSubject() {
       );
       return data;
     },
-    onSuccess: (data, {studyLevelId, boardId, facultyId}) => {
+    onSuccess: (data, { facultyId }) => {
       queryClient.invalidateQueries({
-        queryKey: ["subjects", studyLevelId, boardId, facultyId],
+        queryKey: ["subjects", facultyId],
       });
       toast.success("Subject created successfully!");
     },

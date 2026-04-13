@@ -1,10 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 import { useState } from "react";
-import { useFetchStudyLevels, useFetchBoardsByStudyLevel } from "@/lib/useAcademics";
-import { useFetchFacultiesByHierarchy, useFetchSubjectsByHierarchy, useCreateSubject, useDeleteSubject } from "@/lib/useAcademics";
+import { useFetchStudyLevels, useFetchBoardsByStudyLevel } from "@/hooks/useAcademics";
+import { useFetchFacultiesByHierarchy, useFetchSubjectsByHierarchy, useCreateSubject, useDeleteSubject } from "@/hooks/useAcademics";
 import { Subject, Board } from "@/lib/types";
-import { DataTable } from "./DataTable";
+import { Column, DataTable } from "./DataTable";
 import { Modal } from "./Modal";
 
 export default function SubjectManager() {
@@ -28,8 +28,6 @@ export default function SubjectManager() {
   );
   const { data: subjects, isLoading: subjectsLoading, isError: subjectsError } =
     useFetchSubjectsByHierarchy(
-      selectedStudyLevelId || null,
-      selectedBoardId || null,
       selectedFacultyId || null
     );
 
@@ -47,8 +45,6 @@ export default function SubjectManager() {
     ) {
       createMutation.mutate({
         name: newName,
-        studyLevelId: selectedStudyLevelId,
-        boardId: selectedBoardId,
         facultyId: selectedFacultyId,
         unitValue: parseInt(unitValue),
       });
@@ -68,7 +64,7 @@ export default function SubjectManager() {
   const maxUnits = selectedFaculty?.totalUnits || 1;
   const isFormEnabled = !!selectedStudyLevelId && !!selectedBoardId && !!selectedFacultyId;
 
-  const columns = [
+  const columns: Column<any>[] = [
     {
       key: "name" as const,
       label: "Subject Name",
@@ -85,11 +81,10 @@ export default function SubjectManager() {
       key: "isActive" as const,
       label: "Status",
       render: (value: any) => (
-        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-          value === true
-            ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
-            : "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400"
-        }`}>
+        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${value === true
+          ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
+          : "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400"
+          }`}>
           {value === true ? "Active" : "Inactive"}
         </span>
       ),

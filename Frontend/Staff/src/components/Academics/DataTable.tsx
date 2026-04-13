@@ -3,7 +3,7 @@
 import React from "react";
 import { FiEdit2, FiTrash2 } from "react-icons/fi";
 
-interface Column<T> {
+export interface Column<T> {
   key: keyof T;
   label: string;
   render?: (value: T[keyof T], item: T) => React.ReactNode;
@@ -94,9 +94,8 @@ export function DataTable<T extends { id: string }>({
           {data.map((item, index) => (
             <tr
               key={item.id}
-              className={`border-b border-border hover:bg-muted/20 transition-colors ${
-                index % 2 === 0 ? "" : "bg-card/40"
-              } ${rowClassName}`}
+              className={`border-b border-border hover:bg-muted/20 transition-colors ${index % 2 === 0 ? "" : "bg-card/40"
+                } ${rowClassName}`}
             >
               {columns.map((column) => (
                 <td

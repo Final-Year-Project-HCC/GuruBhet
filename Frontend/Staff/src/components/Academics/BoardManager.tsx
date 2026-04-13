@@ -7,9 +7,9 @@ import {
   useFetchAllBoards,
   useCreateBoard,
   useDeleteBoard,
-} from "@/lib/useAcademics";
+} from "@/hooks/useAcademics";
 import { Board } from "@/lib/types";
-import { DataTable } from "./DataTable";
+import { Column, DataTable } from "./DataTable";
 import { Modal } from "./Modal";
 
 export default function BoardManager() {
@@ -62,7 +62,7 @@ export default function BoardManager() {
     }
   };
 
-  const columns = [
+  const columns: Column<any>[] = [
     {
       key: "name" as const,
       label: "Board Name",
@@ -84,11 +84,10 @@ export default function BoardManager() {
       label: "Status",
       render: (value: any) => (
         <span
-          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-            value === true
-              ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
-              : "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400"
-          }`}
+          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${value === true
+            ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
+            : "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400"
+            }`}
         >
           {value === true ? "Active" : "Inactive"}
         </span>

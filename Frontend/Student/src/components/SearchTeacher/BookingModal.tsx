@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { TeacherSubjectRead } from '../types';
+import { TeacherSubjectRead } from '../../lib/types';
 
 interface BookingModalProps {
   isOpen: boolean;

@@ -7,8 +7,8 @@ import {
   useFaculties,
   useTeachersBySubject,
   useSubjects,
-} from '@/lib/hooks/useAcademics';
-import { Subject, TeacherSearchResult } from '@/components/types';
+} from '@/hooks/useAcademics';
+import { Subject, TeacherSearchResult } from '@/lib/types';
 import { DropdownSkeleton, TeacherCardSkeletonGrid, HierarchicalSidebarSkeleton } from './SkeletonLoaders';
 
 interface HierarchicalSidebarProps {
@@ -27,8 +27,8 @@ const HierarchicalSidebar: React.FC<HierarchicalSidebarProps> = ({ onTeachersFou
   const { data: studyLevels = [], isLoading: studyLevelsLoading } = useStudyLevels();
   const { data: boards = [], isLoading: boardsLoading } = useBoards(selectedStudyLevel);
   const { data: faculties = [], isLoading: facultiesLoading } = useFaculties(selectedBoard);
-  const { data: allSubjects = [] } = useSubjects();
-  
+  const { data: allSubjects = [] } = useSubjects(selectedFaculty);
+
   // Get the selected faculty details
   const selectedFacultyDetails = useMemo(
     () => faculties.find((f) => f.id === selectedFaculty) || null,
@@ -52,9 +52,9 @@ const HierarchicalSidebar: React.FC<HierarchicalSidebarProps> = ({ onTeachersFou
     }
     return allSubjects.find(
       (s) =>
-        s.studyLevel.id === selectedStudyLevel &&
-        s.board.id === selectedBoard &&
-        s.faculty.id === selectedFaculty &&
+        s.studyLevel?.id === selectedStudyLevel &&
+        s.board?.id === selectedBoard &&
+        s.faculty?.id === selectedFaculty &&
         s.unitValue === selectedUnit
     ) || null;
   }, [allSubjects, selectedStudyLevel, selectedBoard, selectedFaculty, selectedUnit]);
@@ -110,167 +110,164 @@ const HierarchicalSidebar: React.FC<HierarchicalSidebarProps> = ({ onTeachersFou
           <h2 className="text-xl font-bold text-foreground mb-6">Filter by Subject Hierarchy</h2>
 
           <div className="space-y-6">
-        {/* Level 1: Study Level */}
-        <div>
-          <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-3 px-1">
-            Study Level
-          </label>
-          {studyLevelsLoading ? (
-            <DropdownSkeleton />
-          ) : (
-            <select
-              value={selectedStudyLevel || ''}
-              onChange={(e) => handleStudyLevelChange(e.target.value)}
-              className="w-full bg-surface border border-border rounded-2xl px-5 py-4 text-sm font-semibold focus:border-primary outline-none cursor-pointer appearance-none transition-colors"
-            >
-              <option value="">Select a Study Level</option>
-              {studyLevels.map((level) => (
-                <option key={level.id} value={level.id}>
-                  {level.name}
-                </option>
-              ))}
-            </select>
-          )}
-        </div>
-
-        {/* Level 2: Board */}
-        <div>
-          <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-3 px-1">
-            Board
-          </label>
-          {boardsLoading ? (
-            <DropdownSkeleton />
-          ) : (
-            <select
-              value={selectedBoard || ''}
-              onChange={(e) => handleBoardChange(e.target.value)}
-              disabled={!selectedStudyLevel}
-              className={`w-full bg-surface border border-border rounded-2xl px-5 py-4 text-sm font-semibold focus:border-primary outline-none cursor-pointer appearance-none transition-colors ${
-                !selectedStudyLevel ? 'opacity-50 cursor-not-allowed' : ''
-              }`}
-            >
-              <option value="">Select a Board</option>
-              {boards.map((board) => (
-                <option key={board.id} value={board.id}>
-                  {board.name}
-                </option>
-              ))}
-            </select>
-          )}
-        </div>
-
-        {/* Level 3: Faculty */}
-        <div>
-          <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-3 px-1">
-            Faculty / Stream
-          </label>
-          {facultiesLoading ? (
-            <DropdownSkeleton />
-          ) : (
-            <select
-              value={selectedFaculty || ''}
-              onChange={(e) => handleFacultyChange(e.target.value)}
-              disabled={!selectedBoard}
-              className={`w-full bg-surface border border-border rounded-2xl px-5 py-4 text-sm font-semibold focus:border-primary outline-none cursor-pointer appearance-none transition-colors ${
-                !selectedBoard ? 'opacity-50 cursor-not-allowed' : ''
-              }`}
-            >
-              <option value="">Select a Faculty</option>
-              {faculties.map((faculty) => (
-                <option key={faculty.id} value={faculty.id}>
-                  {faculty.name}
-                </option>
-              ))}
-            </select>
-          )}
-        </div>
-
-        {/* Level 4: Unit Value (Dynamic based on Faculty.totalUnits) */}
-        {selectedFaculty && (
-          <div>
-            <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-3 px-1">
-              {getUnitTypeLabel()}
-            </label>
-            <div className="grid grid-cols-4 gap-2">
-              {unitOptions.map((unit) => (
-                <button
-                  key={unit}
-                  onClick={() => handleUnitChange(unit)}
-                  className={`py-3 rounded-xl font-semibold text-sm transition-colors ${
-                    selectedUnit === unit
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-subtle border border-border text-foreground hover:bg-subtle-foreground/10'
-                  }`}
+            {/* Level 1: Study Level */}
+            <div>
+              <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-3 px-1">
+                Study Level
+              </label>
+              {studyLevelsLoading ? (
+                <DropdownSkeleton />
+              ) : (
+                <select
+                  value={selectedStudyLevel || ''}
+                  onChange={(e) => handleStudyLevelChange(e.target.value)}
+                  className="w-full bg-surface border border-border rounded-2xl px-5 py-4 text-sm font-semibold focus:border-primary outline-none cursor-pointer appearance-none transition-colors"
                 >
-                  {selectedFacultyDetails?.unitType || 'Unit'} {unit}
-                </button>
-              ))}
+                  <option value="">Select a Study Level</option>
+                  {studyLevels.map((level) => (
+                    <option key={level.id} value={level.id}>
+                      {level.name}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
-          </div>
-        )}
 
-        {/* Selected Subject Info */}
-        {selectedSubject && (
-          <div className="bg-subtle rounded-xl p-4 border border-border">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-              Selected Subject
-            </p>
-            <p className="font-bold text-foreground mb-1">{selectedSubject.name}</p>
-            <p className="text-xs text-muted-foreground">
-              {`${selectedFacultyDetails?.unitType || 'Unit'} ${selectedUnit}`}
-            </p>
-          </div>
-        )}
-      </div>
-
-      {/* Teachers Results Section — only shown when page is not handling results */}
-      {selectedSubject && !hideInlineResults && (
-        <div className="mt-8 border-t border-border pt-8">
-          <h3 className="text-lg font-bold text-foreground mb-6">
-            Available Teachers ({teachers.length})
-          </h3>
-
-          {teachersLoading ? (
-            <TeacherCardSkeletonGrid count={3} />
-          ) : teachers.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-96 overflow-y-auto pr-2">
-              {teachers.map((teacher) => (
-                <div
-                  key={teacher.teacherId}
-                  className="bg-subtle border border-border rounded-xl p-4 hover:bg-subtle/80 transition-colors cursor-pointer"
+            {/* Level 2: Board */}
+            <div>
+              <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-3 px-1">
+                Board
+              </label>
+              {boardsLoading ? (
+                <DropdownSkeleton />
+              ) : (
+                <select
+                  value={selectedBoard || ''}
+                  onChange={(e) => handleBoardChange(e.target.value)}
+                  disabled={!selectedStudyLevel}
+                  className={`w-full bg-surface border border-border rounded-2xl px-5 py-4 text-sm font-semibold focus:border-primary outline-none cursor-pointer appearance-none transition-colors ${!selectedStudyLevel ? 'opacity-50 cursor-not-allowed' : ''
+                    }`}
                 >
-                  <div className="flex gap-3 mb-3">
-                    {teacher.teacherAvatarUrl && (
-                      <div className="w-12 h-12 rounded-full bg-subtle shrink-0 text-xs flex items-center justify-center font-bold text-muted-foreground">
-                        {teacher.teacherName.charAt(0).toUpperCase()}
-                      </div>
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-foreground truncate">{teacher.teacherName}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {teacher.yearsOfExperience} year{teacher.yearsOfExperience !== 1 ? 's' : ''} exp.
-                      </p>
-                    </div>
-                  </div>
+                  <option value="">Select a Board</option>
+                  {boards.map((board) => (
+                    <option key={board.id} value={board.id}>
+                      {board.name}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
 
-                  <div className="flex justify-between items-center text-sm">
-                    <div className="flex items-center gap-1">
-                      <span className="text-yellow-500">★</span>
-                      <span className="font-semibold">{teacher.avgRating.toFixed(1)}</span>
-                      <span className="text-xs text-muted-foreground">({teacher.ratingCount})</span>
-                    </div>
-                    <p className="font-bold text-primary">₨{teacher.ratePerSession}</p>
-                  </div>
+            {/* Level 3: Faculty */}
+            <div>
+              <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-3 px-1">
+                Faculty / Stream
+              </label>
+              {facultiesLoading ? (
+                <DropdownSkeleton />
+              ) : (
+                <select
+                  value={selectedFaculty || ''}
+                  onChange={(e) => handleFacultyChange(e.target.value)}
+                  disabled={!selectedBoard}
+                  className={`w-full bg-surface border border-border rounded-2xl px-5 py-4 text-sm font-semibold focus:border-primary outline-none cursor-pointer appearance-none transition-colors ${!selectedBoard ? 'opacity-50 cursor-not-allowed' : ''
+                    }`}
+                >
+                  <option value="">Select a Faculty</option>
+                  {faculties.map((faculty) => (
+                    <option key={faculty.id} value={faculty.id}>
+                      {faculty.name}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+
+            {/* Level 4: Unit Value (Dynamic based on Faculty.totalUnits) */}
+            {selectedFaculty && (
+              <div>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-3 px-1">
+                  {getUnitTypeLabel()}
+                </label>
+                <div className="grid grid-cols-4 gap-2">
+                  {unitOptions.map((unit) => (
+                    <button
+                      key={unit}
+                      onClick={() => handleUnitChange(unit)}
+                      className={`py-3 rounded-xl font-semibold text-sm transition-colors ${selectedUnit === unit
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-subtle border border-border text-foreground hover:bg-subtle-foreground/10'
+                        }`}
+                    >
+                      {selectedFacultyDetails?.unitType || 'Unit'} {unit}
+                    </button>
+                  ))}
                 </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-8 text-muted-foreground">
-              No teachers available for this subject
+              </div>
+            )}
+
+            {/* Selected Subject Info */}
+            {selectedSubject && (
+              <div className="bg-subtle rounded-xl p-4 border border-border">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                  Selected Subject
+                </p>
+                <p className="font-bold text-foreground mb-1">{selectedSubject.name}</p>
+                <p className="text-xs text-muted-foreground">
+                  {`${selectedFacultyDetails?.unitType || 'Unit'} ${selectedUnit}`}
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Teachers Results Section — only shown when page is not handling results */}
+          {selectedSubject && !hideInlineResults && (
+            <div className="mt-8 border-t border-border pt-8">
+              <h3 className="text-lg font-bold text-foreground mb-6">
+                Available Teachers ({teachers.length})
+              </h3>
+
+              {teachersLoading ? (
+                <TeacherCardSkeletonGrid count={3} />
+              ) : teachers.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-96 overflow-y-auto pr-2">
+                  {teachers.map((teacher) => (
+                    <div
+                      key={teacher.teacherId}
+                      className="bg-subtle border border-border rounded-xl p-4 hover:bg-subtle/80 transition-colors cursor-pointer"
+                    >
+                      <div className="flex gap-3 mb-3">
+                        {teacher.teacherAvatarUrl && (
+                          <div className="w-12 h-12 rounded-full bg-subtle shrink-0 text-xs flex items-center justify-center font-bold text-muted-foreground">
+                            {teacher.teacherName.charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-foreground truncate">{teacher.teacherName}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {teacher.yearsOfExperience} year{teacher.yearsOfExperience !== 1 ? 's' : ''} exp.
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex justify-between items-center text-sm">
+                        <div className="flex items-center gap-1">
+                          <span className="text-yellow-500">★</span>
+                          <span className="font-semibold">{teacher.avgRating.toFixed(1)}</span>
+                          <span className="text-xs text-muted-foreground">({teacher.ratingCount})</span>
+                        </div>
+                        <p className="font-bold text-primary">₨{teacher.ratePerSession}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  No teachers available for this subject
+                </div>
+              )}
             </div>
           )}
-        </div>
-      )}
         </div>
       )}
     </>

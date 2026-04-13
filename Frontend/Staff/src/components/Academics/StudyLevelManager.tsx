@@ -2,9 +2,9 @@
 "use client";
 
 import { useState } from "react";
-import { useFetchStudyLevels, useCreateStudyLevel, useDeleteStudyLevel } from "@/lib/useAcademics";
+import { useFetchStudyLevels, useCreateStudyLevel, useDeleteStudyLevel } from "@/hooks/useAcademics";
 import { StudyLevel } from "@/lib/types";
-import { DataTable } from "./DataTable";
+import { Column, DataTable } from "./DataTable";
 import { Modal } from "./Modal";
 
 export default function StudyLevelManager() {
@@ -36,7 +36,7 @@ export default function StudyLevelManager() {
     }
   };
 
-  const columns = [
+  const columns: Column<any>[] = [
     {
       key: "name" as const,
       label: "Name",
@@ -57,11 +57,10 @@ export default function StudyLevelManager() {
       key: "isActive" as const,
       label: "Status",
       render: (value: any) => (
-        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-          value === true
-            ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
-            : "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400"
-        }`}>
+        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${value === true
+          ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
+          : "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400"
+          }`}>
           {value === true ? "Active" : "Inactive"}
         </span>
       ),
@@ -80,7 +79,7 @@ export default function StudyLevelManager() {
       {/* Creation Form - Always Visible */}
       <div className="border border-border rounded-lg p-6 bg-card space-y-4">
         <h3 className="text-lg font-semibold text-foreground">Create New Study Level</h3>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">
@@ -94,7 +93,7 @@ export default function StudyLevelManager() {
               className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
             />
           </div>
-          
+
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">
               Description (Optional)
@@ -123,7 +122,7 @@ export default function StudyLevelManager() {
         <h3 className="text-lg font-semibold text-foreground mb-4">
           {levels?.length || 0} Study Level{(levels?.length || 0) !== 1 ? "s" : ""}
         </h3>
-        
+
         <DataTable<StudyLevel>
           data={levels}
           columns={columns}
