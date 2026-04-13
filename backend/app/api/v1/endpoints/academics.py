@@ -28,7 +28,6 @@ from app.schemas.subject import (
     StudyLevelRead,
     SubjectCreate,
     SubjectRead,
-    SubjectWithContextRead,
 )
 from app.services.subject_service import SubjectService
 
