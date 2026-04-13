@@ -62,7 +62,7 @@ async def suggest_subjects(
     if cached:
         # Validate and serialize with Pydantic to ensure camelCase keys
         cached_data = orjson.loads(cached)
-        suggestions = [SubjectSuggestion.model_validate(item) for item in cached_data]
+        suggestions = [SubjectRead.model_validate(item) for item in cached_data]
         return suggestions
 
     # 4. Single-Query Similarity Search with Eager Loading
@@ -91,7 +91,7 @@ async def suggest_subjects(
     subjects = result.scalars().all()
 
     suggestions = [
-        SubjectSuggestion(
+        SubjectRead(
             id=s.id,
             name=s.name,
             study_level_name=s.study_level.name if s.study_level else None,
