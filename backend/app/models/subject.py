@@ -40,9 +40,6 @@ class StudyLevel(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default='true', nullable=False)
 
     # ── Relationships ─────────────────────────────────────────────────────────
-    subjects: Mapped[list["Subject"]] = relationship(
-        back_populates="study_level", lazy="noload"
-    )
     boards: Mapped[list["Board"]] = relationship(
         secondary=board_study_levels,
         back_populates="study_levels",
@@ -81,9 +78,6 @@ class Board(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         secondary=board_study_levels,
         back_populates="boards",
         lazy="noload"
-    )
-    subjects: Mapped[list["Subject"]] = relationship(
-        back_populates="board", lazy="noload"
     )
     faculties: Mapped[list["Faculty"]] = relationship(
         back_populates="board", lazy="noload"
