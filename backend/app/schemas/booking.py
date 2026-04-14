@@ -177,7 +177,7 @@ class BookingDetailedReadForStudent(SharedConfig):
     teacher_approved_at: datetime | None
     created_at: datetime
     sessions: list[SessionRead] = []
-    cancellaton_reason: str | None = None
+    cancellation_reason: str | None = None
 
 
 class BookingDetailedReadForTeacher(SharedConfig):
