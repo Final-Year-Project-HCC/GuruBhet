@@ -94,7 +94,7 @@ async def create_booking_request(
 
 @router.post("/{booking_id}/approve", response_model=BookingRead)
 async def approve_booking_request(
-    booking_id: Annotated[UUID, Path(..., alias="bookingId")],
+    booking_id: UUID,
     current_user: Annotated[User, RequireProfessionalTeacher],
     db: DbSession,
 ):
@@ -129,9 +129,10 @@ async def approve_booking_request(
     return booking
 
 
-@router.post("/{booking_id}/initiate-payment", response_model=EsewaPaymentInitResponse)
+#Add response model too after removing bypass
+@router.post("/{booking_id}/initiate-payment")
 async def initiate_payment(
-    booking_id: Annotated[UUID, Path(..., alias="bookingId")],
+    booking_id: UUID,
     current_user: CurrentUser,
     db: DbSession,
 ):
@@ -160,18 +161,27 @@ async def initiate_payment(
             context={"current_status": booking.status.value, "required_status": "PENDING_PAYMENT"},
         )
 
-    # Return eSewa payment init params (this would call eSewa API)
-    # For now, return a placeholder response
-    return EsewaPaymentInitResponse(
-        transaction_uuid=str(booking.id),  # Placeholder
-        total_amount=str(booking.total_amount),
-        esewa_url="https://esewa.com.np",  # Placeholder
-    )
+    # DEVELOPMENT BYPASS - mark booking ACTIVE when the student initiates payment.
+    # TODO: Remove this bypass once real payment integration is implemented. Replace
+    # this logic with an actual payment initiation flow that returns payment URLs/params
+    # and only activates the booking on successful payment webhook/callback.
+    booking.status = BookingStatus.ACTIVE
+    # Persist the state change to simulate a successful payment capture.
+    await db.commit()
+    await db.refresh(booking)
+
+    return {"message":"Payment succesfull"}
+    # Return eSewa payment init params (placeholder) for compatibility with frontend.
+    # return EsewaPaymentInitResponse(
+    #     transaction_uuid=str(booking.id),  # Placeholder
+    #     total_amount=str(booking.total_amount),
+    #     esewa_url="https://esewa.com.np",  # Placeholder
+    # )
 
 
 @router.post("/{booking_id}/request-session", response_model=dict)
 async def request_session(
-    booking_id: Annotated[UUID, Path(..., alias="bookingId")],
+    booking_id: UUID,
     current_user: Annotated[User, RequireProfessionalTeacher],
     db: DbSession,
     background_tasks: BackgroundTasks,
@@ -377,7 +387,7 @@ async def request_session(
 
 @router.post("/{booking_id}/accept-session", response_model=LiveKitTokenResponse)
 async def accept_session_request(
-    booking_id: Annotated[UUID, Path(..., alias="bookingId")],
+    booking_id: UUID,
     current_user: CurrentUser,
     db: DbSession,
     request: Request,
@@ -751,7 +761,7 @@ async def list_my_bookings(current_user: CurrentUser, db: DbSession):
 
 @router.get("/{booking_id}", response_model=BookingRead)
 async def get_booking(
-    booking_id: Annotated[UUID, Path(..., alias="bookingId")],
+    booking_id: UUID,
     current_user: CurrentUser,
     db: DbSession,
 ):
@@ -769,7 +779,7 @@ async def get_booking(
 
 @router.get("/{booking_id}/sync", response_model=LiveKitTokenResponse)
 async def sync_session(
-    booking_id: Annotated[UUID, Path(..., alias="bookingId")],
+    booking_id: UUID,
     current_user: CurrentUser,
     db: DbSession,
 ):
@@ -906,7 +916,7 @@ async def sync_session(
 
 @router.post("/{booking_id}/cancel", response_model=BookingRead)
 async def cancel_booking(
-    booking_id: Annotated[UUID, Path(..., alias="bookingId")],
+    booking_id: UUID,
     body: BookingCancelRequest,
     current_user: CurrentUser,
     db: DbSession,
