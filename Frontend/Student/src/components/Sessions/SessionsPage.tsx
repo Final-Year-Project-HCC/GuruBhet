@@ -1,147 +1,266 @@
+"use client";
 
-import React from 'react';
-import Image from 'next/image';
-import { ACTIVE_SESSIONS, COMPLETED_SESSIONS } from '../constants';
+import React, { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { toast } from "react-toastify";
+import { LiveKitRoom, VideoConference } from "@livekit/components-react";
+import "@livekit/components-styles";
+import apiClient from "@/lib/api";
+import { Session } from "@/lib/types";
 
 const SessionsPage: React.FC = () => {
+  const { data: inProgressSessions = [], isLoading: inProgressLoading } =
+    useQuery<Session[]>({
+      queryKey: ["sessions", "in-progress"],
+      queryFn: async () => {
+        const { data } = await apiClient.get("/students/me/sessions/in-progress");
+        return data;
+      },
+    });
+
+  const { data: completedSessions = [], isLoading: completedLoading } =
+    useQuery<Session[]>({
+      queryKey: ["sessions", "history"],
+      queryFn: async () => {
+        const { data } = await apiClient.get("/students/me/sessions/history");
+        return data;
+      },
+    });
+
+  const [activeRoom, setActiveRoom] = useState<{ token: string; liveKitUrl: string } | null>(null);
+  const [isJoining, setIsJoining] = useState(false);
+
+  const handleJoinClassroom = async (bookingId: string) => {
+    try {
+      setIsJoining(true);
+      const { data } = await apiClient.get(`/bookings/${bookingId}/sync`);
+      setActiveRoom({ token: data.token, liveKitUrl: data.liveKitUrl });
+    } catch (err) {
+      toast.error("Failed to join classroom. Please check if the room is ready.");
+    } finally {
+      setIsJoining(false);
+    }
+  };
+
   const activeStats = {
-    total: ACTIVE_SESSIONS.length,
-    remaining: ACTIVE_SESSIONS.reduce((acc, s) => acc + ((s.totalSessions || 0) - (s.completedSessions || 0)), 0),
-    liveCount: ACTIVE_SESSIONS.filter(s => s.status === 'Live').length
+    total: inProgressSessions.length,
+    remaining: inProgressSessions.reduce(
+      (acc, s) => acc + (s.booking.totalSessions - s.sessionNumber + 1),
+      0
+    ),
+    liveCount: inProgressSessions.length,
   };
 
   const completedStats = {
-    total: COMPLETED_SESSIONS.length,
-    totalHours: COMPLETED_SESSIONS.reduce((acc, s) => acc + (s.durationMinutes * (s.completedSessions || 1)) / 60, 0),
-    avgRating: (COMPLETED_SESSIONS.reduce((acc, s) => acc + (s.ratingGiven || 0), 0) / COMPLETED_SESSIONS.length).toFixed(1)
+    total: completedSessions.length,
+    totalHours: completedSessions.length, // approximation
   };
+
+  if (activeRoom) {
+    return (
+      <div className="fixed inset-0 z-[9999] flex flex-col bg-black">
+        <div className="absolute top-4 right-4 z-50">
+          <button
+            onClick={() => setActiveRoom(null)}
+            className="rounded-md bg-destructive px-4 py-2 text-white hover:bg-destructive/90 transition-colors"
+          >
+            Leave Room
+          </button>
+        </div>
+        <div className="flex-1 overflow-hidden">
+          <LiveKitRoom
+            video={true}
+            audio={true}
+            token={activeRoom.token}
+            serverUrl={activeRoom.liveKitUrl || "wss://live.gurubhet.tech"}
+            connect={true}
+            data-lk-theme="default"
+            style={{ height: '100%', width: '100%' }}
+          >
+            <VideoConference />
+          </LiveKitRoom>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-surface-muted min-h-screen py-12">
       <div className="max-w-7xl mx-auto px-4">
         {/* Page Title */}
         <div className="mb-12">
-          <h1 className="text-4xl font-black tracking-tight text-primary">My Learning Dashboard</h1>
-          <p className="text-muted-foreground mt-2 font-medium">Track your progress and manage your 1-to-1 education journey.</p>
+          <h1 className="text-4xl font-black tracking-tight text-primary">
+            My Learning Dashboard
+          </h1>
+          <p className="text-muted-foreground mt-2 font-medium">
+            Track your progress and manage your 1-to-1 education journey.
+          </p>
         </div>
 
         {/* Section 1: Active Sessions */}
         <div className="mb-20">
           <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-6">
             <div>
-              <h2 className="text-2xl font-black tracking-tight text-primary">Active Learning Tracks</h2>
-              <p className="text-sm text-muted-foreground font-bold uppercase tracking-wider mt-1">Ongoing & Upcoming Classes</p>
+              <h2 className="text-2xl font-black tracking-tight text-primary">
+                Active Learning Tracks
+              </h2>
+              <p className="text-sm text-muted-foreground font-bold uppercase tracking-wider mt-1">
+                Ongoing Classes
+              </p>
             </div>
             {/* Quick Stats Grid */}
             <div className="grid grid-cols-3 gap-4">
               <div className="bg-surface border border-border p-4 rounded-2xl shadow-sm text-center min-w-25">
-                <p className="text-2xl font-black text-primary leading-none">{activeStats.total}</p>
-                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-tighter mt-1">Tracks</p>
+                <p className="text-2xl font-black text-primary leading-none">
+                  {activeStats.total}
+                </p>
+                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-tighter mt-1">
+                  Tracks
+                </p>
               </div>
               <div className="bg-surface border border-border p-4 rounded-2xl shadow-sm text-center min-w-25">
-                <p className="text-2xl font-black text-primary leading-none">{activeStats.remaining}</p>
-                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-tighter mt-1">To Go</p>
+                <p className="text-2xl font-black text-primary leading-none">
+                  {activeStats.remaining}
+                </p>
+                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-tighter mt-1">
+                  To Go
+                </p>
               </div>
               <div className="bg-surface border border-border p-4 rounded-2xl shadow-sm text-center min-w-25">
-                <p className="text-2xl font-black text-success leading-none">{activeStats.liveCount}</p>
-                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-tighter mt-1">Live Now</p>
+                <p className="text-2xl font-black text-success leading-none">
+                  {activeStats.liveCount}
+                </p>
+                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-tighter mt-1">
+                  Live Now
+                </p>
               </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {ACTIVE_SESSIONS.map((session) => {
-              const progress = session.completedSessions && session.totalSessions
-                ? Math.round((session.completedSessions / session.totalSessions) * 100)
-                : 0;
+          {inProgressLoading ? (
+            <p className="text-muted-foreground">Loading active sessions...</p>
+          ) : inProgressSessions.length === 0 ? (
+            <p className="text-muted-foreground font-medium">
+              No sessions are currently in progress.
+            </p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {inProgressSessions.map((session) => {
+                const progress = Math.round(
+                  (session.sessionNumber / session.booking.totalSessions) * 100
+                );
+                const tName = `${session.booking.teacher.firstName} ${session.booking.teacher.lastName}`;
 
-              return (
-                <div
-                  key={session.id}
-                  className="bg-surface rounded-[2.5rem] border border-border p-8 shadow-sm hover:shadow-xl transition-all group flex flex-col"
-                >
-                  <div className="flex justify-between items-start mb-6">
-                    <div className="flex items-center gap-2">
-                      <div className={`w-2 h-2 rounded-full ${session.status === 'Live' ? 'bg-destructive animate-pulse' : 'bg-accent'}`}></div>
-                      <span className={`text-[10px] font-black uppercase tracking-widest ${session.status === 'Live' ? 'text-destructive' : 'text-accent'}`}>
-                        {session.status === 'Live' ? 'Session In Progress' : session.status}
-                      </span>
-                    </div>
-                    {session.nextSessionTime && (
-                      <span className="text-[10px] font-bold text-muted-foreground bg-muted px-3 py-1.5 rounded-xl uppercase">
-                        {session.nextSessionTime}
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="mb-6">
-                    <h3 className="font-black text-2xl leading-tight mb-2 group-hover:text-primary transition-colors">
-                      {typeof session.subject === 'string' ? session.subject : session.subject?.name}
-                    </h3>
-                    <div className="flex items-center gap-3">
-                      <Image
-                        src={`https://picsum.photos/seed/${session.teacherName || 'teacher'}/48/48`}
-                        width={48}
-                        height={48}
-                        className="w-8 h-8 rounded-full grayscale group-hover:grayscale-0 transition-all border border-border shadow-sm"
-                        alt={session.teacherName || 'Teacher'}
-                      />
-                      <p className="text-sm font-bold text-muted-foreground">Taught by {session.teacherName}</p>
-                    </div>
-                  </div>
-
-                  <div className="mt-auto">
-                    <div className="flex justify-between items-end mb-3">
-                      <div className="flex flex-col">
-                        <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Course Progress</span>
-                        <span className="text-lg font-black text-primary">
-                          {session.completedSessions} <span className="text-muted-foreground text-sm font-bold">/ {session.totalSessions} Sessions</span>
+                return (
+                  <div
+                    key={`${session.booking.id}-${session.sessionNumber}`}
+                    className="bg-surface rounded-[2.5rem] border border-border p-8 shadow-sm hover:shadow-xl transition-all group flex flex-col"
+                  >
+                    <div className="flex justify-between items-start mb-6">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-destructive animate-pulse"></div>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-destructive">
+                          Session In Progress
                         </span>
                       </div>
-                      <span className="text-lg font-black text-primary">{progress}%</span>
-                    </div>
-                    <div className="w-full bg-subtle rounded-full h-2.5 overflow-hidden mb-8">
-                      <div
-                        style={{ width: `${progress}%` }}
-                        className="bg-primary h-full rounded-full transition-all duration-1000 ease-out"
-                      />
+                      {session.actualStartAt && (
+                        <span className="text-[10px] font-bold text-muted-foreground bg-muted px-3 py-1.5 rounded-xl uppercase">
+                          Started: {new Date(session.actualStartAt).toLocaleTimeString()}
+                        </span>
+                      )}
                     </div>
 
-                    <button
-                      className={`w-full py-4 rounded-2xl text-[11px] font-black uppercase tracking-widest cursor-pointer transition-all shadow-lg active:scale-95 ${session.status === 'Live'
-                          ? 'bg-destructive text-destructive-foreground hover:opacity-90'
-                          : 'bg-primary text-primary-foreground hover:bg-primary-hover hover:text-primary-hover-foreground'
-                        }`}
-                    >
-                      {session.status === 'Live' ? 'Enter Classroom Now' : 'Manage Course'}
-                    </button>
+                    <div className="mb-6">
+                      <h3 className="font-black text-2xl leading-tight mb-2 group-hover:text-primary transition-colors">
+                        {session.booking.subject.name}
+                      </h3>
+                      <div className="flex items-center gap-3">
+                        {session.booking.teacher.avatarUrl ? (
+                          <img
+                            src={session.booking.teacher.avatarUrl}
+                            className="w-8 h-8 rounded-full border border-border shadow-sm object-cover"
+                            alt={tName}
+                          />
+                        ) : (
+                          <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center border border-border">
+                            <span className="text-[10px] font-bold text-muted-foreground">
+                              {session.booking.teacher.firstName.charAt(0)}
+                            </span>
+                          </div>
+                        )}
+                        <p className="text-sm font-bold text-muted-foreground">
+                          Taught by {tName}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mt-auto">
+                      <div className="flex justify-between items-end mb-3">
+                        <div className="flex flex-col">
+                          <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">
+                            Course Progress
+                          </span>
+                          <span className="text-lg font-black text-primary">
+                            {session.sessionNumber}{" "}
+                            <span className="text-muted-foreground text-sm font-bold">
+                              / {session.booking.totalSessions} Sessions
+                            </span>
+                          </span>
+                        </div>
+                        <span className="text-lg font-black text-primary">
+                          {progress}%
+                        </span>
+                      </div>
+                      <div className="w-full bg-subtle rounded-full h-2.5 overflow-hidden mb-8">
+                        <div
+                          style={{ width: `${progress}%` }}
+                          className="bg-primary h-full rounded-full transition-all duration-1000 ease-out"
+                        />
+                      </div>
+
+                      <button
+                        onClick={() => handleJoinClassroom(session.booking.id)}
+                        disabled={isJoining}
+                        className="w-full py-4 rounded-2xl text-[11px] font-black uppercase tracking-widest cursor-pointer transition-all shadow-lg active:scale-95 bg-destructive text-destructive-foreground hover:opacity-90 disabled:opacity-50"
+                      >
+                        {isJoining ? "Joining..." : "Enter Classroom Now"}
+                      </button>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Section 2: Completed Sessions */}
         <div>
           <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-6">
             <div>
-              <h2 className="text-2xl font-black tracking-tight text-primary">Completed History</h2>
-              <p className="text-sm text-muted-foreground font-bold uppercase tracking-wider mt-1">Review your past achievements</p>
+              <h2 className="text-2xl font-black tracking-tight text-primary">
+                Completed History
+              </h2>
+              <p className="text-sm text-muted-foreground font-bold uppercase tracking-wider mt-1">
+                Review your past achievements
+              </p>
             </div>
             {/* Quick Stats Grid */}
             <div className="grid grid-cols-3 gap-4">
               <div className="bg-surface border border-border p-4 rounded-2xl shadow-sm text-center min-w-25">
-                <p className="text-2xl font-black text-primary leading-none">{completedStats.total}</p>
-                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-tighter mt-1">Courses</p>
+                <p className="text-2xl font-black text-primary leading-none">
+                  {completedStats.total}
+                </p>
+                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-tighter mt-1">
+                  Sessions
+                </p>
               </div>
               <div className="bg-surface border border-border p-4 rounded-2xl shadow-sm text-center min-w-25">
-                <p className="text-2xl font-black text-primary leading-none">{completedStats.totalHours.toFixed(0)}</p>
-                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-tighter mt-1">Hours</p>
-              </div>
-              <div className="bg-surface border border-border p-4 rounded-2xl shadow-sm text-center min-w-25">
-                <p className="text-2xl font-black text-warning leading-none">{completedStats.avgRating}</p>
-                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-tighter mt-1">Avg Rating</p>
+                <p className="text-2xl font-black text-primary leading-none">
+                  -
+                </p>
+                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-tighter mt-1">
+                  Hours
+                </p>
               </div>
             </div>
           </div>
@@ -151,63 +270,91 @@ const SessionsPage: React.FC = () => {
               <table className="w-full text-left">
                 <thead className="bg-subtle border-b border-border">
                   <tr>
-                    <th className="px-8 py-5 text-[10px] font-black text-muted-foreground uppercase tracking-widest">Course Subject</th>
-                    <th className="px-8 py-5 text-[10px] font-black text-muted-foreground uppercase tracking-widest">Tutor</th>
-                    <th className="px-8 py-5 text-[10px] font-black text-muted-foreground uppercase tracking-widest">Duration</th>
-                    <th className="px-8 py-5 text-[10px] font-black text-muted-foreground uppercase tracking-widest">Completed On</th>
-                    <th className="px-8 py-5 text-[10px] font-black text-muted-foreground uppercase tracking-widest">My Rating</th>
-                    <th className="px-8 py-5 text-[10px] font-black text-muted-foreground uppercase tracking-widest">Action</th>
+                    <th className="px-8 py-5 text-[10px] font-black text-muted-foreground uppercase tracking-widest">
+                      Course Subject
+                    </th>
+                    <th className="px-8 py-5 text-[10px] font-black text-muted-foreground uppercase tracking-widest">
+                      Tutor
+                    </th>
+                    <th className="px-8 py-5 text-[10px] font-black text-muted-foreground uppercase tracking-widest">
+                      Session No.
+                    </th>
+                    <th className="px-8 py-5 text-[10px] font-black text-muted-foreground uppercase tracking-widest">
+                      Completed On
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-subtle">
-                  {COMPLETED_SESSIONS.map((session) => (
-                    <tr key={session.id} className="hover:bg-subtle/50 transition-colors">
-                      <td className="px-8 py-6">
-                        <div>
-                          <p className="font-black text-primary">{typeof session.subject === 'string' ? session.subject : session.subject?.name}</p>
-                          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-tighter">pending Level</p>
-                        </div>
-                      </td>
-                      <td className="px-8 py-6">
-                        <div className="flex items-center gap-2">
-                          <Image
-                            src={`https://picsum.photos/seed/${session.teacherName || 'teacher'}/32/32`}
-                            width={32}
-                            height={32}
-                            className="w-6 h-6 rounded-full border border-border"
-                            alt={session.teacherName || 'Teacher'}
-                          />
-                          <span className="text-sm font-bold text-muted-foreground">{session.teacherName}</span>
-                        </div>
-                      </td>
-                      <td className="px-8 py-6">
-                        <span className="text-sm font-black text-primary">{session.totalSessions} Sessions</span>
-                        <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tighter">{session.durationMinutes}m / each</p>
-                      </td>
-                      <td className="px-8 py-6">
-                        <span className="text-sm font-bold text-muted-foreground">{session.completionDate}</span>
-                      </td>
-                      <td className="px-8 py-6">
-                        <div className="flex gap-0.5">
-                          {[...Array(5)].map((_, i) => (
-                            <svg
-                              key={i}
-                              className={`w-3.5 h-3.5 ${(session.ratingGiven || 0) > i ? 'text-warning' : 'text-subtle-foreground/30'}`}
-                              fill="currentColor"
-                              viewBox="0 0 20 20"
-                            >
-                              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                            </svg>
-                          ))}
-                        </div>
-                      </td>
-                      <td className="px-8 py-6">
-                        <button className="text-[10px] font-black uppercase tracking-widest text-primary hover:text-destructive transition-colors cursor-pointer">
-                          View Details
-                        </button>
+                  {completedLoading ? (
+                    <tr>
+                      <td colSpan={4} className="px-8 py-6 text-center">
+                        <p className="text-sm font-medium text-muted-foreground">
+                          Loading history...
+                        </p>
                       </td>
                     </tr>
-                  ))}
+                  ) : completedSessions.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} className="px-8 py-6 text-center">
+                        <p className="text-sm font-medium text-muted-foreground">
+                          No completed sessions found.
+                        </p>
+                      </td>
+                    </tr>
+                  ) : (
+                    completedSessions.map((session) => {
+                      const tName = `${session.booking.teacher.firstName} ${session.booking.teacher.lastName}`;
+                      return (
+                        <tr
+                          key={`${session.booking.id}-${session.sessionNumber}`}
+                          className="hover:bg-subtle/50 transition-colors"
+                        >
+                          <td className="px-8 py-6">
+                            <div>
+                              <p className="font-black text-primary">
+                                {session.booking.subject.name}
+                              </p>
+                            </div>
+                          </td>
+                          <td className="px-8 py-6">
+                            <div className="flex items-center gap-2">
+                              {session.booking.teacher.avatarUrl ? (
+                                <img
+                                  src={session.booking.teacher.avatarUrl}
+                                  className="w-6 h-6 rounded-full border border-border object-cover"
+                                  alt={tName}
+                                />
+                              ) : (
+                                <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center border border-border">
+                                  <span className="text-[8px] font-bold text-muted-foreground">
+                                    {session.booking.teacher.firstName.charAt(0)}
+                                  </span>
+                                </div>
+                              )}
+                              <span className="text-sm font-bold text-muted-foreground">
+                                {tName}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-8 py-6">
+                            <span className="text-sm font-black text-primary">
+                              Session {session.sessionNumber}
+                            </span>
+                            <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tighter">
+                              of {session.booking.totalSessions} total
+                            </p>
+                          </td>
+                          <td className="px-8 py-6">
+                            <span className="text-sm font-bold text-muted-foreground">
+                              {session.actualStartAt
+                                ? new Date(session.actualStartAt).toLocaleDateString()
+                                : "N/A"}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
                 </tbody>
               </table>
             </div>

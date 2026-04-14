@@ -85,7 +85,7 @@ export default function BookingsPage() {
         <div className="mb-8">
           <h1 className="mb-2 text-4xl font-bold text-foreground">Bookings</h1>
           <p className="text-sm text-muted-foreground">
-            Manage your booking requests, ongoing sessions, and history
+            Manage your booking requests, active sessions, and history
           </p>
         </div>
 
@@ -111,7 +111,7 @@ export default function BookingsPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">
-                  ONGOING SESSIONS
+                  ACTIVE SESSIONS
                 </p>
                 <p className="mt-2 text-3xl font-bold text-foreground">
                   {ongoingBookings.length}
@@ -240,7 +240,7 @@ export default function BookingsPage() {
                 </>
               ) : activeTab === "active" ? (
                 <>
-                  <p className="text-xl font-medium text-foreground">No ongoing sessions</p>
+                  <p className="text-xl font-medium text-foreground">No active sessions</p>
                   <p className="mt-2 text-sm text-muted-foreground">
                     You don&apos;t have any active or pending payment bookings
                   </p>

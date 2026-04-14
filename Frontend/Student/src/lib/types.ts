@@ -250,41 +250,24 @@ export interface Booking {
 }
 
 export interface Session {
-  id: string;
-  bookingId?: string;
-  booking?: Booking;
-  teacherId?: string;
-  studentId?: string;
-  subjectId?: string;
-  subject?: Subject | string;
+  sessionNumber: number;
   status: SessionStatus;
-  scheduledAt?: string;
-  startedAt?: string;
-  endedAt?: string;
-  durationMinutes: number;
-  notes?: string;
-  livekitRoomName?: string;
-  createdAt?: string;
-  updatedAt?: string;
-  // UI/Display properties (used in mock/display contexts)
-  StudyLevel?: string;
-  teacherName?: string;
-  completedSessions?: number;
-  totalSessions?: number;
-  nextSessionTime?: string;
-  startTime?: string;
-  completionDate?: string;
-  ratingGiven?: number;
-}
-
-export interface SessionWithTeacher extends Session {
-  teacherName: string;
-  completedSessions: number;
-  totalSessions: number;
-  nextSessionTime?: string;
-  startTime?: string;
-  completionDate?: string;
-  ratingGiven?: number;
+  actualStartAt?: string;
+  booking: {
+    id: string;
+    totalSessions: number;
+    teacher: {
+      id: string;
+      firstName: string;
+      middleName?: string | null;
+      lastName: string;
+      avatarUrl?: string | null;
+    }
+    subject: {
+      id: string;
+      name: string;
+    }
+  }
 }
 
 // ─── Payment & Financial ──────────────────────────────────────────────────────

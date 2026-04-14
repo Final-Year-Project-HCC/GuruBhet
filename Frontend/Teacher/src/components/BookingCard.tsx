@@ -70,6 +70,19 @@ const BookingCard = ({
     },
   });
 
+  const requestNextSessionMutation = useMutation({
+    mutationFn: async () => {
+      return await apiClient.post(`/bookings/${booking.id}/request-session`);
+    },
+    onSuccess: () => {
+      toast.success("Next session requested!");
+      queryClient.invalidateQueries({ queryKey: ["teacherBookings"] });
+    },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    onError: (error: any) => {
+      toast.error(error.response?.data?.detail || "Failed to request next session");
+    },
+  });
   const studentName = booking.student
     ? `${booking.student.firstName} ${booking.student.lastName}`
     : "Unknown Student";
@@ -90,6 +103,10 @@ const BookingCard = ({
     } else if (reason === "") {
       toast.warning("Please provide a reason for declining");
     }
+  };
+
+  const handleRequestNextSession = () => {
+    requestNextSessionMutation.mutate();
   };
 
   const isRefetching = approveMutation.isPending || declineMutation.isPending;
@@ -245,8 +262,8 @@ const BookingCard = ({
                 </span>
               </p>
             )}
-            <button onClick={() => { }} className="w-full rounded-lg bg-primary text-primary-foreground px-4 py-2.5 font-medium transition-opacity hover:opacity-90">
-              Request Next Session
+            <button disabled={requestNextSessionMutation.isPending} onClick={handleRequestNextSession} className="w-full rounded-lg bg-primary text-primary-foreground px-4 py-2.5 font-medium transition-opacity hover:opacity-90">
+              {requestNextSessionMutation.isPending ? "Requesting..." : "Request Next Session"}
             </button>
           </div>
         )}

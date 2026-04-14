@@ -186,23 +186,24 @@ export interface Booking {
 }
 
 export interface Session {
-  id: string;
-  bookingId?: string;
-  booking?: Booking;
-  teacherId: string;
-  studentId: string;
-  student?: Student;
-  subjectId: string;
-  subject?: Subject;
+  sessionNumber: number;
   status: SessionStatus;
-  scheduledAt: string;
-  startedAt?: string;
-  endedAt?: string;
-  durationMinutes: number;
-  notes?: string;
-  livekitRoomName?: string;
-  createdAt?: string;
-  updatedAt?: string;
+  actualStartAt?: string;
+  booking: {
+    id: string;
+    totalSessions: number;
+    student: {
+      id: string;
+      firstName: string;
+      middleName?: string | null;
+      lastName: string;
+      avatarUrl?: string | null;
+    }
+    subject: {
+      id: string;
+      name: string;
+    }
+  }
 }
 
 export interface SessionNote {

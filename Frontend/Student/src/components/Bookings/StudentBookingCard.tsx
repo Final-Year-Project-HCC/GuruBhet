@@ -83,6 +83,19 @@ const StudentBookingCard = ({
     },
   });
 
+  const acceptSessionMutation = useMutation({
+    mutationFn: async () => {
+      return await apiClient.post(`/bookings/${booking.id}/accept-session`);
+    },
+    onSuccess: () => {
+      toast.success("Session accepted!");
+      queryClient.invalidateQueries({ queryKey: ["studentBookings"] });
+    },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    onError: (error: any) => {
+      toast.error(error.response?.data?.detail || "Failed to accept session");
+    },
+  });
   const teacherName = booking.teacher
     ? `${booking.teacher.firstName} ${booking.teacher.lastName}`
     : "Unknown Teacher";
@@ -129,7 +142,9 @@ const StudentBookingCard = ({
   const handlePayNow = () => {
     paymentMutation.mutate();
   };
-
+  const handleAcceptSession = () => {
+    acceptSessionMutation.mutate();
+  };
   const isProcessing =
     cancelMutation.isPending ||
     reviewMutation.isPending ||
@@ -288,8 +303,8 @@ const StudentBookingCard = ({
 
         {booking.status === "ACTIVE" && (
           <div className="space-y-2">
-            <button className="w-full rounded-lg bg-accent text-accent-foreground px-4 py-2.5 font-medium transition-all hover:opacity-90 text-sm">
-              Accept Session
+            <button disabled={acceptSessionMutation.isPending} onClick={handleAcceptSession} className="w-full rounded-lg bg-accent text-accent-foreground px-4 py-2.5 font-medium transition-all hover:opacity-90 text-sm">
+              {acceptSessionMutation.isPending ? "Accepting..." : "Accept Session"}
             </button>
             <button className="w-full flex items-center justify-center gap-2 rounded-lg border border-border bg-transparent px-4 py-2.5 font-medium text-foreground transition-all hover:bg-subtle text-sm">
               <MdMessage className="h-4 w-4" />
