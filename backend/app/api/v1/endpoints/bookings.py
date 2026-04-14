@@ -94,7 +94,7 @@ async def create_booking_request(
 
 @router.post("/{booking_id}/approve", response_model=BookingRead)
 async def approve_booking_request(
-    booking_id: Annotated[UUID, Path(..., alias="bookingId")],
+    booking_id: UUID,
     current_user: Annotated[User, RequireProfessionalTeacher],
     db: DbSession,
 ):
@@ -131,7 +131,7 @@ async def approve_booking_request(
 
 @router.post("/{booking_id}/initiate-payment", response_model=EsewaPaymentInitResponse)
 async def initiate_payment(
-    booking_id: Annotated[UUID, Path(..., alias="bookingId")],
+    booking_id: UUID,
     current_user: CurrentUser,
     db: DbSession,
 ):
@@ -171,7 +171,7 @@ async def initiate_payment(
 
 @router.post("/{booking_id}/request-session", response_model=dict)
 async def request_session(
-    booking_id: Annotated[UUID, Path(..., alias="bookingId")],
+    booking_id: UUID,
     current_user: Annotated[User, RequireProfessionalTeacher],
     db: DbSession,
     background_tasks: BackgroundTasks,
@@ -377,7 +377,7 @@ async def request_session(
 
 @router.post("/{booking_id}/accept-session", response_model=LiveKitTokenResponse)
 async def accept_session_request(
-    booking_id: Annotated[UUID, Path(..., alias="bookingId")],
+    booking_id: UUID,
     current_user: CurrentUser,
     db: DbSession,
     request: Request,
@@ -751,7 +751,7 @@ async def list_my_bookings(current_user: CurrentUser, db: DbSession):
 
 @router.get("/{booking_id}", response_model=BookingRead)
 async def get_booking(
-    booking_id: Annotated[UUID, Path(..., alias="bookingId")],
+    booking_id: UUID,
     current_user: CurrentUser,
     db: DbSession,
 ):
@@ -769,7 +769,7 @@ async def get_booking(
 
 @router.get("/{booking_id}/sync", response_model=LiveKitTokenResponse)
 async def sync_session(
-    booking_id: Annotated[UUID, Path(..., alias="bookingId")],
+    booking_id: UUID,
     current_user: CurrentUser,
     db: DbSession,
 ):
