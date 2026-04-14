@@ -1,18 +1,18 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import apiClient from "@/lib/api";
 import BookingCard from "@/components/BookingCard";
 import { Search, TrendingUp, ClipboardList, BookOpen } from "lucide-react";
 import { Booking } from "@/lib/types";
 
-type TabType = "requests" | "unpaid" | "ongoing" | "history";
+type TabType = "requests" | "unpaid" | "active" | "history";
 
 export default function BookingsPage() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState<TabType>("requests");
-
+  const [activeTab, setActiveTab] = useState<TabType>("active");
+  const isFirstTime = useRef(true);
   // Fetch bookings for the logged-in teacher
   const { data: bookings = [], isLoading, error } = useQuery<Booking[]>({
     queryKey: ["teacherBookings"],
@@ -30,7 +30,12 @@ export default function BookingsPage() {
   const historyBookings = bookings.filter(
     (b) => b.status === "COMPLETED" || b.status.includes("CANCELLED")
   );
-
+  useEffect(() => {
+    if (requestBookings?.length > 0 && isFirstTime.current) {
+      setActiveTab("requests");
+      isFirstTime.current = false;
+    }
+  }, [requestBookings]);
   // Search filter for history tab
   const filteredHistory = historyBookings.filter((b) =>
     `${b.student?.firstName || ''} ${b.student?.lastName || ''}`
@@ -47,7 +52,7 @@ export default function BookingsPage() {
   const tabContent = {
     requests: requestBookings,
     unpaid: unpaidBookings,
-    ongoing: ongoingBookings,
+    active: ongoingBookings,
     history: filteredHistory,
   };
 
@@ -125,8 +130,8 @@ export default function BookingsPage() {
                   TOTAL EARNED
                 </p>
                 <p className="mt-2 text-3xl font-bold text-foreground">
-                  
-Rs {totalEarned.toLocaleString("en-IN", {
+
+                  Rs {totalEarned.toLocaleString("en-IN", {
                     minimumFractionDigits: 0,
                     maximumFractionDigits: 0,
                   })}
@@ -143,42 +148,38 @@ Rs {totalEarned.toLocaleString("en-IN", {
         <div className="mb-8 border-b border-border">
           <div className="flex gap-4">
             <button
+              onClick={() => setActiveTab("active")}
+              className={`px-4 py-3 font-medium transition-colors ${activeTab === "active"
+                ? "border-b-2 border-primary text-primary"
+                : "text-muted-foreground hover:text-foreground"
+                }`}
+            >
+              Active ({ongoingBookings.length})
+            </button>
+            <button
               onClick={() => setActiveTab("requests")}
-              className={`px-4 py-3 font-medium transition-colors ${
-                activeTab === "requests"
-                  ? "border-b-2 border-primary text-primary"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
+              className={`px-4 py-3 font-medium transition-colors ${activeTab === "requests"
+                ? "border-b-2 border-primary text-primary"
+                : "text-muted-foreground hover:text-foreground"
+                }`}
             >
               Requests ({requestBookings.length})
             </button>
             <button
               onClick={() => setActiveTab("unpaid")}
-              className={`px-4 py-3 font-medium transition-colors ${
-                activeTab === "unpaid"
-                  ? "border-b-2 border-primary text-primary"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
+              className={`px-4 py-3 font-medium transition-colors ${activeTab === "unpaid"
+                ? "border-b-2 border-primary text-primary"
+                : "text-muted-foreground hover:text-foreground"
+                }`}
             >
               Unpaid ({unpaidBookings.length})
             </button>
             <button
-              onClick={() => setActiveTab("ongoing")}
-              className={`px-4 py-3 font-medium transition-colors ${
-                activeTab === "ongoing"
-                  ? "border-b-2 border-primary text-primary"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              Ongoing ({ongoingBookings.length})
-            </button>
-            <button
               onClick={() => setActiveTab("history")}
-              className={`px-4 py-3 font-medium transition-colors ${
-                activeTab === "history"
-                  ? "border-b-2 border-primary text-primary"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
+              className={`px-4 py-3 font-medium transition-colors ${activeTab === "history"
+                ? "border-b-2 border-primary text-primary"
+                : "text-muted-foreground hover:text-foreground"
+                }`}
             >
               History ({historyBookings.length})
             </button>
@@ -237,7 +238,7 @@ Rs {totalEarned.toLocaleString("en-IN", {
                     All bookings have been paid
                   </p>
                 </>
-              ) : activeTab === "ongoing" ? (
+              ) : activeTab === "active" ? (
                 <>
                   <p className="text-xl font-medium text-foreground">No ongoing sessions</p>
                   <p className="mt-2 text-sm text-muted-foreground">

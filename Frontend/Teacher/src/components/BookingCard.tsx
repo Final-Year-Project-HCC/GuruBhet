@@ -96,9 +96,8 @@ const BookingCard = ({
 
   return (
     <div
-      className={`overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all hover:shadow-md ${
-        isRefetching ? "opacity-50 pointer-events-none" : ""
-      }`}
+      className={`overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all hover:shadow-md ${isRefetching ? "opacity-50 pointer-events-none" : ""
+        }`}
     >
       <div className="border-b border-border bg-muted/30 p-5">
         <div className="flex gap-3 mb-4">
@@ -160,11 +159,10 @@ const BookingCard = ({
             {Array.from({ length: booking.totalSessions }).map((_, i) => (
               <div
                 key={i}
-                className={`h-2 flex-1 rounded-full transition-colors ${
-                  i < booking.completedSessions
-                    ? "bg-emerald-500"
-                    : "bg-gray-300 dark:bg-gray-600"
-                }`}
+                className={`h-2 flex-1 rounded-full transition-colors ${i < booking.completedSessions
+                  ? "bg-emerald-500"
+                  : "bg-gray-300 dark:bg-gray-600"
+                  }`}
               />
             ))}
           </div>
@@ -247,8 +245,8 @@ const BookingCard = ({
                 </span>
               </p>
             )}
-            <button className="w-full rounded-lg bg-primary text-primary-foreground px-4 py-2.5 font-medium transition-opacity hover:opacity-90">
-              View Sessions
+            <button onClick={() => { }} className="w-full rounded-lg bg-primary text-primary-foreground px-4 py-2.5 font-medium transition-opacity hover:opacity-90">
+              Request Next Session
             </button>
           </div>
         )}

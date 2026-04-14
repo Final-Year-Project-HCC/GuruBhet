@@ -14,119 +14,6 @@ const TeacherDetailPage = () => {
   const { data: user } = useUser();
   const { data: teacherData } = useTeacherForPublic(user?.id || null);
   const { data: teacherSubjects } = useTeacherSubjects(user?.id || null);
-  // Mock teacher subjects - in production, fetch from API
-  // This simulates a teacher teaching multiple subjects with different rates
-  // const teacherSubjects: TeacherSubjectRead[] = useMemo(() => {
-  //   const board = { id: 'b-1', name: 'Tribhuvan University', description: undefined, isActive: true };
-
-  //   const subjects = [
-  //     {
-  //       teacherId: teacher?.id || '',
-  //       subjectId: 'subj-1',
-  //       ratePerSession: 1200,
-  //       yearsOfExperience: 5,
-  //       totalSessionsCompleted: 150,
-  //       avgRating: 4.9,
-  //       ratingCount: 48,
-  //       isActive: true,
-  //       subject: {
-  //         id: 'subj-1',
-  //         name: 'Quantum Mechanics',
-  //         studyLevel: { id: 'sl-1', name: 'Bachelor', description: undefined, isActive: true },
-  //         studyLevelId: 'sl-1',
-  //         board,
-  //         boardId: 'b-1',
-  //         faculty: {
-  //           id: 'fac-1',
-  //           name: 'Physics',
-  //           board,
-  //           boardId: 'b-1',
-  //           studyLevelId: 'sl-1',
-  //           description: 'Advanced Physics Track',
-  //           unitType: UnitType.SEMESTER,
-  //           totalUnits: 8,
-  //           isActive: true,
-  //         },
-  //         facultyId: 'fac-1',
-  //         unitValue: 5,
-  //         isActive: true,
-  //         createdAt: new Date().toISOString(),
-  //         updatedAt: new Date().toISOString(),
-  //       },
-  //     },
-  //     {
-  //       teacherId: teacher?.id || '',
-  //       subjectId: 'subj-2',
-  //       ratePerSession: 950,
-  //       yearsOfExperience: 4,
-  //       totalSessionsCompleted: 120,
-  //       avgRating: 4.8,
-  //       ratingCount: 42,
-  //       isActive: true,
-  //       subject: {
-  //         id: 'subj-2',
-  //         name: 'Classical Mechanics',
-  //         studyLevel: { id: 'sl-1', name: 'Bachelor', description: undefined, isActive: true },
-  //         studyLevelId: 'sl-1',
-  //         board,
-  //         boardId: 'b-1',
-  //         faculty: {
-  //           id: 'fac-1',
-  //           name: 'Physics',
-  //           board,
-  //           boardId: 'b-1',
-  //           studyLevelId: 'sl-1',
-  //           description: 'Advanced Physics Track',
-  //           unitType: UnitType.SEMESTER,
-  //           totalUnits: 8,
-  //           isActive: true,
-  //         },
-  //         facultyId: 'fac-1',
-  //         unitValue: 3,
-  //         isActive: true,
-  //         createdAt: new Date().toISOString(),
-  //         updatedAt: new Date().toISOString(),
-  //       },
-  //     },
-  //     {
-  //       teacherId: teacher?.id || '',
-  //       subjectId: 'subj-3',
-  //       ratePerSession: 1100,
-  //       yearsOfExperience: 6,
-  //       totalSessionsCompleted: 200,
-  //       avgRating: 4.9,
-  //       ratingCount: 65,
-  //       isActive: true,
-  //       subject: {
-  //         id: 'subj-3',
-  //         name: 'Thermodynamics',
-  //         studyLevel: { id: 'sl-1', name: 'Bachelor', description: undefined, isActive: true },
-  //         studyLevelId: 'sl-1',
-  //         board,
-  //         boardId: 'b-1',
-  //         faculty: {
-  //           id: 'fac-1',
-  //           name: 'Physics',
-  //           board,
-  //           boardId: 'b-1',
-  //           studyLevelId: 'sl-1',
-  //           description: 'Advanced Physics Track',
-  //           unitType: UnitType.SEMESTER,
-  //           totalUnits: 8,
-  //           isActive: true,
-  //         },
-  //         facultyId: 'fac-1',
-  //         unitValue: 4,
-  //         isActive: true,
-  //         createdAt: new Date().toISOString(),
-  //         updatedAt: new Date().toISOString(),
-  //       },
-  //     },
-  //   ];
-  //   return subjects;
-  // }, [teacher?.id]);
-
-  // Filter subjects based on search query
 
   if (!teacherData) {
     return (
@@ -241,7 +128,7 @@ const TeacherDetailPage = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                     {teacherSubjects.map((ts) => (
                       <SubjectCard
-                        key={ts.subjectId}
+                        key={ts.subject.id}
                         teacherSubject={ts}
                       />
                     ))}

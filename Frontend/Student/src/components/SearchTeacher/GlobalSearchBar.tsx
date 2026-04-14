@@ -12,12 +12,15 @@ interface GlobalSearchBarProps {
   selectedSubjectName?: string;
   /** Called when the user clears or changes the query — signals parent to reset */
   onClear?: () => void;
+  /** Called when the user interacts with the search bar */
+  onInteraction?: () => void;
 }
 
 const GlobalSearchBar: React.FC<GlobalSearchBarProps> = ({
   onSubjectSelect,
   selectedSubjectName,
   onClear,
+  onInteraction,
 }) => {
   const [searchQuery, setSearchQuery] = useState(selectedSubjectName ?? '');
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -90,6 +93,7 @@ const GlobalSearchBar: React.FC<GlobalSearchBarProps> = ({
   }, [showSuggestions]);
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (onInteraction) onInteraction();
     setSearchQuery(e.target.value);
     setShowSuggestions(true);
     if (isSubjectSelected && onClear) onClear();
@@ -175,7 +179,10 @@ const GlobalSearchBar: React.FC<GlobalSearchBarProps> = ({
                   key={subject.id}
                   role="option"
                   aria-selected={active}
-                  onMouseDown={() => handleSuggestionClick(subject)}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    handleSuggestionClick(subject);
+                  }}
                   onMouseEnter={() => setHighlightedIndex(idx)}
                   className={`flex items-start gap-3 px-3 py-3 rounded-xl cursor-pointer transition-colors ${active ? 'bg-muted' : 'hover:bg-muted/60'
                     }`}
@@ -205,14 +212,14 @@ const GlobalSearchBar: React.FC<GlobalSearchBarProps> = ({
                     <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 mt-1.5">
                       {/* Study level */}
                       <span className="text-[10px] font-bold bg-muted text-muted-foreground px-2 py-0.5 rounded-md uppercase tracking-wide">
-                        {subject.studyLevel?.name}
+                        {subject.faculty?.studyLevel?.name}
                       </span>
 
                       <span className="text-muted-foreground/30 text-[10px] select-none">›</span>
 
                       {/* Board */}
                       <span className="text-[10px] font-semibold text-muted-foreground max-w-[9rem] truncate">
-                        {subject.board?.name}
+                        {subject.faculty?.board?.name}
                       </span>
 
                       {subject.faculty && (
@@ -291,7 +298,10 @@ const GlobalSearchBar: React.FC<GlobalSearchBarProps> = ({
           ref={inputRef}
           type="text"
           value={searchQuery}
-          onChange={handleSearchChange}
+          onChange={(e) => {
+            handleSearchChange(e);
+            if (onInteraction) onInteraction();
+          }}
           onFocus={() => {
             if (!isSubjectSelected) setShowSuggestions(true);
             updateRect();

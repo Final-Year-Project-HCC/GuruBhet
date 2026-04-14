@@ -38,7 +38,6 @@ function isPublicRoute(pathname: string): boolean {
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  console.log("HELLO")
   // If it's a public route, allow it through without auth check
   if (isPublicRoute(pathname)) {
     return NextResponse.next();
@@ -48,11 +47,8 @@ export async function middleware(request: NextRequest) {
   if (!isProtectedRoute(pathname)) {
     return NextResponse.next();
   }
-  console.log(pathname + " HELLO")
-  console.log("All Cookies:", request.cookies.getAll());
   // Protected route: Check authentication
   const accessToken = request.cookies.get("access_token")?.value;
-  console.log(accessToken)
 
   if (!accessToken) {
     // No token found, redirect to login
@@ -72,7 +68,6 @@ export async function middleware(request: NextRequest) {
     // Token is invalid or expired - try to refresh
     if (verifyResponse.status === 401) {
       const refreshToken = request.cookies.get("refresh_token")?.value;
-  console.log(accessToken)
 
       if (!refreshToken) {
         // No refresh token, redirect to login
@@ -100,7 +95,7 @@ export async function middleware(request: NextRequest) {
 
         // 2. Get Set-Cookie headers from refresh response
         const setCookieHeaders = refreshResponse.headers.getSetCookie();
-        
+
         // 3. Apply each Set-Cookie header to both the Response and the Request
         setCookieHeaders.forEach((cookieString) => {
           // Send to browser for future requests
@@ -109,7 +104,7 @@ export async function middleware(request: NextRequest) {
           // Parse name and value to update the CURRENT request
           const [cookieNameValuePair] = cookieString.split(';');
           const [name, value] = cookieNameValuePair.split('=');
-          
+
           // Update the request object so Server Components see the new token now
           request.cookies.set(name, value);
         });

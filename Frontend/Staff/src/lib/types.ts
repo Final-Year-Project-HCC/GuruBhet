@@ -29,6 +29,7 @@ export interface Faculty {
   unitType: UnitType;
   totalUnits: number;
   board?: Board;
+  studyLevel?: StudyLevel;
   description?: string;
   createdAt?: string;
   updatedAt?: string;
@@ -38,8 +39,6 @@ export interface Subject {
   id: string;
   name: string;
   unitValue: number;
-  studyLevel?: StudyLevel;
-  board?: Board;
   faculty?: Faculty;
   createdAt?: string;
   updatedAt?: string;
@@ -110,7 +109,7 @@ export interface TeacherSubject {
   id?: string;
   teacherId: string;
   subjectId: string;
-  subject?: Subject;
+  subject: Subject;
   ratePerSession: number;
   yearsOfExperience: number;
   avgRating?: number;
@@ -119,6 +118,7 @@ export interface TeacherSubject {
   createdAt?: string;
   updatedAt?: string;
 }
+
 
 export interface Teacher {
   id: string;

@@ -1,9 +1,9 @@
 import React from 'react';
-import { TeacherSubjectRead } from '../../lib/types';
+import { TeacherSubject } from '../../lib/types';
 
 interface SubjectCardProps {
-  teacherSubject: TeacherSubjectRead;
-  onBookNow: (teacherSubject: TeacherSubjectRead) => void;
+  teacherSubject: TeacherSubject;
+  onBookNow: (teacherSubject: TeacherSubject) => void;
   requireAuth: (callback: () => void) => void;
 }
 
@@ -14,10 +14,10 @@ const SubjectCard: React.FC<SubjectCardProps> = ({
 }) => {
   const { subject, ratePerSession, yearsOfExperience } = teacherSubject;
 
-  // Build hierarchical context string
+  // Build hierarchical context string (studyLevel & board live under subject.faculty)
   const hierarchyBadges = [
-    subject.studyLevel?.name,
-    subject.board?.name,
+    subject.faculty?.studyLevel?.name,
+    subject.faculty?.board?.name,
     subject.faculty?.name,
   ].filter(Boolean);
 
