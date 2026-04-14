@@ -1,54 +1,7 @@
 
 import { Teacher, Session, StudyLevel } from '../lib/types';
 
-export const ACTIVE_SESSIONS: Session[] = [
-  {
-    id: '1',
-    teacherName: 'Sarah Jenkins',
-    subject: 'Advanced Calculus',
-    StudyLevel: 'Bachelor',
-    status: 'Live',
-    durationMinutes: 60,
-    completedSessions: 8,
-    totalSessions: 12,
-    nextSessionTime: 'Starts in 15 mins'
-  },
-  {
-    id: '2',
-    teacherName: 'Dr. Marcus Thorne',
-    subject: 'Organic Chemistry',
-    StudyLevel: 'Bachelor',
-    status: 'Scheduled',
-    durationMinutes: 90,
-    completedSessions: 3,
-    totalSessions: 20,
-    nextSessionTime: 'Tomorrow, 4:00 PM'
-  },
-  {
-    id: '3',
-    teacherName: 'Elena Rodriguez',
-    subject: 'UI/UX Design',
-    StudyLevel: 'Diploma',
-    status: 'Active',
-    durationMinutes: 45,
-    completedSessions: 15,
-    totalSessions: 15,
-    nextSessionTime: 'Review Pending'
-  },
-  {
-    id: '4',
-    teacherName: 'Kevin Wang',
-    subject: 'Data Structures',
-    StudyLevel: 'Bachelor',
-    status: 'Scheduled',
-    durationMinutes: 60,
-    completedSessions: 5,
-    totalSessions: 10,
-    nextSessionTime: 'Wednesday, 10:00 AM'
-  },
-];
-
-export const COMPLETED_SESSIONS: Session[] = [
+export const COMPLETED_SESSIONS: any[] = [
   {
     id: 'c1',
     teacherName: 'James Wilson',
