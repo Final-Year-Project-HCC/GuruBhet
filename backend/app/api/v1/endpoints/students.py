@@ -15,8 +15,10 @@ from app.models.student import StudentProfile
 from app.models.subject import Subject
 from app.models.user import User
 from app.schemas.booking import BookingDetailedReadForStudent
-from app.schemas.session import StudentSessionRead
+from app.schemas.session import SessionDetailedReadForStudent
+from app.services.session_service import fetch_sessions_for_user
 from app.schemas.user import StudentProfileRead, StudentProfileUpdate
+from app.services.booking_service import fetch_bookings_for_user
 
 router = APIRouter()
 
@@ -66,12 +68,8 @@ async def update_my_profile(
 # ── Own bookings ──────────────────────────────────────────────────────────────
 
 
-@router.get("/me/sessions", response_model=list[StudentSessionRead])
-async def get_my_sessions(
-    current_user: CurrentUser,
-    db: DbSession,
-    in_progress: bool = Query(default=True, description="Filter for in-progress sessions"),
-):
+@router.get("/me/sessions/in-progress", response_model=list[SessionDetailedReadForStudent])
+async def get_my_sessions(current_user: CurrentUser, db: DbSession):
     """
     Return sessions for the logged-in student.
     By default, only returns sessions with status IN_PROGRESS.
@@ -85,38 +83,8 @@ async def get_my_sessions(
     )
     if not profile_result.scalar_one_or_none():
         raise StudentNotFoundError(student_id=str(current_user.id))
-
-    query = (
-        select(
-            Session.id,
-            Session.booking_id,
-            Session.status,
-            User.first_name,
-            User.last_name,
-            Subject.name.label("subject_name"),
-        )
-        .join(Booking, Session.booking_id == Booking.id)
-        .join(User, Booking.teacher_id == User.id)
-        .join(Subject, Booking.subject_id == Subject.id)
-        .where(Booking.student_id == current_user.id)
-    )
-
-    if in_progress:
-        query = query.where(Session.status == SessionStatus.IN_PROGRESS)
-
-    result = await db.execute(query)
-    rows = result.all()
-
-    return [
-        {
-            "id": row.id,
-            "booking_id": row.booking_id,
-            "status": row.status,
-            "teacher_name": f"{row.first_name} {row.last_name}",
-            "subject_name": row.subject_name,
-        }
-        for row in rows
-    ]
+    sessions = await fetch_sessions_for_user(db, current_user.id, UserRole.STUDENT, in_progress=True)
+    return sessions
 
 
 @router.get("/me/bookings", response_model=list[BookingDetailedReadForStudent])
@@ -124,22 +92,8 @@ async def get_my_bookings(current_user: CurrentUser, db: DbSession):
     """Return all bookings for the logged-in student with teacher and subject details."""
     if current_user.role != UserRole.STUDENT:
         raise PermissionDeniedError(detail="Only students can access this")
-
-    from sqlalchemy.orm import selectinload
-
-    from app.models.teacher import TeacherProfile
-
-    result = await db.execute(
-        select(Booking)
-        .options(
-            selectinload(Booking.sessions),
-            selectinload(Booking.teacher).selectinload(TeacherProfile.user),
-            selectinload(Booking.subject),
-        )
-        .where(Booking.student_id == current_user.id)
-        .order_by(Booking.created_at.desc())
-    )
-    return list(result.scalars().all())
+    bookings = await fetch_bookings_for_user(db, current_user.id, UserRole.STUDENT)
+    return bookings
 
 
 # ── Public profile (viewable by teachers and staff) ────────────────────────────
