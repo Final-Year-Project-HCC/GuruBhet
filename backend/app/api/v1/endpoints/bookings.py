@@ -160,8 +160,16 @@ async def initiate_payment(
             context={"current_status": booking.status.value, "required_status": "PENDING_PAYMENT"},
         )
 
-    # Return eSewa payment init params (this would call eSewa API)
-    # For now, return a placeholder response
+    # DEVELOPMENT BYPASS - mark booking ACTIVE when the student initiates payment.
+    # TODO: Remove this bypass once real payment integration is implemented. Replace
+    # this logic with an actual payment initiation flow that returns payment URLs/params
+    # and only activates the booking on successful payment webhook/callback.
+    booking.status = BookingStatus.ACTIVE
+    # Persist the state change to simulate a successful payment capture.
+    await db.commit()
+    await db.refresh(booking)
+
+    # Return eSewa payment init params (placeholder) for compatibility with frontend.
     return EsewaPaymentInitResponse(
         transaction_uuid=str(booking.id),  # Placeholder
         total_amount=str(booking.total_amount),
