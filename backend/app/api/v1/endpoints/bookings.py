@@ -906,7 +906,7 @@ async def sync_session(
 
 @router.post("/{booking_id}/cancel", response_model=BookingRead)
 async def cancel_booking(
-    booking_id: Annotated[UUID, Path(..., alias="bookingId")],
+    booking_id: UUID,
     body: BookingCancelRequest,
     current_user: CurrentUser,
     db: DbSession,
