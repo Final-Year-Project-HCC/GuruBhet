@@ -577,16 +577,16 @@ async def accept_session_request(
     # ── Clear Redis key after successful acceptance ──
     await clear_pending_session_key(str(booking_id))
 
-    # ── Emit Socket.IO event to teacher with their token ──
-    sio_manager = get_socketio_manager()
-    if sio_manager:
-        background_tasks.add_task(
-            _emit_session_ready_to_teacher,
-            sio_manager=sio_manager,
-            booking=booking,
-            session=session,
-            actual_session_id=actual_session_id
-        )
+    # # ── Emit Socket.IO event to teacher with their token ──
+    # sio_manager = get_socketio_manager()
+    # if sio_manager:
+    #     background_tasks.add_task(
+    #         _emit_session_ready_to_teacher,
+    #         sio_manager=sio_manager,
+    #         booking=booking,
+    #         session=session,
+    #         actual_session_id=actual_session_id
+    #     )
 
     # Refresh to get the latest state from database
     await db.refresh(session)
