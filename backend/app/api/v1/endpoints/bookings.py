@@ -169,12 +169,13 @@ async def initiate_payment(
     await db.commit()
     await db.refresh(booking)
 
+    return {"message":"Payment succesfull"}
     # Return eSewa payment init params (placeholder) for compatibility with frontend.
-    return EsewaPaymentInitResponse(
-        transaction_uuid=str(booking.id),  # Placeholder
-        total_amount=str(booking.total_amount),
-        esewa_url="https://esewa.com.np",  # Placeholder
-    )
+    # return EsewaPaymentInitResponse(
+    #     transaction_uuid=str(booking.id),  # Placeholder
+    #     total_amount=str(booking.total_amount),
+    #     esewa_url="https://esewa.com.np",  # Placeholder
+    # )
 
 
 @router.post("/{booking_id}/request-session", response_model=dict)
