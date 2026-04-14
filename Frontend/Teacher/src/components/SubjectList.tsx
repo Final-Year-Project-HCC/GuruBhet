@@ -76,13 +76,13 @@ export function SubjectList({ onSubjectDeleted }: SubjectListProps) {
             <tbody>
               {teacherSubjects?.map((ts: TeacherSubject) => (
                 <tr
-                  key={ts.subjectId}
+                  key={ts.subject.id}
                   className="border-b border-border hover:bg-muted/50 transition-colors"
                 >
                   <td className="px-4 py-3 font-medium">{ts.subject.name}</td>
                   <td className="px-4 py-3 text-muted-foreground text-xs">
                     <div>
-                      {ts.subject.studyLevel?.name} | {ts.subject.board?.name} |
+                      {ts.subject.faculty?.studyLevel?.name} | {ts.subject.faculty?.board?.name} |
                       {ts.subject.faculty?.name} | {ts.subject.unitValue}
                     </div>
                   </td>
@@ -92,11 +92,11 @@ export function SubjectList({ onSubjectDeleted }: SubjectListProps) {
                   <td className="px-4 py-3 text-right">{ts.yearsOfExperience} years</td>
                   <td className="px-4 py-3 text-center">
                     <button
-                      onClick={() => handleDelete(ts.subjectId, ts.subject.name)}
+                      onClick={() => handleDelete(ts.subject.id, ts.subject.name)}
                       disabled={deleteSubjectMutation.isPending}
                       className="px-3 py-1 bg-muted text-destructive rounded-md hover:bg-muted/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-xs font-medium border border-destructive"
                     >
-                      {deleteSubjectMutation.isPending && deleteSubjectMutation.variables === ts.subjectId ? <Loader2 className="animate-spin" size={16} /> : <FiTrash2 size={16} />}
+                      {deleteSubjectMutation.isPending && deleteSubjectMutation.variables === ts.subject.id ? <Loader2 className="animate-spin" size={16} /> : <FiTrash2 size={16} />}
                     </button>
                   </td>
                 </tr>
@@ -109,14 +109,14 @@ export function SubjectList({ onSubjectDeleted }: SubjectListProps) {
         <div className="md:hidden space-y-4">
           {teacherSubjects?.map((ts: TeacherSubject) => (
             <div
-              key={ts.subjectId}
+              key={ts.subject.id}
               className="border border-border rounded-lg p-4 space-y-3"
             >
               <div className="flex justify-between items-start gap-2">
                 <div>
                   <h4 className="font-semibold text-foreground">{ts.subject.name}</h4>
                   <p className="text-xs text-muted-foreground mt-1">
-                    {ts.subject.studyLevel?.name} · {ts.subject.board?.name} · {ts.subject.faculty?.name}
+                    {ts.subject.faculty?.studyLevel?.name} | {ts.subject.faculty?.board?.name} | {ts.subject.faculty?.name}
                   </p>
                 </div>
               </div>
@@ -131,7 +131,7 @@ export function SubjectList({ onSubjectDeleted }: SubjectListProps) {
                 </div>
               </div>
               <button
-                onClick={() => handleDelete(ts.subjectId, ts.subject.name)}
+                onClick={() => handleDelete(ts.subject.id, ts.subject.name)}
                 disabled={deleteSubjectMutation.isPending}
                 className="w-full px-3 py-2 bg-muted text-destructive rounded-md hover:bg-muted/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium border border-destructive"
               >

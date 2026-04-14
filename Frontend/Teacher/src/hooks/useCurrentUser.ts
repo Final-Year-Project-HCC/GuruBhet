@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import apiClient from "@/lib/api";
 import type { CurrentUserData } from "@/lib/types";
 
-const QUERY_KEY = ["auth", "current-user"];
+export const QUERY_KEY = ["auth", "current-user"];
 
 async function fetchCurrentUser(): Promise<CurrentUserData | null> {
   try {

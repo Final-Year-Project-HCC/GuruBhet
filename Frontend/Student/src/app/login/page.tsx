@@ -2,13 +2,14 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-toastify";
 import axios from "axios";
 import { FiEye, FiEyeOff } from "react-icons/fi";
 import { validateEmail } from "@/lib/utils";
 import apiClient from "@/lib/api";
 import { useAuthRedirectToLanding } from "@/hooks";
+import { QUERY_KEY } from "@/hooks/useCurrentUser";
 import CheckEmail from "@/components/CheckEmail";
 
 type LoginInput = {
@@ -19,11 +20,12 @@ type LoginInput = {
 export default function LoginPage() {
   // Redirect authenticated users to home page
   useAuthRedirectToLanding("/");
-  
-  const router = useRouter()
+
+  const router = useRouter();
+  const queryClient = useQueryClient();
   const [isCheckingEmail, setIsCheckingEmail] = useState(false);
   const [verificationEmail, setVerificationEmail] = useState("");
-  
+
   const [form, setForm] = useState<LoginInput>({ email: "", password: "" });
   const [touched, setTouched] = useState<Record<keyof LoginInput, boolean>>({ email: false, password: false });
   const [showPassword, setShowPassword] = useState(false);
@@ -51,7 +53,7 @@ export default function LoginPage() {
       if (errorCode === "AUTH_EMAIL_NOT_VERIFIED") {
         // Email not verified - send verification email and show CheckEmail component
         setVerificationEmail(form.email);
-        
+
         // Automatically send verification email
         apiClient
           .post("/auth/resend-verification", { email: form.email })
@@ -75,6 +77,7 @@ export default function LoginPage() {
       }
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEY });
       toast.success("Logged in successfully");
       router.push("/");
     },

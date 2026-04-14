@@ -20,7 +20,7 @@ export interface CurrentUserData {
   permissions: string[];
 }
 
-const QUERY_KEY = ["auth", "current-user"];
+export const QUERY_KEY = ["auth", "current-user"];
 
 async function fetchCurrentUser(): Promise<CurrentUserData | null> {
   try {

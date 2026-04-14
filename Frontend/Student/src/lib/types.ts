@@ -7,18 +7,17 @@
 export interface StudyLevel {
   id: string;
   name: string;
-  description?: string;
-  createdAt?: string;
-  updatedAt?: string;
+  description?: string | null;
+  isActive?: boolean | null;
 }
 
 export interface Board {
   id: string;
   name: string;
-  studyLevels?: StudyLevel[];
-  description?: string;
-  createdAt?: string;
-  updatedAt?: string;
+  description?: string | null;
+  isActive?: boolean | null;
+  /** Only present when fetched with study-level context */
+  studyLevels?: StudyLevel[] | null;
 }
 
 export interface Faculty {
@@ -26,21 +25,20 @@ export interface Faculty {
   name: string;
   unitType: UnitType;
   totalUnits: number;
-  board?: Board;
-  description?: string;
-  createdAt?: string;
-  updatedAt?: string;
+  board?: Board | null;
+  studyLevel?: StudyLevel | null;
+  description?: string | null;
+  isActive?: boolean | null;
 }
 
 export interface Subject {
   id: string;
   name: string;
   unitValue: number;
-  studyLevel?: StudyLevel;
-  board?: Board;
-  faculty?: Faculty;
-  createdAt?: string;
-  updatedAt?: string;
+  isActive?: boolean | null;
+  faculty?: Faculty | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
 }
 
 export interface BoardStudyLevelAssociation {
@@ -49,19 +47,23 @@ export interface BoardStudyLevelAssociation {
   studyLevelId: string;
 }
 
-
 export enum UnitType {
   SEMESTER = 'SEMESTER',
   GRADE = 'GRADE',
   YEAR = 'YEAR',
 }
-/**
- * User & Authentication
- */
+
+// ─── User & Authentication ────────────────────────────────────────────────────
 
 export type UserRole = 'STUDENT' | 'TEACHER' | 'ADMIN';
 export type VerificationStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+export type DocumentType = 'NID_FRONT' | 'NID_BACK' | 'PAN_CARD' | 'SELFIE_WITH_NID';
 
+// ─── Legacy Teacher (used by mock data in constants.ts, SearchTeacherCard, etc.) ─
+/**
+ * @deprecated Legacy Teacher type used only by mock data.
+ * Use TeacherPublicProfile + TeacherSubjectRead for real API data.
+ */
 export interface Teacher {
   id: string;
   firstName: string;
@@ -83,50 +85,78 @@ export interface Teacher {
   isAvailable?: boolean;
 }
 
+/**
+ * Full authenticated user (from /auth/me or UserRead).
+ * Matches backend UserRead schema (camelCase via SharedConfig).
+ */
 export interface User {
   id: string;
-  email: string;
   firstName: string;
+  middleName?: string | null;
   lastName: string;
-  phoneNumber?: string;
-  userType: UserRole;
+  email: string;
+  /** Backend field: phone (not phoneNumber) */
+  phone?: string | null;
+  avatarUrl?: string | null;
+  role: UserRole;
+  isEmailVerified: boolean;
   isActive: boolean;
-  emailVerified: boolean;
-  createdAt?: string;
-  updatedAt?: string;
-}
-
-export interface StudentProfile {
-  id: string;
-  userId: string;
-  educationalLevel?: string;
-  profilePictureUrl?: string;
-  createdAt?: string;
-  updatedAt?: string;
+  isBanned: boolean;
+  isSuperuser: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 /**
- * Teacher Information (for student discovery)
+ * Minimal public user info embedded inside teacher profile responses.
+ * Matches backend UserPublicRead schema.
  */
-
-export interface TeacherProfile {
-  id: string;
-  userId: string;
-  bio?: string;
-  qualification?: string;
-  yearsOfExperience: number;
-  profilePictureUrl?: string;
-  verificationStatus: VerificationStatus;
-  avgRating?: number;
-  ratingCount?: number;
-  isAvailable: boolean;
-  createdAt?: string;
-  updatedAt?: string;
+export interface UserPublicRead {
+  firstName: string;
+  middleName?: string | null;
+  lastName: string;
+  avatarUrl?: string | null;
 }
 
+export interface StudentProfile {
+  userId: string;
+  bio?: string | null;
+}
+
+// ─── Teacher Public Profile ───────────────────────────────────────────────────
+
+/**
+ * Public teacher profile returned by GET /teachers/{id}/profile.
+ * Matches backend TeacherProfileRead schema.
+ */
+export interface TeacherPublicProfile {
+  userId: string;
+  bio?: string | null;
+  tagline?: string | null;
+  user: UserPublicRead;
+}
+
+/**
+ * Teacher's subject entry with rates & stats.
+ * Matches backend TeacherSubjectRead schema.
+ */
 export interface TeacherSubjectRead {
   teacherId: string;
-  subjectId: string;
+  ratePerSession: number;
+  yearsOfExperience: number;
+  totalSessionsCompleted: number;
+  avgRating: number;
+  ratingCount: number;
+  subject: Subject;
+}
+
+/**
+ * A local UI model combining teacher + subject for SubjectCard / BookingModal.
+ * NOTE: ratePerSession / avgRating are plain numbers here (Decimal is serialised to string by Pydantic,
+ * but axios parses JSON numbers natively).
+ */
+export interface TeacherSubject {
+  teacherId: string;
   ratePerSession: number;
   yearsOfExperience: number;
   totalSessionsCompleted: number;
@@ -136,6 +166,25 @@ export interface TeacherSubjectRead {
   subject: Subject;
 }
 
+/**
+ * Rating/review for a teacher.
+ * Matches backend RatingRead schema.
+ */
+export interface TeacherRating {
+  id: string;
+  sessionId: string;
+  teacherId: string;
+  subjectId: string;
+  score: number;
+  comment?: string | null;
+  isAnonymous: boolean;
+  createdAt: string;
+}
+
+/**
+ * Search result card returned by GET /teachers/search.
+ * Matches backend TeacherSearchResult schema.
+ */
 export interface TeacherSearchResult {
   teacherId: string;
   subjectId: string;
@@ -145,14 +194,12 @@ export interface TeacherSearchResult {
   ratingCount: number;
   totalSessionsCompleted: number;
   teacherName: string;
-  teacherTagline?: string;
-  teacherAvatarUrl?: string;
+  teacherTagline?: string | null;
+  teacherAvatarUrl?: string | null;
   subject: Subject;
 }
 
-/**
- * Booking & Session Management
- */
+// ─── Booking & Session ────────────────────────────────────────────────────────
 
 export type BookingStatus =
   | 'PENDING_APPROVAL'
@@ -162,27 +209,44 @@ export type BookingStatus =
   | 'CANCELLED_BY_STUDENT'
   | 'CANCELLED_BY_TEACHER';
 
-export type SessionStatus = 'SCHEDULED' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED' | 'Live' | 'Scheduled' | 'Completed' | 'Active';
+export type SessionStatus =
+  | 'SCHEDULED'
+  | 'ACTIVE'
+  | 'COMPLETED'
+  | 'CANCELLED'
+  | 'Live'
+  | 'Scheduled'
+  | 'Completed'
+  | 'Active';
 
+/**
+ * Booking as returned by GET /bookings (BookingRead schema).
+ */
 export interface Booking {
   id: string;
   teacherId: string;
   studentId: string;
-  teacher?: Teacher;
   subjectId: string;
-  subject?: Subject;
+  subject?: Subject | null;
+  /** Embedded teacher details — available from BookingDetailedReadForStudent */
+  teacher?: Teacher | null;
   status: BookingStatus;
   totalAmount: number;
   ratePerSession: number;
   sessionDurationMinutes: number;
   totalSessions: number;
   completedSessions: number;
+  cancelledSessions: number;
+  refundedAmount: number;
+  teacherApprovedAt?: string | null;
   createdAt: string;
-  updatedAt?: string;
-  cancelledAt?: string;
-  cancellationReason?: string;
-  nextSessionDate?: string;
+  // ── UI-only optional fields (used by StudentBookingCard display) ──
+  /** Whether the student has already submitted a review for this booking */
   hasReview?: boolean;
+  /** ISO timestamp of when the booking was cancelled */
+  cancelledAt?: string | null;
+  /** Reason provided for cancellation */
+  cancellationReason?: string | null;
 }
 
 export interface Session {
@@ -191,9 +255,8 @@ export interface Session {
   booking?: Booking;
   teacherId?: string;
   studentId?: string;
-  teacher?: Teacher;
   subjectId?: string;
-  subject?: Subject | string; // Allow string for mock data
+  subject?: Subject | string;
   status: SessionStatus;
   scheduledAt?: string;
   startedAt?: string;
@@ -203,8 +266,8 @@ export interface Session {
   livekitRoomName?: string;
   createdAt?: string;
   updatedAt?: string;
-  // UI/Display properties
-  StudyLevel?: string,
+  // UI/Display properties (used in mock/display contexts)
+  StudyLevel?: string;
   teacherName?: string;
   completedSessions?: number;
   totalSessions?: number;
@@ -224,9 +287,7 @@ export interface SessionWithTeacher extends Session {
   ratingGiven?: number;
 }
 
-/**
- * Payment & Financial
- */
+// ─── Payment & Financial ──────────────────────────────────────────────────────
 
 export type PaymentStatus = 'PENDING' | 'COMPLETED' | 'FAILED' | 'REFUNDED';
 export type PaymentMethod = 'ESEWA' | 'BANK_TRANSFER' | 'WALLET';
@@ -245,25 +306,23 @@ export interface Payment {
   updatedAt?: string;
 }
 
-/**
- * Rating & Review
- */
+// ─── Ratings ─────────────────────────────────────────────────────────────────
 
+/**
+ * Generic rating (used by student rating submission context).
+ * For teacher profile page ratings, use TeacherRating instead.
+ */
 export interface Rating {
   id: string;
-  bookingId: string;
   teacherId: string;
   studentId: string;
-  teacher?: Teacher;
-  ratingValue: number; // 1-5
-  reviewText?: string;
-  createdAt?: string;
-  updatedAt?: string;
+  score: number;
+  comment?: string | null;
+  isAnonymous: boolean;
+  createdAt: string;
 }
 
-/**
- * Communication
- */
+// ─── Communication ────────────────────────────────────────────────────────────
 
 export interface Message {
   id: string;
@@ -277,37 +336,21 @@ export interface Message {
   updatedAt?: string;
 }
 
-/**
- * Analytics & Dashboard
- */
-
-export interface StudentDashboardStats {
-  totalSessions: number;
-  completedSessions: number;
-  totalSpent: number;
-  averageTeacherRating: number;
-}
-
-export interface StudentBookingInfo {
-  id: string;
-  subject: string;
-  teacherName: string;
-  totalSessions: number;
-  completedSessions: number;
-  status: BookingStatus;
-}
+// ─── API Request Types ────────────────────────────────────────────────────────
 
 /**
- * API Request/Response types
+ * Request body for POST /bookings/request (BookingRequestCreate schema).
  */
-
-export interface BookTeacherRequest {
+export interface CreateBookingRequest {
   teacherId: string;
   subjectId: string;
   totalSessions: number;
-  sessionDurationMinutes: number;
   ratePerSession: number;
+  sessionDurationMinutes: number;
 }
+
+/** @deprecated Use CreateBookingRequest instead */
+export type BookTeacherRequest = CreateBookingRequest;
 
 export interface InitiatePaymentRequest {
   bookingId: string;
@@ -328,13 +371,28 @@ export interface CancelBookingRequest {
 export interface UpdateStudentProfileRequest {
   firstName?: string;
   lastName?: string;
-  phoneNumber?: string;
-  profilePictureUrl?: string;
+  phone?: string;
 }
 
-/**
- * Pagination & List Response
- */
+// ─── Dashboard ────────────────────────────────────────────────────────────────
+
+export interface StudentDashboardStats {
+  totalSessions: number;
+  completedSessions: number;
+  totalSpent: number;
+  averageTeacherRating: number;
+}
+
+export interface StudentBookingInfo {
+  id: string;
+  subject: string;
+  teacherName: string;
+  totalSessions: number;
+  completedSessions: number;
+  status: BookingStatus;
+}
+
+// ─── Pagination & Errors ──────────────────────────────────────────────────────
 
 export interface PaginatedResponse<T> {
   items: T[];
@@ -343,10 +401,6 @@ export interface PaginatedResponse<T> {
   pageSize: number;
   totalPages: number;
 }
-
-/**
- * Error Response
- */
 
 export interface ErrorResponse {
   detail: string;

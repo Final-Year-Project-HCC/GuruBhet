@@ -1,17 +1,26 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { TeacherSubjectRead } from '../../lib/types';
+import { TeacherSubject } from '../../lib/types';
+
+const DURATION_OPTIONS = [
+  { label: '15 min', value: 15 },
+  { label: '30 min', value: 30 },
+  { label: '45 min', value: 45 },
+  { label: '60 min', value: 60 },
+];
 
 interface BookingModalProps {
   isOpen: boolean;
-  teacherSubject: TeacherSubjectRead | null;
+  teacherSubject: TeacherSubject | null;
   teacherName: string;
   onClose: () => void;
   onConfirm: (
-    teacherSubject: TeacherSubjectRead,
+    teacherSubject: TeacherSubject,
     numberOfSessions: number,
-    totalAmount: number
+    totalAmount: number,
+    sessionDurationMinutes: number
   ) => void;
   isLoading?: boolean;
+  serverError?: string | null;
 }
 
 const BookingModal: React.FC<BookingModalProps> = ({
@@ -21,9 +30,11 @@ const BookingModal: React.FC<BookingModalProps> = ({
   onClose,
   onConfirm,
   isLoading = false,
+  serverError,
 }) => {
   const [numberOfSessions, setNumberOfSessions] = useState(1);
   const [negotiatedRate, setNegotiatedRate] = useState<number | null>(null);
+  const [sessionDuration, setSessionDuration] = useState(60);
 
   const currentRate = negotiatedRate !== null ? negotiatedRate : (teacherSubject?.ratePerSession || 0);
 
@@ -33,9 +44,9 @@ const BookingModal: React.FC<BookingModalProps> = ({
 
   const handleConfirm = useCallback(() => {
     if (teacherSubject) {
-      onConfirm(teacherSubject, numberOfSessions, totalAmount);
+      onConfirm(teacherSubject, numberOfSessions, totalAmount, sessionDuration);
     }
-  }, [teacherSubject, numberOfSessions, totalAmount, onConfirm]);
+  }, [teacherSubject, numberOfSessions, totalAmount, sessionDuration, onConfirm]);
 
   const handleSessionChange = useCallback(
     (value: string) => {
@@ -106,6 +117,14 @@ const BookingModal: React.FC<BookingModalProps> = ({
 
           {/* Content */}
           <div className="px-8 py-5 space-y-4">
+
+            {/* Server Error */}
+            {serverError && (
+              <div className="bg-destructive/10 border border-destructive/30 text-destructive rounded-xl px-4 py-3 text-sm font-semibold">
+                {serverError}
+              </div>
+            )}
+
             {/* Rate Section - Side by Side */}
             <div className="grid grid-cols-2 gap-3">
               {/* Teacher's Rate */}
@@ -177,6 +196,30 @@ const BookingModal: React.FC<BookingModalProps> = ({
                 >
                   +
                 </button>
+              </div>
+            </div>
+
+            {/* Session Duration */}
+            <div>
+              <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2 block">
+                Session Duration
+              </label>
+              <div className="grid grid-cols-4 gap-2">
+                {DURATION_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setSessionDuration(opt.value)}
+                    disabled={isLoading}
+                    className={`py-2.5 rounded-xl text-xs font-bold transition-colors border ${
+                      sessionDuration === opt.value
+                        ? 'bg-primary text-primary-foreground border-primary'
+                        : 'bg-muted text-muted-foreground border-transparent hover:border-border'
+                    } disabled:opacity-50 disabled:cursor-not-allowed`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
               </div>
             </div>
 

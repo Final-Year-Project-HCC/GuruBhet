@@ -14,14 +14,16 @@ import { DropdownSkeleton, TeacherCardSkeletonGrid, HierarchicalSidebarSkeleton 
 interface HierarchicalSidebarProps {
   onTeachersFound?: (teachers: TeacherSearchResult[], subject: Subject) => void;
   hideInlineResults?: boolean;
+  onInteraction?: () => void;
 }
 
-const HierarchicalSidebar: React.FC<HierarchicalSidebarProps> = ({ onTeachersFound, hideInlineResults = false }) => {
+const HierarchicalSidebar: React.FC<HierarchicalSidebarProps> = ({ onTeachersFound, hideInlineResults = false, onInteraction }) => {
   // Selected values at each level
   const [selectedStudyLevel, setSelectedStudyLevel] = useState<string | null>(null);
   const [selectedBoard, setSelectedBoard] = useState<string | null>(null);
   const [selectedFaculty, setSelectedFaculty] = useState<string | null>(null);
   const [selectedUnit, setSelectedUnit] = useState<number | null>(null);
+  const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(null);
 
   // Fetch data at each level
   const { data: studyLevels = [], isLoading: studyLevelsLoading } = useStudyLevels();
@@ -45,19 +47,17 @@ const HierarchicalSidebar: React.FC<HierarchicalSidebarProps> = ({ onTeachersFou
     return options;
   }, [selectedFacultyDetails]);
 
-  // Find the subject that matches the current selection
+  // Get all subjects that belong to the chosen unit
+  const unitSubjects = useMemo(() => {
+    if (!selectedUnit) return [];
+    return allSubjects.filter((s) => s.unitValue === selectedUnit);
+  }, [allSubjects, selectedUnit]);
+
+  // Find the exact selected subject chosen by the user
   const selectedSubject = useMemo(() => {
-    if (!selectedStudyLevel || !selectedBoard || !selectedFaculty || !selectedUnit) {
-      return null;
-    }
-    return allSubjects.find(
-      (s) =>
-        s.studyLevel?.id === selectedStudyLevel &&
-        s.board?.id === selectedBoard &&
-        s.faculty?.id === selectedFaculty &&
-        s.unitValue === selectedUnit
-    ) || null;
-  }, [allSubjects, selectedStudyLevel, selectedBoard, selectedFaculty, selectedUnit]);
+    if (!selectedSubjectId) return null;
+    return unitSubjects.find((s) => s.id === selectedSubjectId) || null;
+  }, [unitSubjects, selectedSubjectId]);
 
   // Fetch teachers for the selected subject
   const { data: teachers = [], isLoading: teachersLoading } = useTeachersBySubject(
@@ -66,6 +66,7 @@ const HierarchicalSidebar: React.FC<HierarchicalSidebarProps> = ({ onTeachersFou
 
   // Reset dependent selections when parent level changes
   const handleStudyLevelChange = (levelId: string) => {
+    if (onInteraction) onInteraction();
     setSelectedStudyLevel(levelId);
     setSelectedBoard(null);
     setSelectedFaculty(null);
@@ -73,18 +74,28 @@ const HierarchicalSidebar: React.FC<HierarchicalSidebarProps> = ({ onTeachersFou
   };
 
   const handleBoardChange = (boardId: string) => {
+    if (onInteraction) onInteraction();
     setSelectedBoard(boardId);
     setSelectedFaculty(null);
     setSelectedUnit(null);
   };
 
   const handleFacultyChange = (facultyId: string) => {
+    if (onInteraction) onInteraction();
     setSelectedFaculty(facultyId);
     setSelectedUnit(null);
+    setSelectedSubjectId(null);
   };
 
   const handleUnitChange = (unit: number) => {
+    if (onInteraction) onInteraction();
     setSelectedUnit(unit);
+    setSelectedSubjectId(null);
+  };
+
+  const handleSubjectChange = (subjectId: string) => {
+    if (onInteraction) onInteraction();
+    setSelectedSubjectId(subjectId);
   };
 
   // Notify parent when teachers are found
@@ -183,26 +194,55 @@ const HierarchicalSidebar: React.FC<HierarchicalSidebarProps> = ({ onTeachersFou
               )}
             </div>
 
-            {/* Level 4: Unit Value (Dynamic based on Faculty.totalUnits) */}
-            {selectedFaculty && (
+            {/* Level 4: Unit Value */}
+            {selectedFaculty && (() => {
+              const rawType = selectedFacultyDetails?.unitType ?? 'UNIT';
+              const unitLabel = rawType.charAt(0) + rawType.slice(1).toLowerCase();
+              return (
+                <div>
+                  <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-3 px-1">
+                    {getUnitTypeLabel()}
+                  </label>
+                  <select
+                    value={selectedUnit ?? ''}
+                    onChange={(e) => handleUnitChange(Number(e.target.value))}
+                    disabled={!selectedFacultyDetails}
+                    className={`w-full bg-surface border border-border rounded-2xl px-5 py-4 text-sm font-semibold focus:border-primary outline-none cursor-pointer appearance-none transition-colors ${!selectedFacultyDetails ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  >
+                    <option value="">Select {unitLabel}</option>
+                    {unitOptions.map((unit) => (
+                      <option key={unit} value={unit}>
+                        {unitLabel} {unit}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              );
+            })()}
+
+            {/* Level 5: Subject */}
+            {selectedUnit !== null && (
               <div>
                 <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-3 px-1">
-                  {getUnitTypeLabel()}
+                  Subject
                 </label>
-                <div className="grid grid-cols-4 gap-2">
-                  {unitOptions.map((unit) => (
-                    <button
-                      key={unit}
-                      onClick={() => handleUnitChange(unit)}
-                      className={`py-3 rounded-xl font-semibold text-sm transition-colors ${selectedUnit === unit
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-subtle border border-border text-foreground hover:bg-subtle-foreground/10'
-                        }`}
-                    >
-                      {selectedFacultyDetails?.unitType || 'Unit'} {unit}
-                    </button>
+                <select
+                  value={selectedSubjectId ?? ''}
+                  onChange={(e) => handleSubjectChange(e.target.value)}
+                  disabled={unitSubjects.length === 0}
+                  className={`w-full bg-surface border border-border rounded-2xl px-5 py-4 text-sm font-semibold focus:border-primary outline-none cursor-pointer appearance-none transition-colors ${unitSubjects.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  {unitSubjects.length === 0 ? (
+                    <option value="">No subjects found</option>
+                  ) : (
+                    <option value="">Select a Subject</option>
+                  )}
+                  {unitSubjects.map((subject) => (
+                    <option key={subject.id} value={subject.id}>
+                      {subject.name}
+                    </option>
                   ))}
-                </div>
+                </select>
               </div>
             )}
 

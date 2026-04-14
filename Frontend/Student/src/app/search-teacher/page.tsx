@@ -90,6 +90,10 @@ export default function SearchTeacherPage() {
   const [activeSearchMode, setActiveSearchMode] = useState<SearchMode>(null);
   const [filters, setFilters] = useState<TeacherSearchFilters>({});
 
+  // Keys to force remount/reset of search components when the other is used
+  const [globalSearchKey, setGlobalSearchKey] = useState(0);
+  const [sidebarKey, setSidebarKey] = useState(0);
+
   // Fetch teachers from backend when a subject is selected
   const {
     data: teachers = [],
@@ -134,6 +138,18 @@ export default function SearchTeacherPage() {
     setFilters({});
   }, []);
 
+  const handleGlobalSearchInteraction = useCallback(() => {
+    setActiveSubject(null);
+    setActiveSearchMode(null);
+    setSidebarKey(k => k + 1);
+  }, []);
+
+  const handleSidebarInteraction = useCallback(() => {
+    setActiveSubject(null);
+    setActiveSearchMode(null);
+    setGlobalSearchKey(k => k + 1);
+  }, []);
+
   const handleViewProfile = useCallback(
     (teacherId: string) => {
       router.push(`/teacher-profile/${teacherId}`);
@@ -160,11 +176,13 @@ export default function SearchTeacherPage() {
         {/* ── Search Bar — ALWAYS VISIBLE ──────────────────────────────────── */}
         <div className={`mb-10 ${hasSearched ? 'pb-5' : ''}`}>
           <GlobalSearchBar
+            key={`global-search-${globalSearchKey}`}
             onSubjectSelect={handleSearchBarSelect}
             onClear={handleSearchBarClear}
             selectedSubjectName={
               activeSearchMode === 'search-bar' ? (activeSubject?.name ?? undefined) : undefined
             }
+            onInteraction={handleGlobalSearchInteraction}
           />
         </div>
 
@@ -174,8 +192,10 @@ export default function SearchTeacherPage() {
           {/* ── Left: Sidebar ── */}
           <aside className="w-full lg:w-72 shrink-0">
             <HierarchicalSidebar
+              key={`sidebar-${sidebarKey}`}
               onTeachersFound={handleSidebarTeachersFound}
               hideInlineResults
+              onInteraction={handleSidebarInteraction}
             />
           </aside>
 
@@ -201,7 +221,7 @@ export default function SearchTeacherPage() {
 
             {/* Teacher result cards */}
             {hasSearched && !isResultsLoading && teachers.length > 0 && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 {teachers.map((teacher) => (
                   <TeacherResultCard
                     key={teacher.teacherId}

@@ -39,7 +39,7 @@ const StarRating: React.FC<{ rating: number; count: number }> = ({ rating, count
           </svg>
         ))}
       </div>
-      <span className="text-xs font-bold text-foreground">{rating.toFixed(1)}</span>
+      <span className="text-xs font-bold text-foreground">{rating?.toFixed(1)}</span>
       <span className="text-xs text-muted-foreground">({count})</span>
     </div>
   );
@@ -54,8 +54,8 @@ const TeacherResultCard: React.FC<TeacherResultCardProps> = ({ teacher, onViewPr
     .toUpperCase();
 
   const subjectContext = [
-    teacher.subject.studyLevel?.name,
-    teacher.subject.board?.name,
+    teacher.subject.faculty?.studyLevel?.name,
+    teacher.subject.faculty?.board?.name,
     teacher.subject.faculty?.name,
   ].filter(Boolean);
 
@@ -121,7 +121,7 @@ const TeacherResultCard: React.FC<TeacherResultCardProps> = ({ teacher, onViewPr
         </div>
 
         {/* Rating */}
-        <StarRating rating={teacher.avgRating} count={teacher.ratingCount} />
+        <StarRating rating={Number(teacher.avgRating)} count={Number(teacher.ratingCount)} />
 
         {/* Context breadcrumbs */}
         {subjectContext.length > 0 && (

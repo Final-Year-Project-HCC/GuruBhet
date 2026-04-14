@@ -70,6 +70,7 @@ export interface Faculty {
   unitType: UnitType;
   totalUnits: number;
   board?: Board;
+  studyLevel?: StudyLevel;
   description?: string;
   createdAt?: string;
   updatedAt?: string;
@@ -79,8 +80,6 @@ export interface Subject {
   id: string;
   name: string;
   unitValue: number;
-  studyLevel?: StudyLevel;
-  board?: Board;
   faculty?: Faculty;
   createdAt?: string;
   updatedAt?: string;
@@ -122,7 +121,6 @@ export interface TeacherProfile {
 
 export interface TeacherSubject {
   teacherId: string;
-  subjectId: string;
   ratePerSession: number;
   yearsOfExperience: number;
   totalSessionsCompleted: number;

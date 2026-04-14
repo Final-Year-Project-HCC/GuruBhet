@@ -303,10 +303,7 @@ export function HierarchicalSubjectForm({
               {subjects
                 .filter(
                   (subject: Subject) =>
-                    subject.unitValue === parseInt(selectedUnitValue) &&
-                    subject.faculty?.id === selectedFacultyId &&
-                    subject.board?.id === selectedBoardId &&
-                    subject.studyLevel?.id === selectedStudyLevelId,
+                    subject.unitValue === parseInt(selectedUnitValue)
                 )
                 .map((subject: Subject) => (
                   <option key={subject.id} value={subject.id}>

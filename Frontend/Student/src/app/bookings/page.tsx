@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import apiClient from "@/lib/api";
 import StudentBookingCard from "@/components/Bookings/StudentBookingCard";
 import { useUser } from "@/hooks";
@@ -83,7 +83,7 @@ function BookingStatsCards({
 export default function StudentBookingsPage() {
   const [activeTab, setActiveTab] = useState<TabType>("upcoming");
   const { data: user, isLoading: userLoading } = useUser();
-
+  const isFirstTime = useRef(true);
   // Fetch bookings for the logged-in student
   const {
     data: bookings = [],
@@ -97,7 +97,6 @@ export default function StudentBookingsPage() {
     },
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
-
   // Filter bookings by status
   const approvalBookings = bookings.filter(
     (b) => b.status === "PENDING_APPROVAL",
@@ -109,11 +108,16 @@ export default function StudentBookingsPage() {
   const completedBookings = bookings.filter(
     (b) => b.status === "COMPLETED" || b.status.includes("CANCELLED"),
   );
-
+  useEffect(() => {
+    if (paymentBookings?.length > 0 && isFirstTime.current) {
+      setActiveTab("payment");
+      isFirstTime.current = false;
+    }
+  }, [paymentBookings]);
   // Calculate total spent
   const totalSpent = bookings
     .filter((b) => b.status === "COMPLETED" || b.status === "ACTIVE")
-    .reduce((sum, b) => sum + b.totalAmount, 0);
+    .reduce((sum, b) => sum + Number(b.totalAmount), 0);
 
   // Tab content mapping
   const tabContent = {
@@ -151,7 +155,7 @@ export default function StudentBookingsPage() {
     return (
       labels[status] ||
       status.replace(/_/g, " ").charAt(0).toUpperCase() +
-        status.replace(/_/g, " ").slice(1).toLowerCase()
+      status.replace(/_/g, " ").slice(1).toLowerCase()
     );
   };
 
@@ -265,11 +269,10 @@ export default function StudentBookingsPage() {
                   <div className="flex gap-1 overflow-x-auto">
                     <button
                       onClick={() => setActiveTab("upcoming")}
-                      className={`relative px-4 py-3 font-medium transition-colors whitespace-nowrap ${
-                        activeTab === "upcoming"
-                          ? "text-foreground"
-                          : "text-muted-foreground hover:text-foreground"
-                      }`}
+                      className={`relative px-4 py-3 font-medium transition-colors whitespace-nowrap ${activeTab === "upcoming"
+                        ? "text-foreground"
+                        : "text-muted-foreground hover:text-foreground"
+                        }`}
                     >
                       Upcoming ({upcomingBookings.length})
                       {activeTab === "upcoming" && (
@@ -279,11 +282,10 @@ export default function StudentBookingsPage() {
 
                     <button
                       onClick={() => setActiveTab("payment")}
-                      className={`relative px-4 py-3 font-medium transition-colors whitespace-nowrap ${
-                        activeTab === "payment"
-                          ? "text-foreground"
-                          : "text-muted-foreground hover:text-foreground"
-                      }`}
+                      className={`relative px-4 py-3 font-medium transition-colors whitespace-nowrap ${activeTab === "payment"
+                        ? "text-foreground"
+                        : "text-muted-foreground hover:text-foreground"
+                        }`}
                     >
                       Payment ({paymentBookings.length})
                       {activeTab === "payment" && (
@@ -293,11 +295,10 @@ export default function StudentBookingsPage() {
 
                     <button
                       onClick={() => setActiveTab("approval")}
-                      className={`relative px-4 py-3 font-medium transition-colors whitespace-nowrap ${
-                        activeTab === "approval"
-                          ? "text-foreground"
-                          : "text-muted-foreground hover:text-foreground"
-                      }`}
+                      className={`relative px-4 py-3 font-medium transition-colors whitespace-nowrap ${activeTab === "approval"
+                        ? "text-foreground"
+                        : "text-muted-foreground hover:text-foreground"
+                        }`}
                     >
                       Awaiting Approval ({approvalBookings.length})
                       {activeTab === "approval" && (
@@ -307,11 +308,10 @@ export default function StudentBookingsPage() {
 
                     <button
                       onClick={() => setActiveTab("completed")}
-                      className={`relative px-4 py-3 font-medium transition-colors whitespace-nowrap ${
-                        activeTab === "completed"
-                          ? "text-foreground"
-                          : "text-muted-foreground hover:text-foreground"
-                      }`}
+                      className={`relative px-4 py-3 font-medium transition-colors whitespace-nowrap ${activeTab === "completed"
+                        ? "text-foreground"
+                        : "text-muted-foreground hover:text-foreground"
+                        }`}
                     >
                       Completed ({completedBookings.length})
                       {activeTab === "completed" && (

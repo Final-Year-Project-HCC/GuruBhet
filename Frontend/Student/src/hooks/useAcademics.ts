@@ -15,7 +15,7 @@ export const useStudyLevels = () => {
   return useQuery({
     queryKey: ['studyLevels'],
     queryFn: async () => {
-      const { data } = await apiClient.get<StudyLevel[]>('/academics/study-levels/');
+      const { data } = await apiClient.get<StudyLevel[]>('/academics/study-levels');
       return data;
     },
     staleTime: 1000 * 60 * 30, // 30 minutes
@@ -29,7 +29,7 @@ export const useBoards = (studyLevelId: string | null) => {
   return useQuery({
     queryKey: ['boards', studyLevelId],
     queryFn: async () => {
-      const { data } = await apiClient.get<Board[]>('/academics/boards/', {
+      const { data } = await apiClient.get<Board[]>('/academics/boards', {
         params: studyLevelId ? { studyLevelId } : {},
       });
       return data;
@@ -46,7 +46,7 @@ export const useFaculties = (boardId: string | null) => {
   return useQuery({
     queryKey: ['faculties', boardId],
     queryFn: async () => {
-      const { data } = await apiClient.get<Faculty[]>('/academics/faculties/', {
+      const { data } = await apiClient.get<Faculty[]>('/academics/faculties', {
         params: boardId ? { boardId } : {},
       });
       return data;
@@ -82,9 +82,9 @@ export const useSubjectSearchSuggestions = (query: string, enabled: boolean = tr
  */
 export const useSubjects = (facultyId: string | null) => {
   return useQuery({
-    queryKey: ['subjects'],
+    queryKey: ['subjects', facultyId],
     queryFn: async () => {
-      const { data } = await apiClient.get<Subject[]>('academics/subjects/', {
+      const { data } = await apiClient.get<Subject[]>('academics/subjects', {
         params: { facultyId: facultyId },
       });
       return data;
@@ -105,7 +105,7 @@ export const useTeachersBySubject = (
   return useQuery({
     queryKey: ['teachersBySubject', subjectId, minRating, minRate, maxRate],
     queryFn: async () => {
-      const { data } = await apiClient.get<TeacherSearchResult[]>('/teachers/search/', {
+      const { data } = await apiClient.get<TeacherSearchResult[]>('/teachers/search', {
         params: {
           subjectId,
           limit: 50,

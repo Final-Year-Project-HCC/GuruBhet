@@ -12,8 +12,8 @@ const SubjectCard: React.FC<SubjectCardProps> = ({
 
     // Build hierarchical context string
     const hierarchyBadges = [
-        subject.studyLevel?.name,
-        subject.board?.name,
+        subject.faculty?.studyLevel?.name,
+        subject.faculty?.board?.name,
         subject.faculty?.name,
     ].filter(Boolean);
 
