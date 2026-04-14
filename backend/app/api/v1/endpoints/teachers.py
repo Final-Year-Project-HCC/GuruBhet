@@ -10,7 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from app.core.dependencies import  DbSession, RequireTeacher
-from app.core.enums import SessionStatus, VerificationStatus, DocumentType, BookingStatus
+from app.core.enums import SessionStatus, VerificationStatus, DocumentType, BookingStatus, UserRole
 from app.core.exceptions import (
     ConflictError,
     TeacherNotFoundError,
@@ -29,11 +29,13 @@ from app.repositories.teacher_subject_repo import TeacherSubjectRepository
 from app.repositories.user_repo import UserRepository
 from app.schemas.booking import BookingDetailedReadForTeacher
 from app.schemas.rating import RatingRead
-from app.schemas.session import TeacherSessionRead
+from app.schemas.session import TeacherSessionRead, SessionDetailedReadForTeacher
 from app.schemas.subject import TeacherSearchResult, TeacherSubjectCreate, TeacherSubjectRead
 from app.schemas.user import TeacherProfileRead, TeacherProfilePrivateRead, TeacherProfileUpdate
 from app.models.teacher_document import TeacherDocument
 from app.utils.cloudinary import get_cloudinary_manager
+from app.services.booking_service import fetch_bookings_for_user
+from app.services.session_service import fetch_sessions_for_user
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -246,55 +248,15 @@ async def submit_onboarding_documents(
 
 # ── Own bookings ──────────────────────────────────────────────────────────────
 
-@router.get("/me/sessions", response_model=list[TeacherSessionRead])
-async def get_my_sessions(
-    current_user: Annotated[User, RequireTeacher],
-    db: DbSession,
-    in_progress: bool = Query(default=True),
-):
-    query = (
-        select(
-            Session.id,
-            Session.booking_id,
-            Session.status,
-            User.first_name,
-            User.last_name,
-            Subject.name.label("subject_name"),
-        )
-        .join(Booking, Session.booking_id == Booking.id)
-        .join(User, Booking.student_id == User.id)
-        .join(Subject, Booking.subject_id == Subject.id)
-        .where(Booking.teacher_id == current_user.id)
-    )
-
-    if in_progress:
-        query = query.where(Session.status == SessionStatus.IN_PROGRESS)
-
-    result = await db.execute(query)
-    return [
-        {
-            "id": row.id,
-            "booking_id": row.booking_id,
-            "status": row.status,
-            "student_name": f"{row.first_name} {row.last_name}",
-            "subject_name": row.subject_name,
-        }
-        for row in result.all()
-    ]
+@router.get("/me/sessions/in-progress", response_model=list[SessionDetailedReadForTeacher])
+async def get_my_sessions(current_user: Annotated[User, RequireTeacher], db: DbSession):
+    sessions = await fetch_sessions_for_user(db, current_user.id, UserRole.TEACHER, in_progress=True)
+    return sessions
 
 @router.get("/me/bookings", response_model=list[BookingDetailedReadForTeacher])
 async def get_my_bookings(current_user: Annotated[User, RequireTeacher], db: DbSession):
-    result = await db.execute(
-        select(Booking)
-        .options(
-            selectinload(Booking.sessions),
-            selectinload(Booking.student).selectinload(StudentProfile.user),
-            selectinload(Booking.subject),
-        )
-        .where(Booking.teacher_id == current_user.id)
-        .order_by(Booking.created_at.desc())
-    )
-    return list(result.scalars().all())
+    bookings = await fetch_bookings_for_user(db, current_user.id, UserRole.TEACHER)
+    return bookings
 
 # ── Subject management ────────────────────────────────────────────────────────
 

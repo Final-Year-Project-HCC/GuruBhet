@@ -312,7 +312,10 @@ async def request_session(
     # ── Step 3: Check student presence (PRESENCE CHECK) ──
     student_online = await is_user_online(booking.student_id, use_redis=True)
 
-    if not student_online and not settings.BYPASS_PRESENCE_CHECK:
+    # Use a local bypass flag defaulting to True when running in environments
+    # where the setting is not defined yet (dev / temporary workaround).
+    bypass_presence = getattr(settings, "BYPASS_PRESENCE_CHECK", True)
+    if not student_online and not bypass_presence:
         # Student is offline - create error message and return 480
         await create_offline_notification_message(
             booking_id=booking_id,
