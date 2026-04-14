@@ -129,7 +129,8 @@ async def approve_booking_request(
     return booking
 
 
-@router.post("/{booking_id}/initiate-payment", response_model=EsewaPaymentInitResponse)
+#Add response model too after removing bypass
+@router.post("/{booking_id}/initiate-payment")
 async def initiate_payment(
     booking_id: UUID,
     current_user: CurrentUser,
