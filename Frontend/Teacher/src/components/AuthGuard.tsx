@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useUser } from "@/hooks/useCurrentUser";
+import { useUser } from "@/hooks";
 import LoadingSpinner from "./LoadingSpinner";
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {

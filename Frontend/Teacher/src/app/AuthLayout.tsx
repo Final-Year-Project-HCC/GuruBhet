@@ -1,22 +1,31 @@
 "use client";
+
+import { usePathname } from "next/navigation";
+import AuthGuard from "@/components/AuthGuard";
 import TeacherNavbar from "@/components/TeacherNavbar";
 import Footer from "@/components/Footer";
-import { useUser } from "@/hooks";
-import LoadingSpinner from "@/components/LoadingSpinner";
+
+/** Routes accessible without logging in */
+const PUBLIC_PATHS = ["/", "/dashboard", "/login", "/signup"];
+
+function isPublicPath(pathname: string) {
+  return PUBLIC_PATHS.includes(pathname);
+}
 
 export default function AuthLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const { isLoading } = useUser();
-  if (isLoading) {
-    return <LoadingSpinner />;
-  }
+  const pathname = usePathname();
+  const isPublic = isPublicPath(pathname);
+
   return (
     <div className="min-h-screen flex flex-col">
       <TeacherNavbar />
-      <main className="flex-1">{children}</main>
+      <main className="flex-1">
+        {isPublic ? children : <AuthGuard>{children}</AuthGuard>}
+      </main>
       <Footer />
     </div>
   );

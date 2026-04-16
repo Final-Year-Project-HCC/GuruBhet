@@ -5,24 +5,24 @@ import { useQuery } from "@tanstack/react-query";
 import { useUser } from "@/hooks";
 import apiClient from "@/lib/api";
 import { Booking, Session } from "@/lib/types";
-import { Calendar, Clock, Users, BookOpen } from "lucide-react";
+import { BookOpen, Clock, CheckCircle, Layers } from "lucide-react";
 import { toast } from "react-toastify";
 import { LiveKitRoom, VideoConference } from "@livekit/components-react";
 import "@livekit/components-styles";
 import Link from "next/link";
 
-export default function TeacherDashboard() {
+export default function StudentDashboard() {
   const { data: user } = useUser();
   const [activeRoom, setActiveRoom] = useState<{ token: string; liveKitUrl: string } | null>(null);
   const [isJoining, setIsJoining] = useState(false);
 
-  const firstName = user?.firstName ?? "Teacher";
+  const firstName = user?.firstName ?? "Student";
 
   // Fetch bookings for stats
   const { data: bookings = [] } = useQuery<Booking[]>({
-    queryKey: ["teacherBookings"],
+    queryKey: ["studentBookings"],
     queryFn: async () => {
-      const { data } = await apiClient.get("/teachers/me/bookings");
+      const { data } = await apiClient.get("/students/me/bookings");
       return data;
     },
     enabled: !!user,
@@ -33,7 +33,7 @@ export default function TeacherDashboard() {
   const { data: ongoingSessions = [], isLoading: sessionsLoading } = useQuery<Session[]>({
     queryKey: ["sessions", "in-progress"],
     queryFn: async () => {
-      const { data } = await apiClient.get("/teachers/me/sessions/in-progress");
+      const { data } = await apiClient.get("/students/me/sessions/in-progress");
       return data;
     },
     enabled: !!user,
@@ -52,10 +52,13 @@ export default function TeacherDashboard() {
     }
   };
 
-  // Derived stats from bookings
+  // Derived stats
   const activeBookings = bookings.filter((b) => b.status === "ACTIVE");
+  const completedBookings = bookings.filter((b) => b.status === "COMPLETED");
   const completedSessions = bookings.reduce((sum, b) => sum + b.completedSessions, 0);
-  const totalSessionsPlanned = bookings.reduce((sum, b) => sum + b.totalSessions, 0);
+  const totalSpent = bookings
+    .filter((b) => b.status === "COMPLETED" || b.status === "ACTIVE")
+    .reduce((sum, b) => sum + Number(b.totalAmount), 0);
 
   if (activeRoom) {
     return (
@@ -95,7 +98,7 @@ export default function TeacherDashboard() {
             Namaste, {firstName}!
           </h1>
           <p className="text-muted-foreground text-base">
-            Here&apos;s what&apos;s happening with your classes today.
+            Here&apos;s an overview of your learning journey.
           </p>
         </div>
 
@@ -103,23 +106,23 @@ export default function TeacherDashboard() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
           <div className="bg-background border border-border rounded-2xl p-6 shadow-sm">
             <div className="w-11 h-11 bg-muted rounded-xl flex items-center justify-center text-foreground mb-4">
-              <Calendar size={22} />
+              <Layers size={22} />
             </div>
-            <p className="text-sm text-muted-foreground font-medium mb-1">Total Sessions</p>
-            <h3 className="text-2xl font-bold text-foreground">{totalSessionsPlanned}</h3>
+            <p className="text-sm text-muted-foreground font-medium mb-1">Total Bookings</p>
+            <h3 className="text-2xl font-bold text-foreground">{bookings.length}</h3>
           </div>
 
           <div className="bg-background border border-border rounded-2xl p-6 shadow-sm">
             <div className="w-11 h-11 bg-muted rounded-xl flex items-center justify-center text-foreground mb-4">
-              <Users size={22} />
+              <BookOpen size={22} />
             </div>
-            <p className="text-sm text-muted-foreground font-medium mb-1">Active Students</p>
+            <p className="text-sm text-muted-foreground font-medium mb-1">Active</p>
             <h3 className="text-2xl font-bold text-foreground">{activeBookings.length}</h3>
           </div>
 
           <div className="bg-background border border-border rounded-2xl p-6 shadow-sm">
             <div className="w-11 h-11 bg-muted rounded-xl flex items-center justify-center text-foreground mb-4">
-              <Clock size={22} />
+              <CheckCircle size={22} />
             </div>
             <p className="text-sm text-muted-foreground font-medium mb-1">Completed</p>
             <h3 className="text-2xl font-bold text-foreground">{completedSessions}</h3>
@@ -127,10 +130,10 @@ export default function TeacherDashboard() {
 
           <div className="bg-background border border-border rounded-2xl p-6 shadow-sm">
             <div className="w-11 h-11 bg-muted rounded-xl flex items-center justify-center text-foreground mb-4">
-              <BookOpen size={22} />
+              <Clock size={22} />
             </div>
-            <p className="text-sm text-muted-foreground font-medium mb-1">Live Now</p>
-            <h3 className="text-2xl font-bold text-foreground">{ongoingSessions.length}</h3>
+            <p className="text-sm text-muted-foreground font-medium mb-1">Total Spent</p>
+            <h3 className="text-2xl font-bold text-foreground">Rs {totalSpent.toLocaleString("en-IN")}</h3>
           </div>
         </div>
 
@@ -159,7 +162,7 @@ export default function TeacherDashboard() {
                 const progress = Math.round(
                   (session.sessionNumber / session.booking.totalSessions) * 100
                 );
-                const sName = `${session.booking.student.firstName} ${session.booking.student.lastName}`;
+                const tName = `${session.booking.teacher.firstName} ${session.booking.teacher.lastName}`;
 
                 return (
                   <div
@@ -181,27 +184,27 @@ export default function TeacherDashboard() {
                       )}
                     </div>
 
-                    {/* Subject + student */}
+                    {/* Subject + teacher */}
                     <div>
                       <h3 className="font-bold text-lg text-foreground leading-tight mb-1">
                         {session.booking.subject.name}
                       </h3>
                       <div className="flex items-center gap-2">
-                        {session.booking.student.avatarUrl ? (
+                        {session.booking.teacher.avatarUrl ? (
                           <img
-                            src={session.booking.student.avatarUrl}
+                            src={session.booking.teacher.avatarUrl}
                             className="w-7 h-7 rounded-full border border-border object-cover"
-                            alt={sName}
+                            alt={tName}
                           />
                         ) : (
                           <div className="w-7 h-7 rounded-full bg-muted border border-border flex items-center justify-center">
                             <span className="text-xs font-bold text-muted-foreground">
-                              {session.booking.student.firstName.charAt(0)}
+                              {session.booking.teacher.firstName.charAt(0)}
                             </span>
                           </div>
                         )}
                         <span className="text-sm text-muted-foreground font-medium">
-                          Teaching {sName}
+                          Taught by {tName}
                         </span>
                       </div>
                     </div>
@@ -237,7 +240,7 @@ export default function TeacherDashboard() {
               </div>
               <p className="font-medium text-foreground mb-1">No ongoing sessions</p>
               <p className="text-sm text-muted-foreground">
-                Active sessions will appear here when students join their classroom.
+                When a session is in progress it will appear here.
               </p>
             </div>
           )}
@@ -249,7 +252,7 @@ export default function TeacherDashboard() {
             <div className="flex items-center justify-between mb-5">
               <div>
                 <h2 className="text-xl font-semibold text-foreground">Active Bookings</h2>
-                <p className="text-sm text-muted-foreground mt-0.5">Students with confirmed sessions</p>
+                <p className="text-sm text-muted-foreground mt-0.5">Your confirmed tutoring sessions</p>
               </div>
               <Link
                 href="/bookings"
@@ -262,8 +265,8 @@ export default function TeacherDashboard() {
               <table className="w-full text-left">
                 <thead className="border-b border-border bg-muted/40">
                   <tr>
-                    <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase tracking-widest">Student</th>
                     <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase tracking-widest">Subject</th>
+                    <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase tracking-widest">Teacher</th>
                     <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase tracking-widest">Progress</th>
                     <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase tracking-widest">Rate</th>
                   </tr>
@@ -273,14 +276,16 @@ export default function TeacherDashboard() {
                     const progress = Math.round(
                       (booking.completedSessions / booking.totalSessions) * 100
                     );
-                    const sName = `${booking.student?.firstName ?? ""} ${booking.student?.lastName ?? ""}`.trim();
+                    const tName = `${booking.teacher?.firstName ?? ""} ${booking.teacher?.lastName ?? ""}`.trim();
                     return (
                       <tr key={booking.id} className="hover:bg-muted/30 transition-colors">
                         <td className="px-6 py-4">
-                          <span className="font-medium text-foreground text-sm">{sName || "—"}</span>
+                          <span className="font-medium text-foreground text-sm">
+                            {booking.subject?.name ?? "—"}
+                          </span>
                         </td>
                         <td className="px-6 py-4">
-                          <span className="text-sm text-muted-foreground">{booking.subject?.name ?? "—"}</span>
+                          <span className="text-sm text-muted-foreground">{tName || "—"}</span>
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
@@ -305,6 +310,27 @@ export default function TeacherDashboard() {
                   })}
                 </tbody>
               </table>
+            </div>
+          </section>
+        )}
+
+        {/* Empty state / CTA when no bookings */}
+        {bookings.length === 0 && !sessionsLoading && (
+          <section className="mt-12">
+            <div className="border border-dashed border-border rounded-2xl p-12 text-center">
+              <div className="w-14 h-14 bg-muted rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <BookOpen size={26} className="text-muted-foreground" />
+              </div>
+              <h3 className="text-lg font-semibold text-foreground mb-2">No bookings yet</h3>
+              <p className="text-sm text-muted-foreground mb-6 max-w-sm mx-auto">
+                Start your learning journey by finding a qualified tutor for your subject.
+              </p>
+              <Link
+                href="/search-teacher"
+                className="inline-flex items-center rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
+              >
+                Find a Tutor
+              </Link>
             </div>
           </section>
         )}

@@ -59,88 +59,114 @@ export default function StudentNavbar() {
           </div>
 
           <nav className="flex items-center gap-3">
+            {/* Dashboard — only when logged in */}
+            {user && (
+              <Link
+                href="/dashboard"
+                className="rounded-md px-3 py-2 text-base text-foreground hover:bg-muted"
+              >
+                Dashboard
+              </Link>
+            )}
+            {/* Always visible */}
             <Link
               href="/search-teacher"
               className="rounded-md px-3 py-2 text-base text-foreground hover:bg-muted"
             >
               Search Teacher
             </Link>
-            <Link
-              href="/bookings"
-              className="rounded-md px-3 py-2 text-base text-foreground hover:bg-muted"
-            >
-              Bookings
-            </Link>
-            {user && (
-              <Link
-                href="/sessions"
-                className="rounded-md px-3 py-2 text-base text-foreground hover:bg-muted"
-              >
-                Sessions
-              </Link>
-            )}
-            <Link
-              href="/join-room"
-              className="rounded-md px-3 py-2 text-base text-foreground hover:bg-muted"
-            >
-              Join Room
-            </Link>
-            <div className="relative" ref={menuRef}>
-              <button
-                aria-label="Open profile menu"
-                onClick={() => setOpen((v) => !v)}
-                className="relative flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-primary text-sm font-medium text-primary-foreground ring-1 ring-border hover:opacity-90"
-              >
-                <span className="select-none">S</span>
-                <span
-                  aria-hidden="true"
-                  className="pointer-events-none absolute right-0 bottom-0 flex h-4 w-4 items-center justify-center rounded-full bg-surface text-foreground ring-1 ring-border shadow-sm"
-                >
-                  <svg
-                    className={`${open ? "rotate-180" : "rotate-0"} transition-transform`}
-                    width="12"
-                    height="12"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path
-                      d="M6 9l6 6 6-6"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                </span>
-              </button>
 
-              {open && (
-                <div className="absolute right-0 mt-2 w-48 overflow-hidden rounded-md border border-border bg-background shadow-lg">
-                  <Link
-                    href="/account"
-                    className="block px-4 py-2 text-base text-foreground hover:bg-muted"
-                    onClick={() => setOpen(false)}
-                  >
-                    Account
-                  </Link>
-                  <Link
-                    href="/payment-method"
-                    className="block px-4 py-2 text-base text-foreground hover:bg-muted"
-                    onClick={() => setOpen(false)}
-                  >
-                    Payment Method
-                  </Link>
+            {user ? (
+              <>
+                {/* Logged-in links */}
+                <Link
+                  href="/bookings"
+                  className="rounded-md px-3 py-2 text-base text-foreground hover:bg-muted"
+                >
+                  Bookings
+                </Link>
+                <Link
+                  href="/sessions"
+                  className="rounded-md px-3 py-2 text-base text-foreground hover:bg-muted"
+                >
+                  Sessions
+                </Link>
+
+                {/* Profile dropdown */}
+                <div className="relative" ref={menuRef}>
                   <button
-                    className="block w-full px-4 py-2 text-left text-base text-foreground hover:bg-muted cursor-pointer disabled:opacity-50"
-                    onClick={handleLogout}
-                    disabled={isPending}
+                    aria-label="Open profile menu"
+                    onClick={() => setOpen((v) => !v)}
+                    className="relative flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-primary text-sm font-medium text-primary-foreground ring-1 ring-border hover:opacity-90"
                   >
-                    {isPending ? "Logging out..." : "Logout"}
+                    <span className="select-none">S</span>
+                    <span
+                      aria-hidden="true"
+                      className="pointer-events-none absolute right-0 bottom-0 flex h-4 w-4 items-center justify-center rounded-full bg-surface text-foreground ring-1 ring-border shadow-sm"
+                    >
+                      <svg
+                        className={`${open ? "rotate-180" : "rotate-0"} transition-transform`}
+                        width="12"
+                        height="12"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <path
+                          d="M6 9l6 6 6-6"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    </span>
                   </button>
+
+                  {open && (
+                    <div className="absolute right-0 mt-2 w-48 overflow-hidden rounded-md border border-border bg-background shadow-lg">
+                      <Link
+                        href="/account"
+                        className="block px-4 py-2 text-base text-foreground hover:bg-muted"
+                        onClick={() => setOpen(false)}
+                      >
+                        Account
+                      </Link>
+                      <Link
+                        href="/payment-method"
+                        className="block px-4 py-2 text-base text-foreground hover:bg-muted"
+                        onClick={() => setOpen(false)}
+                      >
+                        Payment Method
+                      </Link>
+                      <button
+                        className="block w-full px-4 py-2 text-left text-base text-foreground hover:bg-muted cursor-pointer disabled:opacity-50"
+                        onClick={handleLogout}
+                        disabled={isPending}
+                      >
+                        {isPending ? "Logging out..." : "Logout"}
+                      </button>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
+              </>
+            ) : (
+              <>
+                {/* Logged-out auth buttons */}
+                <Link
+                  href="/login"
+                  className="rounded-md border border-border px-4 py-2 text-base text-foreground hover:bg-muted"
+                >
+                  Login
+                </Link>
+                <Link
+                  href="/signup"
+                  className="rounded-md bg-primary px-4 py-2 text-base text-primary-foreground hover:opacity-90"
+                >
+                  Sign Up
+                </Link>
+              </>
+            )}
           </nav>
         </div>
       </header>

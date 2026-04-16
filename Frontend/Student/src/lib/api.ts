@@ -96,7 +96,7 @@ async function performTokenRefresh(): Promise<void> {
 }
 export async function clearAuthOnLogout() {
   if (queryClient) {
-    queryClient.setQueryData(["auth", "current-user"], null);
+    queryClient.clear();
   }
 }
 

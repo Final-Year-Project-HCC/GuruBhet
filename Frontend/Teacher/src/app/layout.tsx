@@ -16,8 +16,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Teacher",
-  description: "",
+  title: "Gurubhet",
+  description: "Gurubhet",
 };
 
 export default function RootLayout({
