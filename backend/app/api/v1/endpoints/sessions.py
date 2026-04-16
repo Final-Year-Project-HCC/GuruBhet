@@ -19,6 +19,19 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
+def _compute_elapsed_seconds(session, now=None) -> float:
+    """Return elapsed seconds since session start.
+
+    Uses `actual_start_at` if present, otherwise falls back to `created_at`.
+    `now` can be provided for deterministic testing.
+    """
+    from datetime import datetime
+
+    now = now or datetime.now(tz=UTC)
+    start_time = session.actual_start_at or session.created_at
+    return (now - start_time).total_seconds()
+
+
 async def _get_session_with_booking(
     db: DbSession, session_id: Annotated[UUID, Path(..., alias="sessionId")]
 ) -> tuple[Session, Booking]:
@@ -72,7 +85,7 @@ async def request_session_completion(
         )
 
     now = datetime.now(tz=UTC)
-    elapsed_seconds = (now - session.actual_start_at).total_seconds()
+    elapsed_seconds = _compute_elapsed_seconds(session, now=now)
     required_duration_seconds = booking.session_duration_minutes * 60
 
     if elapsed_seconds >= required_duration_seconds:

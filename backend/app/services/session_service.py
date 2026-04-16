@@ -13,7 +13,8 @@ from app.core.enums import (
     SessionStatus,
     TransactionType,
     TransactionReason,
-    BookingStatus
+    BookingStatus,
+    UserRole,
 )
 from app.repositories.teacher_subject_repo import TeacherSubjectRepository
 from app.models.booking import Session
@@ -35,7 +36,9 @@ async def _run_side_effects(session_id: str, student_id: str, teacher_id: str, s
         from app.core.socketio import get_socketio_manager
         sio = get_socketio_manager()
         if sio:
-            payload = {"session_id": session_id, "status": status.value}
+            # status may be an Enum with `.value` or a plain value (tests pass object())
+            status_value = getattr(status, "value", status)
+            payload = {"session_id": session_id, "status": status_value}
             await sio.emit_to_user(student_id, "session_finished", payload)
             await sio.emit_to_user(teacher_id, "session_finished", payload)
     except Exception as e:
@@ -145,3 +148,36 @@ async def get_session_for_completion(db: AsyncSession, session_id: UUID) -> Opti
     
     # .unique() is necessary when using joinedload with scalars in async
     return result.unique().scalar_one_or_none()
+
+
+async def fetch_sessions_for_user(
+    db: AsyncSession,
+    user_id: UUID,
+    role: UserRole,
+    in_progress: bool = True,
+) -> list[Session]:
+    """
+    Fetch sessions for a given user (student or teacher).
+
+    - `role` determines whether to filter by booking.student_id or booking.teacher_id
+    - `in_progress=True` filters to sessions with status IN_PROGRESS
+    Returns a list of `Session` ORM objects with the `booking` relationship loaded.
+    """
+    stmt = (
+        select(Session)
+        .join(Booking, Session.booking)
+        .options(joinedload(Session.booking))
+    )
+
+    if role == UserRole.STUDENT:
+        stmt = stmt.where(Booking.student_id == user_id)
+    else:
+        stmt = stmt.where(Booking.teacher_id == user_id)
+
+    if in_progress:
+        stmt = stmt.where(Session.status == SessionStatus.IN_PROGRESS)
+
+    stmt = stmt.order_by(Session.created_at.desc())
+
+    result = await db.execute(stmt)
+    return result.scalars().all()

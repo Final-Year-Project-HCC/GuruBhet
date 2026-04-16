@@ -39,11 +39,13 @@ from app.tasks.session_request_tasks import (
     handle_session_request_timeout_task,
 )
 from app.utils.livekit import (
-    clear_pending_session_key,
     create_room,
     generate_room_token,
-    get_pending_session_key,
-    set_pending_session_key,
+)
+from app.utils.presence import (
+    set_session_request_pending as set_pending_session_key,
+    get_session_request_pending as get_pending_session_key,
+    clear_session_request_pending as clear_pending_session_key,
 )
 from app.services.session_service import handle_session_completion
 from app.utils.livekit_url import get_livekit_url_for_client
