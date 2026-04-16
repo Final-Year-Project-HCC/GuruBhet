@@ -65,6 +65,7 @@ class BookingBriefForSession(SharedConfig):
 
 
 class SessionDetailedReadForStudent(SharedConfig):
+    id: UUID
     session_number: int
     status: SessionStatus
     actual_start_at: Optional[datetime] = None
@@ -99,6 +100,7 @@ class BookingBriefForSessionTeacher(SharedConfig):
 
 
 class SessionDetailedReadForTeacher(SharedConfig):
+    id: UUID
     session_number: int
     status: SessionStatus
     actual_start_at: Optional[datetime] = None

@@ -76,7 +76,9 @@ class Settings(BaseSettings):
     LIVEKIT_API_SECRET: str
     LIVEKIT_URL: str
     LIVEKIT_ROOM_LENIENCY_MINUTES_PER_15MIN: int = 5
-    LIVEKIT_EMPTY_TIMEOUT_SECONDS: int = 86400
+    LIVEKIT_EMPTY_TIMEOUT_SECONDS: int = 7200
+    LIVEKIT_WS_URL:str
+    LIVEKIT_MAX_PARTICIPANTS:int = 2
 
     # ── Media Storage (Cloudinary) ──────────────────────────────────
     CLOUDINARY_CLOUD_NAME: str = ""

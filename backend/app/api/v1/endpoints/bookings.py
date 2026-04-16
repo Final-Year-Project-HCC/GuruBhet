@@ -6,8 +6,9 @@ from uuid import UUID
 
 from fastapi import APIRouter, Path, Request, BackgroundTasks
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
-from app.core.dependencies import CurrentUser, DbSession, RequireProfessionalTeacher, RequirePaymentSetup
+from app.core.dependencies import CurrentUser, DbSession, RequireProfessionalTeacher
 from app.models.user import User
 from app.core.enums import BookingStatus, SessionStatus, UserRole
 from app.core.exceptions import (
@@ -18,9 +19,10 @@ from app.core.exceptions import (
     PermissionDeniedError,
     SubjectNotFoundError,
     ValidationError,
+    LiveKitError,
 )
-from app.core.socketio import get_socketio_manager
 from app.core.config import settings
+from app.core.socketio import get_socketio_manager
 from app.models.booking import Booking, Session
 from app.models.communication import Message, MessageStatus, MessageType
 from app.models.subject import Subject
@@ -30,7 +32,6 @@ from app.schemas.booking import (
     BookingRequestCreate,
     LiveKitTokenResponse,
 )
-from app.schemas.payment import EsewaPaymentInitResponse
 from app.tasks.livekit_tasks import cleanup_expired_livekit_room
 from app.tasks.session_request_tasks import (
     create_offline_notification_message,
@@ -44,30 +45,26 @@ from app.utils.livekit import (
     get_pending_session_key,
     set_pending_session_key,
 )
+from app.services.session_service import handle_session_completion
 from app.utils.livekit_url import get_livekit_url_for_client
-from app.utils.presence import (
-    is_user_online,
-)
+from app.utils.presence import is_user_online
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
+# ──────────────────────────────────────────────────────────────────────────────
+# Step 1: Student creates a booking request
+# ──────────────────────────────────────────────────────────────────────────────
+
 @router.post("/request", response_model=BookingRead, status_code=201)
 async def create_booking_request(
     body: BookingRequestCreate, current_user: CurrentUser, db: DbSession
 ):
-    """
-    Step 1: Student creates a booking request.
-
-    Request specifies teacher, subject, number of sessions, rate per session, and session duration.
-    Session duration must be a multiple of 15 minutes.
-    Booking starts in PENDING_APPROVAL status awaiting teacher approval.
-    """
+    """Student creates a booking request. Starts in PENDING_APPROVAL."""
     if current_user.role != UserRole.STUDENT:
         raise PermissionDeniedError(detail="Only students can create booking requests")
 
-    # Verify subject exists
     subject_result = await db.execute(select(Subject).where(Subject.id == body.subject_id))
     subject = subject_result.scalar_one_or_none()
     if not subject:
@@ -83,14 +80,16 @@ async def create_booking_request(
         rate_per_session=body.rate_per_session,
         session_duration_minutes=body.session_duration_minutes,
         total_amount=total_amount,
-        escrow_amount=Decimal("0"),  # Not captured yet
+        escrow_amount=Decimal("0"),
         status=BookingStatus.PENDING_APPROVAL,
     )
     db.add(booking)
-    await db.flush()
-    await db.refresh(booking)
     return booking
 
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Step 2: Teacher approves the booking request
+# ──────────────────────────────────────────────────────────────────────────────
 
 @router.post("/{booking_id}/approve", response_model=BookingRead)
 async def approve_booking_request(
@@ -98,17 +97,15 @@ async def approve_booking_request(
     current_user: Annotated[User, RequireProfessionalTeacher],
     db: DbSession,
 ):
-    """
-    Step 2: Teacher approves the booking request.
-
-    Booking moves from PENDING_APPROVAL to PENDING_PAYMENT.
-    Student will then initiate payment (no session scheduling needed).
-    Sessions are created on-demand when both parties start a session.
-    """
+    """Teacher approves booking. Moves PENDING_APPROVAL → PENDING_PAYMENT."""
     if current_user.role != UserRole.TEACHER:
         raise PermissionDeniedError(detail="Only teachers can approve bookings")
 
-    result = await db.execute(select(Booking).where(Booking.id == booking_id))
+    result = await db.execute(
+        select(Booking)
+        .where(Booking.id == booking_id)
+        .with_for_update()
+    )
     booking = result.scalar_one_or_none()
     if not booking:
         raise BookingNotFoundError(booking_id=str(booking_id))
@@ -124,12 +121,13 @@ async def approve_booking_request(
 
     booking.status = BookingStatus.PENDING_PAYMENT
     booking.teacher_approved_at = datetime.now(tz=UTC)
-    await db.commit()
-    await db.refresh(booking)
     return booking
 
 
-#Add response model too after removing bypass
+# ──────────────────────────────────────────────────────────────────────────────
+# Step 3: Student initiates payment
+# ──────────────────────────────────────────────────────────────────────────────
+
 @router.post("/{booking_id}/initiate-payment")
 async def initiate_payment(
     booking_id: UUID,
@@ -137,17 +135,18 @@ async def initiate_payment(
     db: DbSession,
 ):
     """
-    Step 3: Student initiates payment for the booking.
+    Student initiates payment. Moves PENDING_PAYMENT → ACTIVE.
 
-    Booking must be in PENDING_PAYMENT status.
-    Returns eSewa payment params — frontend redirects to eSewa.
-    On success, eSewa callback activates the booking.
-    Sessions are created on-demand; no pre-scheduling required.
+    TODO: Replace bypass with real eSewa payment integration.
     """
     if current_user.role != UserRole.STUDENT:
         raise PermissionDeniedError(detail="Only students can pay for bookings")
 
-    result = await db.execute(select(Booking).where(Booking.id == booking_id))
+    result = await db.execute(
+        select(Booking)
+        .where(Booking.id == booking_id)
+        .with_for_update()
+    )
     booking = result.scalar_one_or_none()
     if not booking:
         raise BookingNotFoundError(booking_id=str(booking_id))
@@ -161,23 +160,14 @@ async def initiate_payment(
             context={"current_status": booking.status.value, "required_status": "PENDING_PAYMENT"},
         )
 
-    # DEVELOPMENT BYPASS - mark booking ACTIVE when the student initiates payment.
-    # TODO: Remove this bypass once real payment integration is implemented. Replace
-    # this logic with an actual payment initiation flow that returns payment URLs/params
-    # and only activates the booking on successful payment webhook/callback.
+    # DEVELOPMENT BYPASS — remove once real payment webhook activates the booking
     booking.status = BookingStatus.ACTIVE
-    # Persist the state change to simulate a successful payment capture.
-    await db.commit()
-    await db.refresh(booking)
+    return {"message": "Payment successful"}
 
-    return {"message":"Payment succesfull"}
-    # Return eSewa payment init params (placeholder) for compatibility with frontend.
-    # return EsewaPaymentInitResponse(
-    #     transaction_uuid=str(booking.id),  # Placeholder
-    #     total_amount=str(booking.total_amount),
-    #     esewa_url="https://esewa.com.np",  # Placeholder
-    # )
 
+# ──────────────────────────────────────────────────────────────────────────────
+# Step 4a: Teacher requests a session
+# ──────────────────────────────────────────────────────────────────────────────
 
 @router.post("/{booking_id}/request-session", response_model=dict)
 async def request_session(
@@ -185,57 +175,26 @@ async def request_session(
     current_user: Annotated[User, RequireProfessionalTeacher],
     db: DbSession,
     background_tasks: BackgroundTasks,
+    request: Request,
 ):
     """
-    Step 4a: Teacher requests a new session with PRESENCE CHECK.
+    Teacher requests a new session.
 
     ✓ PRESENCE CHECK: Verifies student is online before proceeding
     ✓ MESSAGING: Creates notification messages for all outcomes
     ✓ EXPIRATION: Sets up unified 60-second expiration handling via Redis TTL
-    ✓ IN_PROGRESS CHECK: Rejects request if session already in progress (use /sync instead)
-
-    Flow:
-    1. Verify booking exists and is ACTIVE
-    2. Check if a session is already IN_PROGRESS
-       - If yes: Return 409 Conflict, direct to use /sync endpoint
-       - If no: Proceed to step 3
-    3. Check student is ONLINE (presence check)
-       - If offline: Create error message, return 480 Subscriber Offline
-       - If online: Proceed to step 4
-    4. Set Redis key with 60-second TTL for handshake window
-    5. Create session request message
-    6. Set up expiration handler via Redis TTL + background task
-    7. Emit Socket.IO event to student
-    8. Return success with session counts
-
-    Args:
-        booking_id: UUID of the booking
-        current_user: Teacher making the request
-        db: Database session
-
-    Returns:
-        {
-            "status": "ready",
-            "completed_sessions": int,
-            "total_sessions": int,
-            "remaining_sessions": int,
-            "message": str,
-            "online_status": "online"
-        }
-
-    Raises:
-        403: Only teachers can request sessions
-        403: Not your booking
-        400: Booking not ACTIVE
-        409: Session already in progress (use /sync to reconnect)
-        400: All sessions completed
-        480: Student is offline (SUBSCRIBER_OFFLINE)
+    ✓ IN_PROGRESS CHECK: Rejects if session already in progress (use /sync instead)
+    ✓ LOCKING: Booking row locked to prevent duplicate session creation
     """
-    # ── Step 1: Verify teacher and booking ──
     if current_user.role != UserRole.TEACHER:
         raise PermissionDeniedError(detail="Only teachers can request sessions")
 
-    result = await db.execute(select(Booking).where(Booking.id == booking_id))
+    # Lock booking row to prevent concurrent session requests
+    result = await db.execute(
+        select(Booking)
+        .where(Booking.id == booking_id)
+        .with_for_update()
+    )
     booking = result.scalar_one_or_none()
     if not booking:
         raise BookingNotFoundError(booking_id=str(booking_id))
@@ -249,55 +208,71 @@ async def request_session(
             context={"current_status": booking.status.value, "required_status": "ACTIVE"},
         )
 
-    # ── Check if a session is already in progress for this booking ──
-    in_progress_session = await db.execute(
-        select(Session).where(
-            (Session.booking_id == booking_id) & (Session.status == SessionStatus.IN_PROGRESS)
+    # ── Ghost Guard: redirect if session already in progress ──
+    in_progress_result = await db.execute(
+        select(Session)
+        .where(
+            (Session.booking_id == booking_id) &
+            (Session.status == SessionStatus.IN_PROGRESS)
         )
+        .with_for_update()
     )
-    if in_progress_session.scalar_one_or_none():
-        raise BookingConflictError(
-            detail="A session is already in progress for this booking. Use /sync to reconnect.",
-            context={"booking_id": str(booking_id), "conflict_type": "session_in_progress"},
-        )
+    session = in_progress_result.scalar_one_or_none()
 
-    # ── Check if teacher has an active session in ANY booking ──
-    teacher_active_session = await db.execute(
+    if session:
+        teacher_token = generate_room_token(
+            user_id=str(current_user.id),
+            session_id=str(session.id),
+            display_name=f"{current_user.first_name} {current_user.last_name}",
+            is_teacher=True,
+        )
+        return {
+            "status": "already_in_progress",
+            "already_exists": True,
+            "token": teacher_token,
+            "room_name": session.livekit_room_name,
+            "livekit_url": get_livekit_url_for_client(request),
+            "message": "A session is already in progress. Redirecting you to the room...",
+        }
+
+    # ── Conflict checks (read-only, no lock needed) ──
+    teacher_active = await db.execute(
         select(Session)
         .join(Booking, Session.booking_id == Booking.id)
         .where(
-            (Booking.teacher_id == current_user.id) & (Session.status == SessionStatus.IN_PROGRESS)
+            (Booking.teacher_id == current_user.id) &
+            (Session.status == SessionStatus.IN_PROGRESS) &
+            (Booking.id != booking_id)
         )
     )
-    if teacher_active_session.scalars().first():
+    if teacher_active.scalars().first():
         raise BookingConflictError(
-            detail="You already have another session in progress. Please complete it before requesting a new one.",
+            detail="You already have another session in progress in a different booking.",
             context={"conflict_type": "teacher_session_in_progress"},
         )
 
-    # ── Check if student has an active session in ANY booking ──
-    student_active_session = await db.execute(
+    student_active = await db.execute(
         select(Session)
         .join(Booking, Session.booking_id == Booking.id)
         .where(
-            (Booking.student_id == booking.student_id)
-            & (Session.status == SessionStatus.IN_PROGRESS)
+            (Booking.student_id == booking.student_id) &
+            (Session.status == SessionStatus.IN_PROGRESS)
         )
     )
-    if student_active_session.scalars().first():
+    if student_active.scalars().first():
         raise BookingConflictError(
             detail="The student is currently in another session.",
             context={"conflict_type": "student_session_in_progress"},
         )
 
-    # ── Step 2: Check completed sessions ──
-    sessions_result = await db.execute(select(Session).where(Session.booking_id == booking.id))
+    # ── Check completed sessions ──
+    sessions_result = await db.execute(
+        select(Session).where(Session.booking_id == booking.id)
+    )
     sessions = sessions_result.scalars().all()
     completed = sum(
-        1
-        for s in sessions
-        if s.status
-        in (
+        1 for s in sessions
+        if s.status in (
             SessionStatus.COMPLETED,
             SessionStatus.CANCELLED_BY_STUDENT,
             SessionStatus.CANCELLED_BY_TEACHER,
@@ -309,54 +284,46 @@ async def request_session(
             detail=f"All {booking.total_sessions} sessions have been completed",
             context={"completed_sessions": completed, "total_sessions": booking.total_sessions},
         )
-    # ── Step 3: Check student presence (PRESENCE CHECK) ──
-    student_online = await is_user_online(booking.student_id, use_redis=True)
 
-    # Use a local bypass flag defaulting to True when running in environments
-    # where the setting is not defined yet (dev / temporary workaround).
+    # ── Presence check ──
+    student_online = await is_user_online(booking.student_id, use_redis=True)
     bypass_presence = getattr(settings, "BYPASS_PRESENCE_CHECK", True)
+
     if not student_online and not bypass_presence:
-        # Student is offline - create error message and return 480
         await create_offline_notification_message(
             booking_id=booking_id,
             teacher_id=current_user.id,
             student_id=booking.student_id,
             db=db,
         )
+        # Explicit commit required: we want the offline notification persisted
+        # even though we're about to raise — SessionManager would rollback on exception.
         await db.commit()
-
-        logger.info(
-            f"Session request rejected: student offline. "
-            f"Teacher={current_user.id}, Student={booking.student_id}, Booking={booking_id}"
-        )
-
         raise ExternalServiceError(
             detail="Student is currently offline. Please try again when they are online.",
             status_code=480,
         )
 
-    # ── Step 4: Set up Redis keys with 60-second TTL ──
-    # This key's expiration will trigger the background handler
-    await set_pending_session_key(str(booking_id))
-
-    # ── Step 5: Create session request notification message ──
+    # ── Create session request message ──
     request_message = await create_session_request_message(
         booking_id=booking_id,
         teacher_id=current_user.id,
         student_id=booking.student_id,
         db=db,
     )
-    
-    # Commit DB changes (Message & Redis key) before triggering external side effects
-    await db.commit()
 
-    # ── Step 5b: Queue Celery task to handle 60-second timeout ──
-    # After 60s, check if message status is still ONGOING, if so mark as MISSED
-    handle_session_request_timeout_task.apply_async(
-        args=[str(booking_id), str(request_message.id)], countdown=60
+    # ── Redis key: set inline (NOT background task) ──
+    # The Celery timeout task reads this key immediately after dispatch.
+    # It must be set before the task runs, so it cannot be deferred.
+    await set_pending_session_key(str(booking_id))
+
+    # ── Side effects (run after successful commit via BackgroundTasks) ──
+    background_tasks.add_task(
+        handle_session_request_timeout_task.apply_async,
+        args=[str(booking_id), str(request_message.id)],
+        countdown=60,
     )
 
-    # ── Step 6: Emit Socket.IO event to student ──
     sio_manager = get_socketio_manager()
     if sio_manager:
         background_tasks.add_task(
@@ -372,13 +339,13 @@ async def request_session(
                 "total_sessions": booking.total_sessions,
                 "duration_minutes": booking.session_duration_minutes,
                 "timestamp": datetime.now(UTC).isoformat(),
-                "message": f"{current_user.full_name} has requested a session. You have 60 seconds to accept.",
+                "message": f"{current_user.full_name} has requested a session.",
             },
         )
 
-    # ── Step 7: Return success ──
     return {
         "status": "ready",
+        "already_exists": False,
         "completed_sessions": completed,
         "total_sessions": booking.total_sessions,
         "remaining_sessions": booking.total_sessions - completed,
@@ -387,6 +354,10 @@ async def request_session(
         "message": "Session request sent. Student has 60 seconds to accept.",
     }
 
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Step 4b: Student accepts the session request
+# ──────────────────────────────────────────────────────────────────────────────
 
 @router.post("/{booking_id}/accept-session", response_model=LiveKitTokenResponse)
 async def accept_session_request(
@@ -397,201 +368,140 @@ async def accept_session_request(
     background_tasks: BackgroundTasks,
 ):
     """
-    Step 4b: Student accepts the session request.
+    Student accepts the session request. Session is CREATED here.
 
-    IMPORTANT: Session is CREATED here when student accepts, not before.
-    This ensures we only create sessions when we're certain they will happen.
-
-    Flow:
-    1. Verify Redis key exists (60-second window) — if expired, return 410 Gone
-    2. Get next session number from booking
-    3. CREATE Session record in database with status READY
-    4. Create LiveKit room (webhook will transition to IN_PROGRESS and set actual_start_at)
-    5. Clear Redis key
-    6. Emit socket event to teacher with their LiveKit token
-    7. Return LiveKit token for student to join
-
-    Returns:
-      - 200 OK with LiveKit token, room name, and URL if successful
-      - 410 Gone if session acceptance window expired
-      - 404 Not found if booking or message not found
-
-    Note: LiveKit URL is dynamically determined based on client's network origin
-    to support cross-device connections (MacBook, iPad, etc.)
+    ✓ LOCKING: Booking row locked to prevent duplicate session creation
+    ✓ GHOST GUARD: Redirects if session already exists
+    ✓ LIVEKIT: Room created before commit; failure rolls back the session
     """
     if current_user.role != UserRole.STUDENT:
         raise PermissionDeniedError(detail="Only students can accept sessions")
 
-    result = await db.execute(select(Booking).where(Booking.id == booking_id))
+    # Lock booking row to prevent two concurrent accepts creating two sessions
+    result = await db.execute(
+        select(Booking)
+        .options(selectinload(Booking.teacher))
+        .where(Booking.id == booking_id)
+        .with_for_update()
+    )
     booking = result.scalar_one_or_none()
     if not booking:
         raise BookingNotFoundError(booking_id=str(booking_id))
 
     if booking.student_id != current_user.id:
-        raise PermissionDeniedError(detail="Cannot accept sessions for booking you don't own")
+        raise PermissionDeniedError(detail="Cannot accept sessions for a booking you don't own")
 
-    # ── Check Redis key (60-second handshake window) ──
+    # ── Ghost Guard: redirect if session already in progress ──
+    existing_result = await db.execute(
+        select(Session)
+        .where(Session.booking_id == booking_id)
+        .where(Session.status == SessionStatus.IN_PROGRESS)
+        .limit(1)
+    )
+    existing_session = existing_result.scalar_one_or_none()
+
+    if existing_session:
+        token = generate_room_token(
+            user_id=str(current_user.id),
+            session_id=str(existing_session.id),
+            display_name=f"{current_user.first_name} {current_user.last_name}",
+            is_teacher=False,
+        )
+        return LiveKitTokenResponse(
+            token=token,
+            room_name=existing_session.livekit_room_name,
+            livekit_url=get_livekit_url_for_client(request),
+            already_exists=True,
+        )
+
+    # ── Handshake check (60-second window) ──
     pending = await get_pending_session_key(str(booking_id))
     if not pending:
-        # Redis key expired — student took >60 seconds to accept
-        from app.core.exceptions import ExternalServiceError
-
         raise ExternalServiceError(
-            detail="Session acceptance window expired. Teacher must request again.", status_code=410
+            detail="Session acceptance window expired. Teacher must request again.",
+            status_code=410,
         )
 
-    # ── CREATE Session record NOW (on acceptance) ──
-    # Get count of completed sessions
-    sessions_result = await db.execute(select(Session).where(Session.booking_id == booking.id))
-    sessions = sessions_result.scalars().all()
-    completed = sum(
-        1
-        for s in sessions
-        if s.status
-        in (
-            SessionStatus.COMPLETED,
-            SessionStatus.CANCELLED_BY_STUDENT,
-            SessionStatus.CANCELLED_BY_TEACHER,
-        )
+    # ── Session capacity check (row-locked to avoid races) ──
+    # We use a SELECT of the max(session_number) with FOR UPDATE instead of
+    # loading all Session rows and using len(sessions). This avoids scanning
+    # many rows and acquires a row lock to serialize concurrent creators,
+    # preventing race conditions that could assign the same session_number.
+    # Select the current max session_number for this booking and lock rows
+    max_sn_result = await db.execute(
+        select(Session.session_number)
+        .where(Session.booking_id == booking.id)
+        .order_by(Session.session_number.desc())
+        .limit(1)
+        .with_for_update()
     )
+    max_session_number = max_sn_result.scalar_one_or_none() or 0
 
-    if completed >= booking.total_sessions:
-        raise InvalidStatusTransitionError(
-            detail=f"All {booking.total_sessions} sessions have been completed",
-            context={"completed_sessions": completed, "total_sessions": booking.total_sessions},
+    if max_session_number >= booking.total_sessions:
+        raise ExternalServiceError(
+            detail="All scheduled sessions for this booking are exhausted."
         )
 
-    # Calculate next session number
-    session_number = len(sessions) + 1
-
-    # Create the Session record
-    session = Session(
+    # ── Create session record ──
+    now = datetime.now(tz=UTC)
+    new_session = Session(
         booking_id=booking.id,
-        session_number=session_number,
-        status=SessionStatus.READY,
-        teacher_initiated_at=datetime.now(tz=UTC),
-        student_accepted_at=datetime.now(tz=UTC),
+        session_number=max_session_number + 1,
+        status=SessionStatus.IN_PROGRESS,
+        teacher_initiated_at=now,
+        student_accepted_at=now,
+        actual_start_at=now,
     )
-    db.add(session)
-    
-    # 1. Commit the Session record first. If this fails, no room is created.
-    await db.commit()
-    await db.refresh(session)
-    actual_session_id = session.id
-    
-    # 2. Now perform external side effects
-    try:
-        room_name_with_prefix = f"session-{actual_session_id}"
-        room_name = await create_room(room_name_with_prefix, booking.session_duration_minutes)
-        session.livekit_room_name = room_name
-        await db.commit() # Save the room name
-        logger.info(
-            f"Successfully created LiveKit room for session {actual_session_id}",
-            extra={
-                "session_id": str(actual_session_id),
-                "booking_id": str(booking_id),
-                "room_name": room_name,
-            },
-        )
-    except Exception as e:
-        # LiveKit API error - log it and return 503 Service Unavailable
-        logger.error(
-            f"Failed to create LiveKit room for session {actual_session_id}: {type(e).__name__}: {e}",
-            extra={
-                "session_id": str(actual_session_id),
-                "booking_id": str(booking_id),
-                "error_type": type(e).__name__,
-            },
-        )
-        from app.core.exceptions import LiveKitError
+    db.add(new_session)
 
+    # flush() is required here to get new_session.id before the LiveKit API call
+    await db.flush()
+    actual_session_id = new_session.id
+
+    # ── Create LiveKit room (external call; failure rolls back via exception) ──
+    try:
+        room_name = await create_room(
+            f"session-{actual_session_id}",
+            settings.LIVEKIT_EMPTY_TIMEOUT_SECONDS,
+            settings.LIVEKIT_MAX_PARTICIPANTS,
+        )
+        new_session.livekit_room_name = room_name
+    except Exception as e:
+        logger.error(f"LiveKit room creation failed: {e}")
         raise LiveKitError(cause=e)
 
-    # ── Schedule cleanup task for when session expires ──
-    # Room will be deleted after: session_duration_minutes + leniency buffer
-    # This ensures room_finished event fires at the expected time regardless of participant presence
-    try:
-        from app.core.config import settings
+    # ── Side effects (run after successful commit via BackgroundTasks) ──
+    background_tasks.add_task(clear_pending_session_key, str(booking_id))
 
-        leniency_multiplier = settings.LIVEKIT_ROOM_LENIENCY_MINUTES_PER_15MIN
-        leniency_minutes = (booking.session_duration_minutes // 15) * leniency_multiplier
-        total_timeout_minutes = booking.session_duration_minutes + leniency_minutes
-        total_timeout_seconds = int(total_timeout_minutes * 60)
-
-        cleanup_task = cleanup_expired_livekit_room.apply_async(
-            args=[str(actual_session_id)],
-            countdown=total_timeout_seconds,
+    sio_manager = get_socketio_manager()
+    if sio_manager:
+        teacher_token = generate_room_token(
+            user_id=str(booking.teacher_id),
+            session_id=str(actual_session_id),
+            display_name=f"{booking.teacher.first_name} {booking.teacher.last_name}",
+            is_teacher=True,
         )
-
-        logger.info(
-            f"Scheduled LiveKit room cleanup for session {actual_session_id} "
-            f"in {total_timeout_minutes} minutes ({total_timeout_seconds}s)",
-            extra={
-                "session_id": str(actual_session_id),
+        background_tasks.add_task(
+            sio_manager.emit_to_user,
+            user_id=booking.teacher_id,
+            event="session_ready",
+            data={
                 "booking_id": str(booking_id),
-                "timeout_minutes": total_timeout_minutes,
-                "timeout_seconds": total_timeout_seconds,
-                "task_id": cleanup_task.id,
-            },
-        )
-    except Exception as e:
-        # Log task scheduling error but don't fail the request
-        # Room will still be cleaned up by the 24-hour empty_timeout
-        logger.warning(
-            f"Failed to schedule LiveKit room cleanup task: {type(e).__name__}: {e}",
-            extra={
                 "session_id": str(actual_session_id),
-                "booking_id": str(booking_id),
+                "token": teacher_token,
+                "room_name": new_session.livekit_room_name,
+                "livekit_url": get_livekit_url_for_client(request),
             },
         )
 
-    # ── Update message status to ACCEPTED (Case 2) ──
-    # Fetch the current ONGOING session request for this booking and participants
-    try:
-        message_result = await db.execute(
-            select(Message)
-            .where(
-                Message.booking_id == booking_id,
-                Message.sender_id == booking.teacher_id,
-                Message.receiver_id == booking.student_id,
-                Message.message_type == MessageType.SESSION_REQUEST,
-                Message.status == MessageStatus.ONGOING,
-            )
-            .order_by(Message.created_at.desc())
-            .limit(1)
-        )
-        request_message = message_result.scalar_one_or_none()
-        if request_message:
-            request_message.status = MessageStatus.ACCEPTED
-            await db.commit()
-    except Exception as e:
-        # Log message update error but don't fail the whole request
-        logger.warning(
-            f"Failed to update session request message status to ACCEPTED: {type(e).__name__}: {e}",
-            extra={
-                "booking_id": str(booking_id),
-                "session_id": str(actual_session_id),
-            },
-        )
+    leniency = (booking.session_duration_minutes // 15) * settings.LIVEKIT_ROOM_LENIENCY_MINUTES_PER_15MIN
+    total_seconds = (booking.session_duration_minutes + leniency) * 60
+    background_tasks.add_task(
+        cleanup_expired_livekit_room.apply_async,
+        args=[str(actual_session_id)],
+        countdown=total_seconds,
+    )
 
-    # ── Clear Redis key after successful acceptance ──
-    await clear_pending_session_key(str(booking_id))
-
-    # # ── Emit Socket.IO event to teacher with their token ──
-    # sio_manager = get_socketio_manager()
-    # if sio_manager:
-    #     background_tasks.add_task(
-    #         _emit_session_ready_to_teacher,
-    #         sio_manager=sio_manager,
-    #         booking=booking,
-    #         session=session,
-    #         actual_session_id=actual_session_id
-    #     )
-
-    # Refresh to get the latest state from database
-    await db.refresh(session)
-
-    # Return student's token in HTTP response
     student_token = generate_room_token(
         user_id=str(current_user.id),
         session_id=str(actual_session_id),
@@ -599,15 +509,17 @@ async def accept_session_request(
         is_teacher=False,
     )
 
-    # Get dynamic LiveKit URL based on client's network origin
-    livekit_url = get_livekit_url_for_client(request)
-
     return LiveKitTokenResponse(
         token=student_token,
-        room_name=session.livekit_room_name,
-        livekit_url=livekit_url,
+        room_name=f"session-{actual_session_id}",
+        livekit_url=get_livekit_url_for_client(request),
+        already_exists=False,
     )
 
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Step 4c: Student rejects the session request
+# ──────────────────────────────────────────────────────────────────────────────
 
 @router.post("/{booking_id}/reject-session")
 async def reject_session_request(
@@ -616,31 +528,7 @@ async def reject_session_request(
     db: DbSession,
     background_tasks: BackgroundTasks,
 ):
-    """
-    Step 4c: Student explicitly rejects the session request.
-
-    Case 3 handler: Student rejects within 60-second window.
-
-    Flow:
-    1. Verify Redis key exists (60-second window)
-    2. Update session request message status to REJECTED
-    3. Clear Redis key
-    4. Emit socket event to teacher with rejection notification
-    5. Return success response
-
-    Returns:
-        {
-            "status": "rejected",
-            "booking_id": UUID,
-            "message": "Session request rejected."
-        }
-
-    Raises:
-        403: Only students can reject sessions
-        404: Booking not found
-        403: Not student's booking
-        410: Session rejection window expired (>60 seconds)
-    """
+    """Student rejects the session request within the 60-second window."""
     if current_user.role != UserRole.STUDENT:
         raise PermissionDeniedError(detail="Only students can reject sessions")
 
@@ -652,16 +540,15 @@ async def reject_session_request(
     if booking.student_id != current_user.id:
         raise PermissionDeniedError(detail="Not your booking")
 
-    # ── Check Redis key (60-second rejection window) ──
+    # ── Handshake check (60-second window) ──
     pending = await get_pending_session_key(str(booking_id))
     if not pending:
-        # Redis key expired — student took >60 seconds to reject
         raise ExternalServiceError(
-            detail="Session rejection window expired. Teacher must request again.", status_code=410
+            detail="Session rejection window expired. Teacher must request again.",
+            status_code=410,
         )
 
-    # ── Update message status to REJECTED (Case 3) ──
-    # Fetch the current ONGOING session request for this booking and participants
+    # ── Mark message as rejected ──
     message_result = await db.execute(
         select(Message)
         .where(
@@ -679,13 +566,9 @@ async def reject_session_request(
         raise ExternalServiceError(detail="Session request message not found", status_code=404)
 
     request_message.status = MessageStatus.REJECTED
-    await db.flush()
 
-    # ── Clear Redis key after rejection ──
-    await clear_pending_session_key(str(booking_id))
-
-    # ── Emit Socket.IO event to teacher with rejection notification ──
-    from app.core.socketio import get_socketio_manager
+    # ── Side effects (run after successful commit via BackgroundTasks) ──
+    background_tasks.add_task(clear_pending_session_key, str(booking_id))
 
     sio_manager = get_socketio_manager()
     if sio_manager:
@@ -698,11 +581,9 @@ async def reject_session_request(
                 "student_id": str(current_user.id),
                 "student_name": current_user.full_name,
                 "timestamp": datetime.now(UTC).isoformat(),
-                "message": f"{current_user.full_name} has rejected your session request.",
+                "message": f"{current_user.full_name} has rejected the session request.",
             },
         )
-
-    await db.commit()
 
     return {
         "status": "rejected",
@@ -711,38 +592,13 @@ async def reject_session_request(
     }
 
 
-async def _emit_session_ready_to_teacher(sio_manager, booking, session, actual_session_id):
-    """Internal helper for background Socket.IO emission."""
-    try:
-        from app.core.config import settings
-        
-        # Generate token for teacher
-        teacher_token = generate_room_token(
-            user_id=str(booking.teacher_id),
-            session_id=str(actual_session_id),
-            display_name=f"{booking.teacher.first_name} {booking.teacher.last_name}",
-            is_teacher=True,
-        )
-
-        # Emit event to teacher
-        await sio_manager.emit_to_user(
-            user_id=booking.teacher_id,
-            event="session_ready",
-            data={
-                "token": teacher_token,
-                "room_name": session.livekit_room_name,
-                "livekit_url": settings.LIVEKIT_URL,
-            },
-        )
-    except Exception as e:
-        logger.warning(
-            f"Background Socket.IO emission failed for teacher {booking.teacher_id}: {e}"
-        )
-
+# ──────────────────────────────────────────────────────────────────────────────
+# Read endpoints
+# ──────────────────────────────────────────────────────────────────────────────
 
 @router.get("/", response_model=list[BookingRead])
 async def list_my_bookings(current_user: CurrentUser, db: DbSession):
-    """List bookings for the current user (student or teacher view)."""
+    """List bookings for the current user."""
     if current_user.role == UserRole.STUDENT:
         result = await db.execute(
             select(Booking)
@@ -758,17 +614,12 @@ async def list_my_bookings(current_user: CurrentUser, db: DbSession):
     else:
         raise PermissionDeniedError(detail="Not authorized")
 
-    bookings = result.scalars().all()
-    return bookings
+    return result.scalars().all()
 
 
 @router.get("/{booking_id}", response_model=BookingRead)
-async def get_booking(
-    booking_id: UUID,
-    current_user: CurrentUser,
-    db: DbSession,
-):
-    """Get a specific booking; must be student or teacher in the booking."""
+async def get_booking(booking_id: UUID, current_user: CurrentUser, db: DbSession):
+    """Get a specific booking."""
     result = await db.execute(select(Booking).where(Booking.id == booking_id))
     booking = result.scalar_one_or_none()
     if not booking:
@@ -780,61 +631,40 @@ async def get_booking(
     return booking
 
 
+# ──────────────────────────────────────────────────────────────────────────────
+# Sync: reconnection recovery
+# ──────────────────────────────────────────────────────────────────────────────
+
 @router.get("/{booking_id}/sync", response_model=LiveKitTokenResponse)
 async def sync_session(
     booking_id: UUID,
     current_user: CurrentUser,
     db: DbSession,
+    request: Request,
 ):
     """
-    Sync endpoint for Socket.IO reconnection/page refresh recovery.
-
-    Both teacher and student can call this to get a fresh LiveKit token
-    and check if they're still within the session window (with leniency buffer).
-
-    Leniency Formula:
-      For a session with duration D minutes,
-      allow LIVEKIT_ROOM_LENIENCY_MINUTES_PER_15MIN extra minute per 15 minutes:
-      leniency_buffer = (D // 15) * LIVEKIT_ROOM_LENIENCY_MINUTES_PER_15MIN minutes
-      Allow access if: current_time <= (session_end + leniency_buffer)
-
-    Flow:
-      1. Verify booking is ACTIVE
-      2. Find the most recent session for this booking
-      3. Check SessionStatus - if COMPLETED or CANCELLED_BY_*, deny access
-      4. Verify session is IN_PROGRESS
-      5. Verify current time is within session window + leniency
-      6. Record join timestamp if needed
-      7. Return fresh LiveKit token
-
-    Returns:
-      - 200 OK with fresh LiveKit token if valid
-      - 403 Forbidden if session window + leniency has expired
-      - 410 Gone if session not found, completed, cancelled, or not in progress
-
-    Side effects:
-      - Records join timestamp if not already recorded
+    Returns a fresh LiveKit token if the session is still within its valid window.
+    Used for reconnection / page refresh recovery.
     """
-    from app.core.config import settings
-
-    # Fetch booking
     booking_result = await db.execute(select(Booking).where(Booking.id == booking_id))
     booking = booking_result.scalar_one_or_none()
     if not booking:
         raise BookingNotFoundError(booking_id=str(booking_id))
 
-    # Verify user is part of this booking
-    if current_user.id not in (booking.student_id, booking.teacher_id):
-        raise PermissionDeniedError(detail="Not your booking")
+    is_teacher = current_user.id == booking.teacher_id
+    is_student = current_user.id == booking.student_id
 
-    # Verify booking is ACTIVE
-    if booking.status != BookingStatus.ACTIVE:
-        raise ExternalServiceError(
-            detail=f"Booking is no longer active. Status: {booking.status.value}", status_code=410
+    if not (is_teacher or is_student):
+        raise PermissionDeniedError(
+            detail="Access denied: You are not a participant in this booking."
         )
 
-    # Find the current session for this booking
-    # Note: webhook guarantees actual_start_at is set when status is IN_PROGRESS
+    if booking.status != BookingStatus.ACTIVE:
+        raise ExternalServiceError(
+            detail=f"Booking is no longer active. Status: {booking.status.value}",
+            status_code=410,
+        )
+
     session_result = await db.execute(
         select(Session)
         .where(Session.booking_id == booking_id)
@@ -843,66 +673,25 @@ async def sync_session(
     )
     session = session_result.scalar_one_or_none()
 
-    if not session:
-        raise ExternalServiceError(detail="No session found", status_code=410)
+    if not session or session.status != SessionStatus.IN_PROGRESS:
+        raise ExternalServiceError(detail="No active session in progress.", status_code=410)
 
-    # Check if session is still active (IN_PROGRESS)
-    # If session is COMPLETED or CANCELLED_BY_*, deny access
-    if session.status == SessionStatus.COMPLETED:
-        raise ExternalServiceError(detail="Session has been completed", status_code=410)
-    elif session.status in (SessionStatus.CANCELLED_BY_TEACHER, SessionStatus.CANCELLED_BY_STUDENT):
-        raise ExternalServiceError(
-            detail=f"Session was cancelled by {session.status.value.split('_')[2]}", status_code=410
-        )
-    elif session.status not in (SessionStatus.IN_PROGRESS, SessionStatus.READY):
-        raise ExternalServiceError(
-            detail=f"Session is not in progress or ready. Current status: {session.status.value}",
-            status_code=410,
-        )
+    duration = booking.session_duration_minutes
+    leniency = getattr(settings, "LIVEKIT_ROOM_LENIENCY_MINUTES_PER_15MIN", 2)
+    cutoff = (session.actual_start_at or session.created_at) + timedelta(
+        minutes=duration + (duration // 15 * leniency)
+    )
 
-    # Session is READY or IN_PROGRESS - calculate leniency buffer for time-based access control
-    session_duration_minutes = booking.session_duration_minutes
-    leniency_multiplier = settings.LIVEKIT_ROOM_LENIENCY_MINUTES_PER_15MIN
-    leniency_minutes = (session_duration_minutes // 15) * leniency_multiplier
+    if datetime.now(tz=UTC) > cutoff:
+        raise ExternalServiceError(detail="Session window has expired.", status_code=410)
 
-    # For READY status, actual_start_at may be None (webhook hasn't fired yet)
-    # In this case, allow access since the session is still in the acceptance window
-    # For IN_PROGRESS status, actual_start_at should be set by webhook
-    if session.status == SessionStatus.READY:
-        # Session is ready but hasn't started yet - allow access
-        # No expiration check needed since session is fresh
-        pass
-    elif session.status == SessionStatus.IN_PROGRESS:
-        # Session has started - check if we're within the time window + leniency
-        if session.actual_start_at is None:
-            # This shouldn't happen if webhook is working, but handle gracefully
-            logger.warning(
-                f"Session {session.id} is IN_PROGRESS but actual_start_at is None",
-                extra={"session_id": str(session.id), "booking_id": str(booking_id)},
-            )
-            # Allow access anyway since we can't determine expiration
-        else:
-            session_end = session.actual_start_at + timedelta(minutes=session_duration_minutes)
-            allowed_end_time = session_end + timedelta(minutes=leniency_minutes)
-
-            # Check if current time is within window + leniency
-            now = datetime.now(tz=UTC)
-            if now > allowed_end_time:
-                raise PermissionDeniedError(
-                    detail=f"Session window expired. Window closed at {allowed_end_time.isoformat()}"
-                )
-
-    # Record join timestamp if not already recorded
+    # Record join timestamp if not already set
     now = datetime.now(tz=UTC)
-    is_teacher = current_user.id == booking.teacher_id
     if is_teacher and not session.teacher_joined_at:
         session.teacher_joined_at = now
-    elif not is_teacher and not session.student_joined_at:
+    elif is_student and not session.student_joined_at:
         session.student_joined_at = now
 
-    await db.commit()
-
-    # Generate fresh LiveKit token
     token = generate_room_token(
         user_id=str(current_user.id),
         session_id=str(session.id),
@@ -913,9 +702,13 @@ async def sync_session(
     return LiveKitTokenResponse(
         token=token,
         room_name=session.livekit_room_name,
-        livekit_url=settings.LIVEKIT_URL,
+        livekit_url=get_livekit_url_for_client(request),
     )
 
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Cancel booking
+# ──────────────────────────────────────────────────────────────────────────────
 
 @router.post("/{booking_id}/cancel", response_model=BookingRead)
 async def cancel_booking(
@@ -923,21 +716,30 @@ async def cancel_booking(
     body: BookingCancelRequest,
     current_user: CurrentUser,
     db: DbSession,
+    background_tasks: BackgroundTasks,
 ):
     """
-    Cancel a booking.
+    Cancel a booking, terminating any active session.
 
-    Logic:
-    - If PENDING_APPROVAL or PENDING_PAYMENT: cancel immediately (no refund needed)
-    - If ACTIVE: cancel and trigger refund for uncompleted sessions
-    - If COMPLETED or already CANCELLED: raise error (cannot cancel)
+    ✓ LOCKING: Booking + active session rows locked atomically
+    ✓ FINANCIALS: Teacher credited if student cancels
+    ✓ SIDE EFFECTS: Socket notifications run after successful commit
     """
-    result = await db.execute(select(Booking).where(Booking.id == booking_id))
+    # Lock booking row to prevent concurrent cancellations
+    result = await db.execute(
+        select(Booking)
+        .where(Booking.id == booking_id)
+        .with_for_update()
+    )
     booking = result.scalar_one_or_none()
     if not booking:
         raise BookingNotFoundError(booking_id=str(booking_id))
-    if current_user.id not in (booking.student_id, booking.teacher_id):
-        raise PermissionDeniedError(detail="Not your booking")
+
+    is_student = current_user.id == booking.student_id
+    is_teacher = current_user.id == booking.teacher_id
+
+    if not (is_student or is_teacher):
+        raise PermissionDeniedError(detail="Not your booking.")
 
     if booking.status in (
         BookingStatus.COMPLETED,
@@ -945,22 +747,69 @@ async def cancel_booking(
         BookingStatus.CANCELLED_BY_TEACHER,
     ):
         raise ValidationError(
-            detail=f"Cannot cancel booking in status {booking.status.value}",
-            context={"current_status": booking.status.value},
+            detail=f"Cannot cancel a booking in status {booking.status.value}"
         )
-    # Only trigger refund if booking was ACTIVE (money was already taken)
+
+    # ── Lock and fetch active session separately ──
+    # selectinload cannot apply with_for_update to child rows.
+    # We fetch and lock the active session explicitly to prevent the webhook
+    # or Celery from completing it concurrently mid-cancellation.
+    active_session_result = await db.execute(
+        select(Session)
+        .where(
+            (Session.booking_id == booking_id) &
+            (Session.status == SessionStatus.IN_PROGRESS)
+        )
+        .with_for_update()
+    )
+    active_session = active_session_result.scalar_one_or_none()
+
+    if active_session:
+        completion_status = (
+            SessionStatus.CANCELLED_BY_STUDENT if is_student
+            else SessionStatus.CANCELLED_BY_TEACHER
+        )
+        await handle_session_completion(
+            session=active_session,
+            booking=booking,
+            db=db,
+            completion_status=completion_status,
+            background_tasks=background_tasks,
+        )
+
+    # ── Refund remaining unused sessions ──
     if booking.status == BookingStatus.ACTIVE:
-        # TODO: queue Celery task for refund
-        pass
+        remaining_sessions = booking.total_sessions - booking.completed_sessions
+        if remaining_sessions > 0:
+            # TODO: integrate payment gateway refund
+            logger.info(
+                f"Booking {booking.id} cancelled. "
+                f"{remaining_sessions} session(s) pending refund."
+            )
 
-    if current_user.id == booking.student_id:
-        booking.status = BookingStatus.CANCELLED_BY_STUDENT
-    elif current_user.id == booking.teacher_id:
-        booking.status = BookingStatus.CANCELLED_BY_TEACHER
-
+    # ── Finalize booking ──
+    booking.status = (
+        BookingStatus.CANCELLED_BY_STUDENT if is_student
+        else BookingStatus.CANCELLED_BY_TEACHER
+    )
     booking.cancellation_reason = body.reason
     booking.cancelled_at = datetime.now(tz=UTC)
 
-    await db.commit()
-    await db.refresh(booking)
+    # ── Side effects (run after successful commit via BackgroundTasks) ──
+    background_tasks.add_task(clear_pending_session_key, str(booking_id))
+
+    sio_manager = get_socketio_manager()
+    if sio_manager:
+        other_user_id = booking.teacher_id if is_student else booking.student_id
+        background_tasks.add_task(
+            sio_manager.emit_to_user,
+            user_id=other_user_id,
+            event="booking_cancelled",
+            data={
+                "booking_id": str(booking.id),
+                "reason": body.reason,
+                "cancelled_by": "student" if is_student else "teacher",
+            },
+        )
+
     return booking

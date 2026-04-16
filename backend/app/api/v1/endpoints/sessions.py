@@ -13,7 +13,7 @@ from app.core.enums import SessionStatus
 from app.db.redis import cache_delete, cache_get, cache_set
 from app.models.booking import Booking, Session
 from app.schemas.booking import SessionRead
-from app.utils.livekit import handle_session_completion
+from app.services.session_service import handle_session_completion
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -73,23 +73,21 @@ async def request_session_completion(
 
     now = datetime.now(tz=UTC)
     elapsed_seconds = (now - session.actual_start_at).total_seconds()
-
-    # Required duration in seconds
     required_duration_seconds = booking.session_duration_minutes * 60
 
-    # Check if session duration has been reached
     if elapsed_seconds >= required_duration_seconds:
-        # Auto-complete: Session duration has been reached
+        # Auto-complete: session duration has been reached
         await handle_session_completion(
             session=session,
             booking=booking,
             db=db,
             completion_status=SessionStatus.COMPLETED,
+            background_tasks=background_tasks,  # ✅ was missing
         )
         await db.commit()
         return session
 
-    # Premature completion: Check if a request already exists
+    # Premature completion: check if a request already exists
     redis_key = f"premature_session_completion:{session_id}"
     existing_request = await cache_get(redis_key)
 
@@ -99,12 +97,10 @@ async def request_session_completion(
             detail="A premature session completion request already exists for this session",
         )
 
-    # Set Redis key with 60-second TTL to mark premature completion request
     await cache_set(
         redis_key, {"session_id": str(session_id), "requested_at": now.isoformat()}, ttl=60
     )
 
-    # Emit Socket.IO event to student
     try:
         from app.core.socketio import get_socketio_manager
 
@@ -141,11 +137,9 @@ async def accept_premature_session_completion(
 
     Flow:
     1. Check Redis key exists (teacher actually requested premature completion)
-    2. Mark session COMPLETED
-    3. Delete the room (webhook will handle common completion logic)
-    4. Remove Redis key
-
-    Note: Status assignment happens here, webhook handles common tasks.
+    2. Mark session COMPLETED via common handler (queues session_finished side effects)
+    3. Remove Redis key
+    4. Emit premature_session_completion_accepted to teacher
     """
     session, booking = await _get_session_with_booking(db, session_id)
 
@@ -160,7 +154,6 @@ async def accept_premature_session_completion(
             detail=f"Session is not in progress (current: {session.status.value})",
         )
 
-    # Check if Redis key exists
     redis_key = f"premature_session_completion:{session_id}"
     existing_request = await cache_get(redis_key)
 
@@ -172,18 +165,16 @@ async def accept_premature_session_completion(
 
     now = datetime.now(tz=UTC)
 
-    # Clean up Redis keys
-    await cache_delete(redis_key)  # Remove the premature completion request key
+    await cache_delete(redis_key)
 
-    # Complete the session using the common handler
     await handle_session_completion(
         session=session,
         booking=booking,
         db=db,
         completion_status=SessionStatus.COMPLETED,
+        background_tasks=background_tasks,  # ✅ was missing
     )
 
-    # Emit Socket.IO event to teacher
     try:
         from app.core.socketio import get_socketio_manager
 
@@ -203,7 +194,6 @@ async def accept_premature_session_completion(
         logger.warning(f"Failed to emit completion notification to teacher: {exc}")
 
     await db.commit()
-
     return session
 
 
@@ -220,7 +210,7 @@ async def reject_premature_session_completion(
     Flow:
     1. Check Redis key exists
     2. Remove Redis key
-    3. Emit premature-session-completion-rejected event to teacher
+    3. Emit premature_session_completion_rejected to teacher
     """
     session, booking = await _get_session_with_booking(db, session_id)
 
@@ -235,7 +225,6 @@ async def reject_premature_session_completion(
             detail=f"Session is not in progress (current: {session.status.value})",
         )
 
-    # Check if Redis key exists
     redis_key = f"premature_session_completion:{session_id}"
     existing_request = await cache_get(redis_key)
 
@@ -247,10 +236,8 @@ async def reject_premature_session_completion(
 
     now = datetime.now(tz=UTC)
 
-    # Remove the Redis key
     await cache_delete(redis_key)
 
-    # Emit Socket.IO event to teacher
     try:
         from app.core.socketio import get_socketio_manager
 
@@ -264,7 +251,7 @@ async def reject_premature_session_completion(
                     "session_id": str(session_id),
                     "booking_id": str(booking.id),
                     "rejected_at": now.isoformat(),
-                    "message": f"{current_user.full_name} has rejected the completion request."
+                    "message": f"{current_user.full_name} has rejected the completion request.",
                 },
             )
     except Exception as exc:
@@ -279,10 +266,10 @@ async def cancel_session(
     session_id: Annotated[UUID, Path(..., alias="sessionId")],
     current_user: CurrentUser,
     db: DbSession,
+    background_tasks: BackgroundTasks,  # ✅ was missing entirely
 ):
     """
     Cancel a session.
-    We will implement Cancel with dispute and without dispute later
     Refund Logic:
     - If TEACHER cancels: TODO - Student gets refunded for this session
     - If STUDENT cancels: No refund, teacher keeps all fees
@@ -298,23 +285,19 @@ async def cancel_session(
             detail=f"Session cannot be cancelled in status {session.status.value}",
         )
 
-    # Determine who is cancelling
     is_teacher_cancelling = current_user.id == booking.teacher_id
-    now = datetime.now(tz=UTC)
-
-    # Determine cancellation status based on who initiated it
     cancel_status = (
         SessionStatus.CANCELLED_BY_TEACHER
         if is_teacher_cancelling
         else SessionStatus.CANCELLED_BY_STUDENT
     )
 
-    # Call the common completion handler with appropriate status
     await handle_session_completion(
         session=session,
         booking=booking,
         db=db,
         completion_status=cancel_status,
+        background_tasks=background_tasks,  # ✅ was missing
     )
 
     await db.commit()

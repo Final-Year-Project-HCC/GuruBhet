@@ -16,7 +16,6 @@ from app.celery import celery_app
 
 logger = logging.getLogger(__name__)
 
-
 async def handle_session_request_expiration(booking_id: UUID, message_id: UUID) -> None:
     """
     Handle session request expiration after 60 seconds.
@@ -50,8 +49,14 @@ async def handle_session_request_expiration(booking_id: UUID, message_id: UUID) 
             )
             message = message_result.scalar_one_or_none()
             
+            # CASE: ROLLBACK HANDLING
+            # If the original route flushes but then rolls back, the ID exists in Celery 
+            # but not here. We return gracefully.
             if not message:
-                logger.warning(f"Session request message {message_id} not found during expiration handling")
+                logger.warning(
+                    f"Session request message {message_id} not found during expiration handling. "
+                    "This usually happens if the session request was rolled back due to an error."
+                )
                 return
             
             # Check current message status
@@ -64,6 +69,9 @@ async def handle_session_request_expiration(booking_id: UUID, message_id: UUID) 
                 
                 # Update message status to MISSED
                 message.status = MessageStatus.MISSED
+                
+
+                #COnfirm with a commit before advertising to the users about session expiration
                 await db.commit()
                 
                 # Emit Socket.IO event to both teacher and student
@@ -73,9 +81,12 @@ async def handle_session_request_expiration(booking_id: UUID, message_id: UUID) 
                     payload = {
                         "booking_id": str(booking_id),
                         "message_id": str(message_id),
-                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                        "timestamp": datetime.now(UTC).isoformat(),
+                        "reason": "timeout"
                     }
 
+                    # Using background_tasks isn't available here (this is a worker),
+                    # so we await the emits directly.
                     await sio_manager.emit_to_user(
                         user_id=message.sender_id,
                         event="session_missed",
@@ -94,6 +105,7 @@ async def handle_session_request_expiration(booking_id: UUID, message_id: UUID) 
     
     except Exception as e:
         logger.error(f"Error handling session request expiration for message {message_id}: {e}")
+        # We re-raise so Celery can retry if it's a transient DB error
         raise
 
 
