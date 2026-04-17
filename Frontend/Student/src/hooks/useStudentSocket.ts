@@ -140,5 +140,9 @@ export function useStudentSocket() {
     }
   }, [incomingSession]);
 
-  return { incomingSession, acceptSession, rejectSession };
+  const dismissSession = useCallback(() => {
+    setIncomingSession(null);
+  }, []);
+
+  return { incomingSession, acceptSession, rejectSession, dismissSession };
 }

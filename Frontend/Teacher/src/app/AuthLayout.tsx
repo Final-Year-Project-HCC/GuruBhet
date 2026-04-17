@@ -5,6 +5,7 @@ import AuthGuard from "@/components/AuthGuard";
 import TeacherNavbar from "@/components/TeacherNavbar";
 import Footer from "@/components/Footer";
 import { useTeacherSocket } from "@/hooks/useTeacherSocket";
+import OutgoingCallOverlay from "@/components/OutgoingCallOverlay";
 import { LiveKitRoom, VideoConference } from "@livekit/components-react";
 import "@livekit/components-styles";
 
@@ -22,7 +23,7 @@ export default function AuthLayout({
 }) {
   const pathname = usePathname();
   const isPublic = isPublicPath(pathname);
-  const { activeRoom, leaveRoom } = useTeacherSocket();
+  const { activeRoom, leaveRoom, outgoingSession, cancelOutgoingSession } = useTeacherSocket();
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -57,6 +58,15 @@ export default function AuthLayout({
             </LiveKitRoom>
           </div>
         </div>
+      )}
+
+      {/* Outgoing call overlay */}
+      {outgoingSession && (
+        <OutgoingCallOverlay
+          session={outgoingSession}
+          onCancel={cancelOutgoingSession}
+          onTimeout={cancelOutgoingSession}
+        />
       )}
     </div>
   );

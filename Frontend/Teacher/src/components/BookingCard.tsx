@@ -77,6 +77,21 @@ const BookingCard = ({
     onSuccess: () => {
       toast.success("Next session requested!");
       queryClient.invalidateQueries({ queryKey: ["teacherBookings"] });
+      
+      const studentName = booking.student
+        ? `${booking.student.firstName} ${booking.student.lastName}`
+        : "Unknown Student";
+        
+      window.dispatchEvent(
+        new CustomEvent("startOutgoingSession", {
+          detail: {
+            bookingId: booking.id,
+            studentName,
+            subjectName: booking.subject?.name || "Unknown Subject",
+            isCancelling: false,
+          },
+        })
+      );
     },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     onError: (error: any) => {

@@ -6,6 +6,7 @@ import { toast } from "react-toastify";
 import { connectSocket, disconnectSocket } from "@/lib/socket";
 import { useSocketEvents, SocketEventEntry } from "./useSocketEvents";
 import { useUser } from "./useCurrentUser";
+import apiClient from "@/lib/api";
 
 /* ── Payload types ─────────────────────────────────────────────────── */
 
@@ -13,6 +14,13 @@ interface SessionAcceptedPayload {
   bookingId: string;
   token: string;
   liveKitUrl: string;
+}
+
+export interface OutgoingSession {
+  bookingId: string;
+  studentName: string;
+  subjectName: string;
+  isCancelling: boolean;
 }
 
 export interface ActiveRoom {
@@ -27,6 +35,7 @@ export function useTeacherSocket() {
   const queryClient = useQueryClient();
 
   const [activeRoom, setActiveRoom] = useState<ActiveRoom | null>(null);
+  const [outgoingSession, setOutgoingSession] = useState<OutgoingSession | null>(null);
 
   /* ── Connect / disconnect based on auth ────────────────────────── */
 
@@ -38,6 +47,18 @@ export function useTeacherSocket() {
       disconnectSocket();
     };
   }, [user]);
+
+  /* ── Outgoing Session Event Listener ──────────────────────────────── */
+
+  useEffect(() => {
+    const handleStart = (e: CustomEvent<OutgoingSession>) => {
+      setOutgoingSession(e.detail);
+    };
+    window.addEventListener("startOutgoingSession", handleStart as EventListener);
+    return () => {
+      window.removeEventListener("startOutgoingSession", handleStart as EventListener);
+    };
+  }, []);
 
   /* ── Event handlers (stable refs via useCallback) ──────────────── */
 
@@ -70,6 +91,7 @@ export function useTeacherSocket() {
   const handleSessionRequestAccepted = useCallback(
     (data: unknown) => {
       const payload = data as SessionAcceptedPayload;
+      setOutgoingSession(null);
       toast.info("Connecting to session...");
       setActiveRoom({
         token: payload.token,
@@ -82,6 +104,7 @@ export function useTeacherSocket() {
   const handleSessionRequestRejected = useCallback(
     (data: unknown) => {
       const payload = data as { reason?: string };
+      setOutgoingSession(null);
       toast.info(
         payload?.reason
           ? `Session request declined: ${payload.reason}`
@@ -118,9 +141,44 @@ export function useTeacherSocket() {
 
   /* ── Actions ───────────────────────────────────────────────────── */
 
+  const startOutgoingSession = useCallback(
+    (bookingId: string, studentName: string, subjectName: string) => {
+      setOutgoingSession({
+        bookingId,
+        studentName,
+        subjectName,
+        isCancelling: false,
+      });
+    },
+    []
+  );
+
+  const cancelOutgoingSession = useCallback(async () => {
+    if (!outgoingSession) return;
+    setOutgoingSession((prev) =>
+      prev ? { ...prev, isCancelling: true } : null
+    );
+    try {
+      await apiClient.post(
+        `/bookings/${outgoingSession.bookingId}/session-cancel`
+      );
+      toast.info("Session request cancelled.");
+    } catch {
+      toast.error("Failed to cancel session request.");
+    } finally {
+      setOutgoingSession(null);
+    }
+  }, [outgoingSession]);
+
   const leaveRoom = useCallback(() => {
     setActiveRoom(null);
   }, []);
 
-  return { activeRoom, leaveRoom };
+  return {
+    activeRoom,
+    leaveRoom,
+    outgoingSession,
+    startOutgoingSession,
+    cancelOutgoingSession,
+  };
 }
