@@ -1,5 +1,6 @@
 import logging
 from contextlib import asynccontextmanager
+from sqlalchemy import NullPool
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
     async_sessionmaker,
@@ -25,7 +26,7 @@ class DatabaseSessionManager:
         if "prepared_statement_cache_size" not in db_url:
             separator = "&" if "?" in db_url else "?"
             db_url = f"{db_url}{separator}prepared_statement_cache_size=0"
-            
+
         # Enforce SSL for external Supabase pooled connections to prevent handshake connection drops
         if "pooler.supabase.com" in db_url and "ssl" not in db_url:
             separator = "&" if "?" in db_url else "?"
@@ -33,13 +34,15 @@ class DatabaseSessionManager:
 
         self._engine = create_async_engine(
             db_url,
-            pool_size=settings.DB_POOL_SIZE,
-            max_overflow=settings.DB_MAX_OVERFLOW,
-            pool_timeout=settings.DB_POOL_TIMEOUT,
+            pool_recycle=300,
             pool_pre_ping=True,
-            pool_recycle=300,  # Recycle connections every 5 minutes to avoid Supavisor idle drops
             # Supavisor transaction mode: disable server-side statement cache
-            connect_args={"statement_cache_size": 0},
+            connect_args={
+                "statement_cache_size": 0,
+                "server_settings": {
+                    "jit": "off"
+                }
+            },
             echo=settings.ENVIRONMENT == "development",
         )
         self._sessionmaker = async_sessionmaker(
