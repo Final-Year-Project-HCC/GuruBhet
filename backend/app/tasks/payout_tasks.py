@@ -19,7 +19,8 @@ from app.core.config import settings
 @celery_app.task(name="app.tasks.payout_tasks.process_weekly_payouts", bind=True, max_retries=3)
 def process_weekly_payouts(self):
     """Entry point — bridges sync Celery into async SQLAlchemy."""
-    asyncio.run(_run_payouts())
+    from app.core.task_runner import run_async
+    run_async(_run_payouts())
 
 
 async def _run_payouts():

@@ -95,12 +95,14 @@ celery_app.autodiscover_tasks(["app.tasks"])
 
 # ── Signal Handlers ──────────────────────────────────────────────────────────
 @worker_process_init.connect
-def init_db_connection(**kwargs):
-    """Initialize the database connection when a worker process starts."""
-    import asyncio
+def init_worker_process(**kwargs):
+    """Initialize resources bound to the worker's thread-local event loop."""
     from app.db.session import sessionmanager
+    from app.utils.livekit import init_livekit
+    from app.core.task_runner import run_async
     
-    asyncio.run(sessionmanager.init())
+    run_async(sessionmanager.init())
+    run_async(init_livekit())
 
 
 @celery_app.task(bind=True)

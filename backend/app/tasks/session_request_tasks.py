@@ -193,8 +193,9 @@ def handle_session_request_timeout_task(self, booking_id: str, message_id: str):
         booking_id: String UUID of the booking
         message_id: String UUID of the session request message
     """
+    from app.core.task_runner import run_async
     try:
-        asyncio.run(
+        run_async(
             handle_session_request_expiration(
                 booking_id=UUID(booking_id),
                 message_id=UUID(message_id)
