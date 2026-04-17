@@ -9,6 +9,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import BackgroundTasks
 from app.models.booking import Session, Booking
 from app.models.payment import Transaction
+from app.models.teacher import TeacherProfile
+from app.models.student import StudentProfile
 from app.core.enums import (
     SessionStatus,
     TransactionType,
@@ -165,8 +167,12 @@ async def fetch_sessions_for_user(
     """
     stmt = (
         select(Session)
-        .join(Booking, Session.booking)
-        .options(joinedload(Session.booking))
+        .join(Booking, Session.booking_id == Booking.id)
+        .options(
+            joinedload(Session.booking).joinedload(Booking.subject),
+            joinedload(Session.booking).joinedload(Booking.teacher).joinedload(TeacherProfile.user),
+            joinedload(Session.booking).joinedload(Booking.student).joinedload(StudentProfile.user)
+        )
     )
 
     if role == UserRole.STUDENT:
