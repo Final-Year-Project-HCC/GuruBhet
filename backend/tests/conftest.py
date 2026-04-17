@@ -7,7 +7,10 @@ from app.main import app
 from app.db.base import Base
 from app.db.session import get_db
 
-TEST_DATABASE_URL = "postgresql+asyncpg://gurubhet:gurubhet@localhost:5432/gurubhet_test"
+import os
+
+# Use environment variable if provided, else use default (for local testing vs docker testing)
+TEST_DATABASE_URL = os.environ.get("TEST_DATABASE_URL", "postgresql+asyncpg://gurubhet:gurubhet@localhost:5432/gurubhet_test")
 
 
 @pytest_asyncio.fixture(scope="session")

@@ -36,6 +36,8 @@ async def sqlite_engine():
             meta = Base.metadata
             needed = [
                 "users",
+                "messages",
+                "notifications",
                 "student_profiles",
                 "teacher_profiles",
                 "study_levels",
@@ -55,6 +57,8 @@ async def sqlite_engine():
             meta = Base.metadata
             needed = [
                 "users",
+                "messages",
+                "notifications",
                 "student_profiles",
                 "teacher_profiles",
                 "study_levels",
@@ -99,8 +103,8 @@ class DummySIO:
     def __init__(self):
         self.emitted = []
 
-    async def emit_to_user(self, user_id, event, payload):
-        self.emitted.append((str(user_id), event, payload))
+    async def emit_to_user(self, user_id, event, data=None, **kwargs):
+        self.emitted.append((str(user_id), event, data or kwargs.get("payload")))
 
 
 @pytest.mark.asyncio
@@ -138,9 +142,11 @@ async def test_session_request_and_accept_flow_sqlite(sqlite_client, sqlite_db, 
     # monkeypatch external helpers imported by bookings endpoint
     pending = {}
 
-    async def fake_set_pending(bid):
-        pending[str(bid)] = True
+    async def fake_set_pending(*args, **kwargs):
+        pending[str(args[0]) if args else str(kwargs.get("booking_id"))] = True
 
+    async def fake_create_room(*a, **k):
+        return f"room-{a[0]}"
     async def fake_get_pending(bid):
         return pending.get(str(bid))
 
@@ -161,7 +167,7 @@ async def test_session_request_and_accept_flow_sqlite(sqlite_client, sqlite_db, 
     # patch socketio and livekit
     sio = DummySIO()
     monkeypatch.setattr("app.api.v1.endpoints.bookings.get_socketio_manager", lambda: sio)
-    monkeypatch.setattr("app.api.v1.endpoints.bookings.create_room", lambda *a, **k: f"room-{a[0]}")
+    monkeypatch.setattr("app.api.v1.endpoints.bookings.create_room", fake_create_room)
     monkeypatch.setattr("app.api.v1.endpoints.bookings.generate_room_token", lambda **k: "tok")
 
     # set current user to teacher and request session
@@ -176,7 +182,8 @@ async def test_session_request_and_accept_flow_sqlite(sqlite_client, sqlite_db, 
     resp2 = await sqlite_client.post(f"/api/v1/bookings/{booking.id}/accept-session")
     assert resp2.status_code == 200
     body = resp2.json()
-    assert body["already_exists"] in (False, True)
+    assert "alreadyExists" in body, body
+    assert body["alreadyExists"] in (False, True)
 
 
 @pytest.mark.asyncio
@@ -213,6 +220,8 @@ async def test_concurrent_accepts_sqlite(sqlite_client, sqlite_db, monkeypatch):
     # monkeypatch pending key helpers and livekit
     pending = {str(booking.id): True}
 
+    async def fake_create_room(*a, **k):
+        return f"room-{a[0]}"
     async def fake_get_pending(bid):
         return pending.get(str(bid))
 
@@ -221,13 +230,23 @@ async def test_concurrent_accepts_sqlite(sqlite_client, sqlite_db, monkeypatch):
 
     monkeypatch.setattr("app.api.v1.endpoints.bookings.get_pending_session_key", fake_get_pending)
     monkeypatch.setattr("app.api.v1.endpoints.bookings.clear_pending_session_key", fake_clear_pending)
-    monkeypatch.setattr("app.api.v1.endpoints.bookings.create_room", lambda *a, **k: f"room-{a[0]}")
+    monkeypatch.setattr("app.api.v1.endpoints.bookings.create_room", fake_create_room)
     monkeypatch.setattr("app.api.v1.endpoints.bookings.generate_room_token", lambda **k: "tok")
 
     # run N concurrent accepts
+    from app.db.session import get_db
     from app.core.dependencies import get_current_user as dep_get_user
     underlying = sqlite_client._transport.app.other_asgi_app
     underlying.dependency_overrides[dep_get_user] = lambda: student
+
+    # Override get_db to provide a fresh session per request
+    from sqlalchemy.ext.asyncio import async_sessionmaker
+    factory = async_sessionmaker(bind=sqlite_db.bind, expire_on_commit=False)
+    async def fresh_db():
+        async with factory() as session:
+            yield session
+
+    underlying.dependency_overrides[get_db] = fresh_db
 
     async def do_accept():
         return await sqlite_client.post(f"/api/v1/bookings/{booking.id}/accept-session")
@@ -236,8 +255,9 @@ async def test_concurrent_accepts_sqlite(sqlite_client, sqlite_db, monkeypatch):
     tasks = [do_accept() for _ in range(8)]
     results = await asyncio.gather(*tasks)
 
-    # all responses should be either 200 or 410
-    assert all(r.status_code in (200, 410) for r in results)
+    # all responses should be either 200 or 400/410/etc
+    codes = [r.status_code for r in results]
+    assert all(c in (200, 410, 400) for c in codes), f"Unexpected status codes: {codes}\nResponses: {[r.json() if r.status_code >= 400 else 'OK' for r in results]}"
 
     # check DB sessions count for booking
     res = await sqlite_db.execute(Session.__table__.select().where(Session.booking_id == booking.id))

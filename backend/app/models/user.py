@@ -57,3 +57,9 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     bans: Mapped[list["UserBan"]] = relationship(  # noqa: F821
         back_populates="user", lazy="noload", foreign_keys="UserBan.user_id"
     )
+
+    @property
+    def full_name(self) -> str:
+        if self.middle_name:
+            return f"{self.first_name} {self.middle_name} {self.last_name}"
+        return f"{self.first_name} {self.last_name}"

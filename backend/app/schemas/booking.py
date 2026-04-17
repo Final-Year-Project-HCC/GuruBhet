@@ -85,6 +85,7 @@ class SessionReadWithToken(SharedConfig):
     notes: str | None
     token: str  # LiveKit JWT token
     livekit_url: str  # LiveKit server URL
+    already_exists: bool = False
 
     @computed_field  # type: ignore[misc]
     @property
@@ -210,3 +211,4 @@ class LiveKitTokenResponse(SharedConfig):
     token: str
     room_name: str
     livekit_url: str
+    already_exists: bool = False

@@ -10,6 +10,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core.dependencies import CurrentUser, DbSession, RequireProfessionalTeacher
 from app.models.user import User
+from app.models.teacher import TeacherProfile
 from app.core.enums import BookingStatus, SessionStatus, UserRole
 from app.core.exceptions import (
     BookingConflictError,
@@ -196,6 +197,7 @@ async def request_session(
     # Lock booking row to prevent concurrent session requests
     result = await db.execute(
         select(Booking)
+        .options(selectinload(Booking.subject))
         .where(Booking.id == booking_id)
         .with_for_update()
     )
@@ -389,7 +391,7 @@ async def accept_session_request(
     # Lock booking row to prevent two concurrent accepts creating two sessions
     result = await db.execute(
         select(Booking)
-        .options(selectinload(Booking.teacher))
+        .options(selectinload(Booking.teacher).selectinload(TeacherProfile.user))
         .where(Booking.id == booking_id)
         .with_for_update()
     )
@@ -451,6 +453,23 @@ async def accept_session_request(
             detail="All scheduled sessions for this booking are exhausted."
         )
 
+    # ── Mark message as accepted ──
+    message_result = await db.execute(
+        select(Message)
+        .where(
+            Message.booking_id == booking.id,
+            Message.sender_id == booking.teacher_id,
+            Message.receiver_id == booking.student_id,
+            Message.message_type == MessageType.SESSION_REQUEST,
+            Message.status == MessageStatus.ONGOING,
+        )
+        .order_by(Message.created_at.desc())
+        .limit(1)
+    )
+    request_message = message_result.scalar_one_or_none()
+    if request_message:
+        request_message.status = MessageStatus.ACCEPTED
+
     # ── Create session record ──
     now = datetime.now(tz=UTC)
     new_session = Session(
@@ -466,6 +485,10 @@ async def accept_session_request(
     # flush() is required here to get new_session.id before the LiveKit API call
     await db.flush()
     actual_session_id = new_session.id
+
+    if request_message:
+        request_message.session_id = actual_session_id
+        await db.flush()
 
     # ── Create LiveKit room (external call; failure rolls back via exception) ──
     try:
@@ -487,7 +510,7 @@ async def accept_session_request(
         teacher_token = generate_room_token(
             user_id=str(booking.teacher_id),
             session_id=str(actual_session_id),
-            display_name=f"{booking.teacher.first_name} {booking.teacher.last_name}",
+            display_name=f"{booking.teacher.user.first_name} {booking.teacher.user.last_name}",
             is_teacher=True,
         )
         background_tasks.add_task(

@@ -65,7 +65,8 @@ async def test_session_request_and_accept_flow(client, db, monkeypatch):
     # --- monkeypatch external helpers that the endpoint imports at module level ---
     pending = {}
 
-    async def fake_set_pending_session_key(bid):
+    async def fake_set_pending_session_key(*args, **kwargs):
+        bid = args[0] if args else kwargs.get("booking_id")
         pending[str(bid)] = True
 
     async def fake_get_pending_session_key(bid):
