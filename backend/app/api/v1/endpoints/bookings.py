@@ -86,6 +86,8 @@ async def create_booking_request(
         status=BookingStatus.PENDING_APPROVAL,
     )
     db.add(booking)
+    await db.flush()
+    await db.refresh(booking)
     return booking
 
 
