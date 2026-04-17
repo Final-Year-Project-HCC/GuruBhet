@@ -17,6 +17,7 @@ from app.models.moderation import Report, UserBan  # noqa: F401
 from app.models.invitation import StaffInvitation  # noqa: F401
 from app.models.audit_log import AuditLog  # noqa: F401
 from app.models.staff import StaffProfile  # noqa: F401
+from app.models.communication import Message, Notification  # noqa: F401
 
 __all__ = [
     "Base",
@@ -36,4 +37,6 @@ __all__ = [
     "UserBan",
     "StaffInvitation",
     "StaffProfile",
+    "Message",
+    "Notification",
 ]

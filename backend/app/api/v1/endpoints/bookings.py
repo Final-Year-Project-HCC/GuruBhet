@@ -319,7 +319,12 @@ async def request_session(
     # ── Redis key: set inline (NOT background task) ──
     # The Celery timeout task reads this key immediately after dispatch.
     # It must be set before the task runs, so it cannot be deferred.
-    await set_pending_session_key(str(booking_id))
+    await set_pending_session_key(
+        booking_id=booking_id,
+        teacher_id=current_user.id,
+        student_id=booking.student_id,
+        ttl=60
+    )
 
     # ── Side effects (run after successful commit via BackgroundTasks) ──
     background_tasks.add_task(
