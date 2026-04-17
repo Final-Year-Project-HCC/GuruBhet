@@ -3,8 +3,9 @@ from decimal import Decimal
 from datetime import datetime
 from sqlalchemy import (
     ForeignKey, Integer, Numeric, DateTime, Text,
-    Enum as SAEnum, CheckConstraint, Index,
+    Enum as SAEnum, CheckConstraint, Index,UniqueConstraint
 )
+
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -121,7 +122,7 @@ class Session(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     session_number: Mapped[int] = mapped_column(Integer, nullable=False)  # 1-based within booking
 
     status: Mapped[SessionStatus] = mapped_column(
-        SAEnum(SessionStatus), default=SessionStatus.READY, nullable=False, index=True
+        SAEnum(SessionStatus), default=SessionStatus.IN_PROGRESS, nullable=False, index=True
     )
 
     # ── Session request tracking ──────────────────────────────────────────────
@@ -145,5 +146,9 @@ class Session(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     booking: Mapped["Booking"] = relationship(back_populates="sessions")  # noqa: F821
 
     __table_args__ = (
-        Index("ix_session_booking_number", "booking_id", "session_number"),
+        UniqueConstraint(
+            "booking_id",
+            "session_number",
+            name="uq_booking_session_number",
+        ),
     )

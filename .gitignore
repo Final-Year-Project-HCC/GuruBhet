@@ -6,3 +6,19 @@ livekit.yaml
 docker-compose.local.yml
 *.md
 *.dev
+
+# Local test artifacts and caches
+.pytest_cache/
+.coverage
+coverage.xml
+__pycache__/
+*.py[cod]
+*.sqlite
+*.sqlite3
+*.db
+
+# Celery local runtime files (created during tests/dev runs)
+backend/celerybeat-schedule*
+
+# Local IDE / type-check caches
+.mypy_cache/

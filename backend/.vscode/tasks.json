@@ -1,0 +1,12 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "alembic revision for session_id in Transaction",
+			"type": "shell",
+			"command": "alembic revision --autogenerate -m \"Add session_id to Transaction and unique constraint\"",
+			"args": [],
+			"isBackground": false
+		}
+	]
+}

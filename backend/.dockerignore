@@ -27,3 +27,18 @@ docker-compose.yml
 
 # OS files
 .DS_Store
+
+# Test artifacts and caches
+.pytest_cache/
+.coverage
+coverage.xml
+__pycache__/
+*.sqlite
+*.sqlite3
+*.db
+
+# Celery local runtime files
+celerybeat-schedule*
+
+# Local IDE / type-check caches
+.mypy_cache/
