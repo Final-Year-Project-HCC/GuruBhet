@@ -1,6 +1,5 @@
 """LiveKit room management and cleanup tasks for Celery."""
 import logging
-import asyncio
 from datetime import datetime, timezone
 from uuid import UUID
 
@@ -11,6 +10,7 @@ from app.core.enums import SessionStatus
 from app.utils.livekit import get_livekit_api, end_room
 from app.services.session_service import handle_session_completion, _run_side_effects, get_session_for_completion
 from app.celery import celery_app
+from app.core.task_runner import run_async
 
 
 logger = logging.getLogger(__name__)
@@ -27,7 +27,7 @@ def cleanup_expired_livekit_room(self, session_id: str):
     Delete a LiveKit room after the session's duration + leniency period has expired.
     """
     try:
-        asyncio.run(_async_cleanup_expired_livekit_room(session_id))
+        run_async(_async_cleanup_expired_livekit_room(session_id))
         logger.info(f"✅ LiveKit room cleanup completed for session {session_id}")
         return {"status": "success", "session_id": session_id}
     except Exception as exc:
@@ -77,7 +77,7 @@ async def _async_cleanup_expired_livekit_room(session_id: str) -> None:
 def monitor_orphaned_rooms(self):
     """Periodically check for LiveKit rooms with no active session and delete them."""
     try:
-        asyncio.run(_async_monitor_orphaned_rooms())
+        run_async(_async_monitor_orphaned_rooms())
         return {"status": "success"}
     except Exception as exc:
         raise self.retry(exc=exc, countdown=300)

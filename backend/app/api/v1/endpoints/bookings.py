@@ -4,7 +4,7 @@ from decimal import Decimal
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Path, Request, BackgroundTasks
+from fastapi import APIRouter, Path, Request, BackgroundTasks, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
@@ -15,7 +15,6 @@ from app.core.enums import BookingStatus, SessionStatus, UserRole
 from app.core.exceptions import (
     BookingConflictError,
     BookingNotFoundError,
-    ExternalServiceError,
     InvalidStatusTransitionError,
     PermissionDeniedError,
     SubjectNotFoundError,
@@ -62,7 +61,8 @@ logger = logging.getLogger(__name__)
 
 @router.post("/request", response_model=BookingRead, status_code=201)
 async def create_booking_request(
-    body: BookingRequestCreate, current_user: CurrentUser, db: DbSession
+    body: BookingRequestCreate, current_user: CurrentUser, db: DbSession,
+    background_tasks: BackgroundTasks
 ):
     """Student creates a booking request. Starts in PENDING_APPROVAL."""
     if current_user.role != UserRole.STUDENT:
@@ -89,6 +89,19 @@ async def create_booking_request(
     db.add(booking)
     await db.flush()
     await db.refresh(booking)
+
+    sio_manager = get_socketio_manager()
+    if sio_manager:
+        background_tasks.add_task(
+            sio_manager.emit_to_user,
+            user_id=booking.teacher_id,
+            event="booking_requested",
+            data={
+                "studentName": current_user.full_name,
+                "subjectName": subject.name,
+            },
+        )
+
     return booking
 
 
@@ -101,6 +114,7 @@ async def approve_booking_request(
     booking_id: UUID,
     current_user: Annotated[User, RequireProfessionalTeacher],
     db: DbSession,
+    background_tasks: BackgroundTasks,
 ):
     """Teacher approves booking. Moves PENDING_APPROVAL → PENDING_PAYMENT."""
     if current_user.role != UserRole.TEACHER:
@@ -108,6 +122,7 @@ async def approve_booking_request(
 
     result = await db.execute(
         select(Booking)
+        .options(selectinload(Booking.subject))
         .where(Booking.id == booking_id)
         .with_for_update()
     )
@@ -126,6 +141,18 @@ async def approve_booking_request(
 
     booking.status = BookingStatus.PENDING_PAYMENT
     booking.teacher_approved_at = datetime.now(tz=UTC)
+
+    sio_manager = get_socketio_manager()
+    if sio_manager:
+        background_tasks.add_task(
+            sio_manager.emit_to_user,
+            user_id=booking.student_id,
+            event="booking_accepted",
+            data={
+                "subjectName": booking.subject.name if booking.subject else "Unknown",
+            },
+        )
+
     return booking
 
 
@@ -138,6 +165,7 @@ async def initiate_payment(
     booking_id: UUID,
     current_user: CurrentUser,
     db: DbSession,
+    background_tasks: BackgroundTasks,
 ):
     """
     Student initiates payment. Moves PENDING_PAYMENT → ACTIVE.
@@ -167,6 +195,18 @@ async def initiate_payment(
 
     # DEVELOPMENT BYPASS — remove once real payment webhook activates the booking
     booking.status = BookingStatus.ACTIVE
+
+    sio_manager = get_socketio_manager()
+    if sio_manager:
+        background_tasks.add_task(
+            sio_manager.emit_to_user,
+            user_id=booking.teacher_id,
+            event="booking_paid",
+            data={
+                "studentName": current_user.full_name,
+            },
+        )
+        
     return {"message": "Payment successful"}
 
 
@@ -305,7 +345,7 @@ async def request_session(
         # Explicit commit required: we want the offline notification persisted
         # even though we're about to raise — SessionManager would rollback on exception.
         await db.commit()
-        raise ExternalServiceError(
+        raise HTTPException(
             detail="Student is currently offline. Please try again when they are online.",
             status_code=480,
         )
@@ -340,15 +380,15 @@ async def request_session(
         background_tasks.add_task(
             sio_manager.emit_to_user,
             user_id=booking.student_id,
-            event="session_request",
+            event="session_requested",
             data={
-                "booking_id": str(booking_id),
-                "teacher_id": str(current_user.id),
-                "teacher_name": current_user.full_name,
-                "subject": booking.subject.name if booking.subject else "Unknown",
-                "session_number": completed + 1,
-                "total_sessions": booking.total_sessions,
-                "duration_minutes": booking.session_duration_minutes,
+                "bookingId": str(booking_id),
+                "teacherId": str(current_user.id),
+                "teacherName": current_user.full_name,
+                "subjectName": booking.subject.name if booking.subject else "Unknown",
+                "sessionNumber": completed + 1,
+                "totalSessions": booking.total_sessions,
+                "durationMinutes": booking.session_duration_minutes,
                 "timestamp": datetime.now(UTC).isoformat(),
                 "message": f"{current_user.full_name} has requested a session.",
             },
@@ -428,7 +468,7 @@ async def accept_session_request(
     # ── Handshake check (60-second window) ──
     pending = await get_pending_session_key(str(booking_id))
     if not pending:
-        raise ExternalServiceError(
+        raise HTTPException(
             detail="Session acceptance window expired. Teacher must request again.",
             status_code=410,
         )
@@ -449,7 +489,8 @@ async def accept_session_request(
     max_session_number = max_sn_result.scalar_one_or_none() or 0
 
     if max_session_number >= booking.total_sessions:
-        raise ExternalServiceError(
+        raise HTTPException(
+            status_code=400,
             detail="All scheduled sessions for this booking are exhausted."
         )
 
@@ -516,13 +557,13 @@ async def accept_session_request(
         background_tasks.add_task(
             sio_manager.emit_to_user,
             user_id=booking.teacher_id,
-            event="session_ready",
+            event="session_request_accepted",
             data={
-                "booking_id": str(booking_id),
-                "session_id": str(actual_session_id),
+                "bookingId": str(booking_id),
+                "sessionId": str(actual_session_id),
                 "token": teacher_token,
-                "room_name": new_session.livekit_room_name,
-                "livekit_url": get_livekit_url_for_client(request),
+                "roomName": new_session.livekit_room_name,
+                "liveKitUrl": get_livekit_url_for_client(request),
             },
         )
 
@@ -575,7 +616,7 @@ async def reject_session_request(
     # ── Handshake check (60-second window) ──
     pending = await get_pending_session_key(str(booking_id))
     if not pending:
-        raise ExternalServiceError(
+        raise HTTPException(
             detail="Session rejection window expired. Teacher must request again.",
             status_code=410,
         )
@@ -595,7 +636,7 @@ async def reject_session_request(
     )
     request_message = message_result.scalar_one_or_none()
     if not request_message:
-        raise ExternalServiceError(detail="Session request message not found", status_code=404)
+        raise HTTPException(detail="Session request message not found", status_code=404)
 
     request_message.status = MessageStatus.REJECTED
 
@@ -607,12 +648,13 @@ async def reject_session_request(
         background_tasks.add_task(
             sio_manager.emit_to_user,
             user_id=booking.teacher_id,
-            event="session_rejected",
+            event="session_request_rejected",
             data={
-                "booking_id": str(booking_id),
-                "student_id": str(current_user.id),
-                "student_name": current_user.full_name,
+                "bookingId": str(booking_id),
+                "studentId": str(current_user.id),
+                "studentName": current_user.full_name,
                 "timestamp": datetime.now(UTC).isoformat(),
+                "reason": "Student has rejected the session request.",
                 "message": f"{current_user.full_name} has rejected the session request.",
             },
         )
@@ -692,7 +734,7 @@ async def sync_session(
         )
 
     if booking.status != BookingStatus.ACTIVE:
-        raise ExternalServiceError(
+        raise HTTPException(
             detail=f"Booking is no longer active. Status: {booking.status.value}",
             status_code=410,
         )
@@ -706,7 +748,7 @@ async def sync_session(
     session = session_result.scalar_one_or_none()
 
     if not session or session.status != SessionStatus.IN_PROGRESS:
-        raise ExternalServiceError(detail="No active session in progress.", status_code=410)
+        raise HTTPException(detail="No active session in progress.", status_code=410)
 
     duration = booking.session_duration_minutes
     leniency = getattr(settings, "LIVEKIT_ROOM_LENIENCY_MINUTES_PER_15MIN", 2)
@@ -715,7 +757,7 @@ async def sync_session(
     )
 
     if datetime.now(tz=UTC) > cutoff:
-        raise ExternalServiceError(detail="Session window has expired.", status_code=410)
+        raise HTTPException(detail="Session window has expired.", status_code=410)
 
     # Record join timestamp if not already set
     now = datetime.now(tz=UTC)
@@ -836,11 +878,11 @@ async def cancel_booking(
         background_tasks.add_task(
             sio_manager.emit_to_user,
             user_id=other_user_id,
-            event="booking_cancelled",
+            event="booking_rejected",
             data={
-                "booking_id": str(booking.id),
+                "bookingId": str(booking.id),
                 "reason": body.reason,
-                "cancelled_by": "student" if is_student else "teacher",
+                "cancelledBy": "student" if is_student else "teacher",
             },
         )
 
