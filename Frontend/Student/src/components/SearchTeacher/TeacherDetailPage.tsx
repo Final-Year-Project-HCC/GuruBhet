@@ -13,6 +13,7 @@ import {
   useCreateBooking,
   adaptToTeacherSubject,
 } from '@/hooks/useTeacherProfile';
+import { toast } from 'react-toastify';
 
 interface TeacherDetailPageProps {
   teacherId: string;
@@ -86,7 +87,6 @@ const TeacherDetailPage: React.FC<TeacherDetailPageProps> = ({ teacherId, onBack
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTeacherSubject, setSelectedTeacherSubject] = useState<TeacherSubject | null>(null);
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
-  const [bookingSuccess, setBookingSuccess] = useState(false);
   const [bookingError, setBookingError] = useState<string | null>(null);
 
   // ── API Calls ───────────────────────────────────────────────────────────────
@@ -145,15 +145,14 @@ const TeacherDetailPage: React.FC<TeacherDetailPageProps> = ({ teacherId, onBack
 
   const handleBookNow = (ts: TeacherSubject) => {
     setSelectedTeacherSubject(ts);
-    setBookingSuccess(false);
     setBookingError(null);
     setIsBookingModalOpen(true);
   };
 
   const handleConfirmBooking = async (
     ts: TeacherSubject,
+    negotiatedRate: number,
     numberOfSessions: number,
-    _totalAmount: number,
     sessionDurationMinutes: number
   ) => {
     try {
@@ -161,10 +160,10 @@ const TeacherDetailPage: React.FC<TeacherDetailPageProps> = ({ teacherId, onBack
         teacherId,
         subjectId: ts.subject.id,
         totalSessions: numberOfSessions,
-        ratePerSession: ts.ratePerSession,
+        ratePerSession: negotiatedRate,
         sessionDurationMinutes,
       });
-      setBookingSuccess(true);
+      toast.success('Booking request sent successfully!');
       setIsBookingModalOpen(false);
       setSelectedTeacherSubject(null);
     } catch (err: unknown) {
@@ -181,7 +180,6 @@ const TeacherDetailPage: React.FC<TeacherDetailPageProps> = ({ teacherId, onBack
     setBookingError(null);
   };
 
-  // ── Loading / Error States ──────────────────────────────────────────────────
 
   if (profileLoading) return <ProfileSkeleton />;
 
@@ -232,28 +230,6 @@ const TeacherDetailPage: React.FC<TeacherDetailPageProps> = ({ teacherId, onBack
             </svg>
             <span className="font-bold text-sm uppercase tracking-widest">Back to Search</span>
           </button>
-
-          {/* Booking success banner */}
-          {bookingSuccess && (
-            <div className="mb-8 bg-accent/10 border border-accent/30 text-accent rounded-2xl px-6 py-4 flex items-center gap-3">
-              <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-              <div>
-                <p className="font-bold text-sm">Booking request sent!</p>
-                <p className="text-xs opacity-80">The teacher will review your request shortly. Check your bookings page for updates.</p>
-              </div>
-              <button
-                onClick={() => setBookingSuccess(false)}
-                className="ml-auto text-accent/60 hover:text-accent"
-                aria-label="Dismiss"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-          )}
 
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-12 items-start">
 

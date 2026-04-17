@@ -15,8 +15,8 @@ interface BookingModalProps {
   onClose: () => void;
   onConfirm: (
     teacherSubject: TeacherSubject,
+    negotiatedRate: number,
     numberOfSessions: number,
-    totalAmount: number,
     sessionDurationMinutes: number
   ) => void;
   isLoading?: boolean;
@@ -39,14 +39,15 @@ const BookingModal: React.FC<BookingModalProps> = ({
   const currentRate = negotiatedRate !== null ? negotiatedRate : (teacherSubject?.ratePerSession || 0);
 
   const totalAmount = useMemo(() => {
-    return currentRate * numberOfSessions;
-  }, [currentRate, numberOfSessions]);
+    const _total = currentRate * numberOfSessions * (sessionDuration / 60);
+    return _total.toFixed(2);
+  }, [currentRate, numberOfSessions, sessionDuration]);
 
   const handleConfirm = useCallback(() => {
     if (teacherSubject) {
-      onConfirm(teacherSubject, numberOfSessions, totalAmount, sessionDuration);
+      onConfirm(teacherSubject, negotiatedRate || teacherSubject.ratePerSession, numberOfSessions, sessionDuration);
     }
-  }, [teacherSubject, numberOfSessions, totalAmount, sessionDuration, onConfirm]);
+  }, [teacherSubject, numberOfSessions, negotiatedRate, sessionDuration, onConfirm]);
 
   const handleSessionChange = useCallback(
     (value: string) => {
@@ -211,11 +212,10 @@ const BookingModal: React.FC<BookingModalProps> = ({
                     type="button"
                     onClick={() => setSessionDuration(opt.value)}
                     disabled={isLoading}
-                    className={`py-2.5 rounded-xl text-xs font-bold transition-colors border ${
-                      sessionDuration === opt.value
-                        ? 'bg-primary text-primary-foreground border-primary'
-                        : 'bg-muted text-muted-foreground border-transparent hover:border-border'
-                    } disabled:opacity-50 disabled:cursor-not-allowed`}
+                    className={`py-2.5 rounded-xl text-xs font-bold transition-colors border ${sessionDuration === opt.value
+                      ? 'bg-primary text-primary-foreground border-primary'
+                      : 'bg-muted text-muted-foreground border-transparent hover:border-border'
+                      } disabled:opacity-50 disabled:cursor-not-allowed`}
                   >
                     {opt.label}
                   </button>
