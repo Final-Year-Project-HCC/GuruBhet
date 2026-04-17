@@ -4,6 +4,8 @@ import { usePathname } from "next/navigation";
 import AuthGuard from "@/components/AuthGuard";
 import StudentNavbar from "@/components/StudentNavbar";
 import Footer from "@/components/Footer";
+import IncomingCallOverlay from "@/components/IncomingCallOverlay";
+import { useStudentSocket } from "@/hooks/useStudentSocket";
 
 /** Routes accessible without logging in */
 const PUBLIC_PATHS = ["/", "/login", "/signup", "/search-teacher"];
@@ -22,6 +24,7 @@ export default function AuthLayout({
 }) {
   const pathname = usePathname();
   const isPublic = isPublicPath(pathname);
+  const { incomingSession, acceptSession, rejectSession } = useStudentSocket();
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -30,6 +33,15 @@ export default function AuthLayout({
         {isPublic ? children : <AuthGuard>{children}</AuthGuard>}
       </main>
       <Footer />
+
+      {/* Incoming session call overlay */}
+      {incomingSession && (
+        <IncomingCallOverlay
+          session={incomingSession}
+          onAccept={acceptSession}
+          onReject={rejectSession}
+        />
+      )}
     </div>
   );
 }

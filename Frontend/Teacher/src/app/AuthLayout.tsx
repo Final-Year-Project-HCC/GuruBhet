@@ -4,6 +4,9 @@ import { usePathname } from "next/navigation";
 import AuthGuard from "@/components/AuthGuard";
 import TeacherNavbar from "@/components/TeacherNavbar";
 import Footer from "@/components/Footer";
+import { useTeacherSocket } from "@/hooks/useTeacherSocket";
+import { LiveKitRoom, VideoConference } from "@livekit/components-react";
+import "@livekit/components-styles";
 
 /** Routes accessible without logging in */
 const PUBLIC_PATHS = ["/", "/dashboard", "/login", "/signup"];
@@ -19,6 +22,7 @@ export default function AuthLayout({
 }) {
   const pathname = usePathname();
   const isPublic = isPublicPath(pathname);
+  const { activeRoom, leaveRoom } = useTeacherSocket();
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -27,6 +31,33 @@ export default function AuthLayout({
         {isPublic ? children : <AuthGuard>{children}</AuthGuard>}
       </main>
       <Footer />
+
+      {/* LiveKit room overlay triggered by session_request_accepted */}
+      {activeRoom && (
+        <div className="fixed inset-0 z-[9999] flex flex-col bg-black">
+          <div className="absolute top-4 right-4 z-50">
+            <button
+              onClick={leaveRoom}
+              className="rounded-md bg-destructive px-4 py-2 text-destructive-foreground hover:opacity-90 transition-colors"
+            >
+              Leave Room
+            </button>
+          </div>
+          <div className="flex-1 overflow-hidden">
+            <LiveKitRoom
+              video={true}
+              audio={true}
+              token={activeRoom.token}
+              serverUrl={activeRoom.liveKitUrl || "wss://live.gurubhet.tech"}
+              connect={true}
+              data-lk-theme="default"
+              style={{ height: "100%", width: "100%" }}
+            >
+              <VideoConference />
+            </LiveKitRoom>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

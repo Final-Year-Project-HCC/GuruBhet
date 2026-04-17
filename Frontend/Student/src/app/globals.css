@@ -24,6 +24,12 @@
   /* Rating accent (warm gold) */
   --rating: #c27f0a;
   --rating-bg: #fef3c7;
+
+  /* Call buttons */
+  --call-accept: #22c55e;
+  --call-accept-hover: #16a34a;
+  --call-reject: #ef4444;
+  --call-reject-hover: #dc2626;
 }
 
 @theme inline {
@@ -67,6 +73,12 @@
     /* Rating accent (muted gold for dark mode) */
     --rating: #f5c842;
     --rating-bg: #2d2200;
+
+    /* Call buttons (slightly adjusted for dark mode) */
+    --call-accept: #4ade80;
+    --call-accept-hover: #22c55e;
+    --call-reject: #f87171;
+    --call-reject-hover: #ef4444;
   }
 }
 
@@ -119,4 +131,14 @@ input[type="number"] {
 
 .scroll-snap-align-start {
   scroll-snap-align: start;
+}
+
+/* Accept button pulse ring */
+@keyframes callPulse {
+  0%, 100% { box-shadow: 0 0 0 0 var(--call-accept); }
+  50% { box-shadow: 0 0 0 12px transparent; }
+}
+
+.call-accept-pulse {
+  animation: callPulse 2s ease-in-out infinite;
 }

@@ -19,6 +19,12 @@
   /* Feedback */
   --destructive: #262626;
   --destructive-foreground: #ffffff;
+
+  /* Call buttons */
+  --call-accept: #22c55e;
+  --call-accept-hover: #16a34a;
+  --call-reject: #ef4444;
+  --call-reject-hover: #dc2626;
 }
 
 @theme inline {
@@ -54,6 +60,12 @@
 
     --destructive: #404040;
     --destructive-foreground: #ededed;
+
+    /* Call buttons (slightly adjusted for dark mode) */
+    --call-accept: #4ade80;
+    --call-accept-hover: #22c55e;
+    --call-reject: #f87171;
+    --call-reject-hover: #ef4444;
   }
 }
 
