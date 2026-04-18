@@ -12,7 +12,7 @@ from app.api.v1.router import api_router
 from app.utils.livekit import init_livekit, close_livekit, get_livekit_api
 from app.middleware.cookie_to_header import CookieToHeaderMiddleware
 from app.middleware.request_context import RequestContextMiddleware
-from app.core.socketio import create_socketio_server, SocketIOManager
+from app.core.socketio import create_socketio_server, SocketIOManager, set_socketio_manager
 from app.api.v1.socketio_handlers import setup_socketio_handlers
 
 
@@ -100,6 +100,7 @@ def create_application() -> FastAPI:
 # Create Socket.IO server
 sio = create_socketio_server()
 socketio_manager = SocketIOManager(sio)
+set_socketio_manager(socketio_manager)
 
 # Setup Socket.IO event handlers
 setup_socketio_handlers(sio, socketio_manager)

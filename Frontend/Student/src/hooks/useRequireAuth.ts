@@ -14,13 +14,12 @@ export function useRequireAuth() {
   return useCallback(
     (action: () => void | Promise<void>) => {
       if (isLoading) return;
-      console.log(user)
       if (user) return action();
       toast.info("You have to log in first to perform this action.", {
         position: "top-right",
         autoClose: 2000,
       });
     },
-    [user, isLoading]
+    [user, isLoading],
   );
 }
