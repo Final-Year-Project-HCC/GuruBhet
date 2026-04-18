@@ -21,6 +21,11 @@ export interface IncomingSession extends IncomingSessionPayload {
   isResponding: boolean;
 }
 
+export interface ActiveRoom {
+  token: string;
+  liveKitUrl: string;
+}
+
 /* ── Hook ──────────────────────────────────────────────────────────── */
 
 export function useStudentSocket() {
@@ -29,6 +34,7 @@ export function useStudentSocket() {
 
   const [incomingSession, setIncomingSession] =
     useState<IncomingSession | null>(null);
+  const [activeRoom, setActiveRoom] = useState<ActiveRoom | null>(null);
 
   /* ── Connect / disconnect based on auth ────────────────────────── */
 
@@ -112,10 +118,14 @@ export function useStudentSocket() {
       prev ? { ...prev, isResponding: true } : null
     );
     try {
-      await apiClient.post(
+      const { data } = await apiClient.post(
         `/bookings/${incomingSession.bookingId}/accept-session`
       );
       toast.success("Session accepted! Connecting...");
+      setActiveRoom({
+        token: data.token,
+        liveKitUrl: data.livekitUrl || data.liveKitUrl, // handle case variation
+      });
     } catch {
       toast.error("Failed to accept session. Please try again.");
     } finally {
@@ -144,5 +154,9 @@ export function useStudentSocket() {
     setIncomingSession(null);
   }, []);
 
-  return { incomingSession, acceptSession, rejectSession, dismissSession };
+  const leaveRoom = useCallback(() => {
+    setActiveRoom(null);
+  }, []);
+
+  return { incomingSession, acceptSession, rejectSession, dismissSession, activeRoom, leaveRoom };
 }
