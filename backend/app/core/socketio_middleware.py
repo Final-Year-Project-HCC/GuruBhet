@@ -29,7 +29,7 @@ def extract_token_from_cookies(handshake_headers: dict[str, str]) -> Optional[st
     
     # Parse cookie header: "cookie1=value1; cookie2=value2; ..."
     cookies = {}
-    for cookie_part in cookie_header.split("; "):
+    for cookie_part in cookie_header.split(";"):
         if "=" in cookie_part:
             key, value = cookie_part.split("=", 1)
             cookies[key.strip()] = value.strip()
@@ -109,11 +109,15 @@ def create_socketio_auth_middleware(sio):
             headers = {}
             
             # Parse headers from environ
-            for key, value in environ.items():
-                if key.startswith("HTTP_"):
-                    # Convert HTTP_COOKIE to cookie, HTTP_CONTENT_TYPE to content-type, etc.
-                    header_name = key[5:].lower().replace("_", "-")
-                    headers[header_name] = value
+            if "asgi.scope" in environ:
+                for k, v in environ["asgi.scope"].get("headers", []):
+                    headers[k.decode("utf-8").lower()] = v.decode("utf-8")
+            else:
+                for key, value in environ.items():
+                    if key.startswith("HTTP_"):
+                        # Convert HTTP_COOKIE to cookie, HTTP_CONTENT_TYPE to content-type, etc.
+                        header_name = key[5:].lower().replace("_", "-")
+                        headers[header_name] = value
             
             # Extract token from cookies
             token = extract_token_from_cookies(headers)

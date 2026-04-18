@@ -83,13 +83,19 @@ def setup_socketio_handlers(sio: socketio.AsyncServer, manager) -> None:
         logger.info(f"Socket.IO connect: sid={sid}")
         
         try:
-            # Step 1: Parse headers from WSGI environ
-            # Headers are typically in environ with HTTP_ prefix
+            # Safely extract headers for BOTH ASGI and WSGI
             headers = {}
-            for key, value in environ.items():
-                if key.startswith("HTTP_"):
-                    header_name = key[5:].lower().replace("_", "-")
-                    headers[header_name] = value
+            
+            # Extract from ASGI scope first (Uvicorn/FastAPI)
+            if "asgi.scope" in environ:
+                for k, v in environ["asgi.scope"].get("headers", []):
+                    headers[k.decode("utf-8").lower()] = v.decode("utf-8")
+            else:
+                # Fallback for traditional WSGI
+                for key, value in environ.items():
+                    if key.startswith("HTTP_"):
+                        header_name = key[5:].lower().replace("_", "-")
+                        headers[header_name] = value
             
             # Step 2: Extract JWT from HttpOnly cookies
             token = extract_token_from_cookies(headers)

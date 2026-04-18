@@ -148,10 +148,20 @@ def create_socketio_server() -> socketio.AsyncServer:
     Returns:
         Configured AsyncServer instance
     """
-    # Create Socket.IO server with async mode
+        # Create Socket.IO server with async mode
     sio = socketio.AsyncServer(
         async_mode="asgi",
-        cors_allowed_origins="*",  # Configure based on your frontend URL in production
+        cors_allowed_origins=[
+            "https://gurubhet.tech",
+            "https://teacher.gurubhet.tech",
+            "https://staff.gurubhet.tech",
+            "http://localhost:3000",
+            "http://localhost:3001",
+            "http://localhost:3002",
+            "https://localhost:3000",
+            "https://localhost:3001",
+            "https://localhost:3002",
+        ],
         logger=True,
         engineio_logger=True,
         ping_timeout=60,
