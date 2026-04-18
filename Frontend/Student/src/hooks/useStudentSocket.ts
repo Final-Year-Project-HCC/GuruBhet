@@ -113,7 +113,7 @@ export function useStudentSocket() {
     );
     try {
       await apiClient.post(
-        `/bookings/${incomingSession.bookingId}/session-accept`
+        `/bookings/${incomingSession.bookingId}/accept-session`
       );
       toast.success("Session accepted! Connecting...");
     } catch {
@@ -130,7 +130,7 @@ export function useStudentSocket() {
     );
     try {
       await apiClient.post(
-        `/bookings/${incomingSession.bookingId}/session-reject`
+        `/bookings/${incomingSession.bookingId}/reject-session`
       );
       toast.info("Session rejected.");
     } catch {
