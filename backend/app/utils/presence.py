@@ -74,7 +74,7 @@ def is_user_online_local(user_id: UUID) -> bool:
     return manager.is_user_online(user_id)
 
 
-async def is_user_online(user_id: UUID, use_redis: bool = True) -> bool:
+async def is_user_online(user_id: UUID, use_redis: bool = False) -> bool:
     """
     Check if user is online using configured backend.
     

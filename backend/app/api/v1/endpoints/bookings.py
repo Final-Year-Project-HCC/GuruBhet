@@ -332,7 +332,7 @@ async def request_session(
         )
 
     # ── Presence check ──
-    student_online = await is_user_online(booking.student_id, use_redis=True)
+    student_online = await is_user_online(booking.student_id, use_redis=False)
 
     if not student_online:
         await create_offline_notification_message(
