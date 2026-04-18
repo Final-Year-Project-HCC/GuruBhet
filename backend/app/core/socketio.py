@@ -119,6 +119,19 @@ class SocketIOManager:
                 del self.user_sessions[user_key]
             logger.debug(f"Untracked session {sid} for user {user_id}")
 
+    async def disconnect_user(self, user_id: UUID) -> None:
+        """Forcefully disconnect all active sockets for a user."""
+        user_key = str(user_id)
+        if user_key in self.user_sessions:
+            # Copy to avoid modifying while iterating
+            sids = list(self.user_sessions[user_key])
+            for sid in sids:
+                try:
+                    await self.sio.disconnect(sid)
+                    logger.debug(f"Forcefully disconnected sid {sid} for logged out user {user_id}")
+                except Exception as e:
+                    logger.error(f"Error disconnecting sid {sid}: {e}")
+
     def is_user_online(self, user_id: UUID) -> bool:
         """Check if user is online."""
         return str(user_id) in self.user_sessions and bool(self.user_sessions[str(user_id)])

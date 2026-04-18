@@ -20,20 +20,20 @@ logger = logging.getLogger(__name__)
 )
 def send_session_reminders(self):
     """
-    Send email/notification reminders for upcoming sessions.
+    Send email/notification reminders for agreed schedule.
     
-    Runs every 30 minutes to check for sessions starting in 2 hours
+    Runs every 30 minutes to check for schedules starting in 2 hours
     and send reminders to both teacher and student.
     
-    Use case: Prevent no-shows by reminding users before session starts
+    Use case: Make users aware of their agreed upon schedule before the session real-time handshake.
     """
     try:
         logger.info("Starting send_session_reminders task")
         
-        # TODO: Implement logic to:
-        # 1. Query sessions starting in next 2 hours (is_active=True, not yet started)
+        # TODO: Implement logic when Session scheduling feature is built:
+        # 1. Query schedules starting in next 2 hours
         # 2. Get teacher and student info
-        # 3. Send email to both: "Your session starts in 2 hours"
+        # 3. Send email to both: "Your scheduled time is in 2 hours"
         # 4. Send Socket.IO notification (if user is online)
         # 5. Return count of reminders sent
         
@@ -45,42 +45,6 @@ def send_session_reminders(self):
     except Exception as exc:
         logger.error(f"Error in send_session_reminders: {exc}", exc_info=True)
         # Retry with exponential backoff
-        raise self.retry(exc=exc, countdown=60)
-
-
-@celery_app.task(
-    name="app.tasks.notification_tasks.check_session_no_shows",
-    bind=True,
-    max_retries=3,
-    default_retry_delay=60,
-)
-def check_session_no_shows(self):
-    """
-    Check for no-shows and take action.
-    
-    Runs every 5 minutes to check if sessions have passed without being marked
-    as completed. If no activity detected, mark as no-show.
-    
-    Use case: Automatically detect no-shows and update booking status
-    """
-    try:
-        logger.info("Starting check_session_no_shows task")
-        
-        # TODO: Implement logic to:
-        # 1. Query sessions that should have ended (past end_time)
-        # 2. Check if session was marked as completed
-        # 3. If not completed, mark as NO_SHOW
-        # 4. Send notification to both users about no-show
-        # 5. Update booking status accordingly
-        # 6. Return count of no-shows detected
-        
-        return {
-            "status": "success",
-            "no_shows_detected": 0,
-            "message": "No-show check completed"
-        }
-    except Exception as exc:
-        logger.error(f"Error in check_session_no_shows: {exc}", exc_info=True)
         raise self.retry(exc=exc, countdown=60)
 
 

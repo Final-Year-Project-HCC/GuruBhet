@@ -333,9 +333,8 @@ async def request_session(
 
     # ── Presence check ──
     student_online = await is_user_online(booking.student_id, use_redis=True)
-    bypass_presence = getattr(settings, "BYPASS_PRESENCE_CHECK", True)
 
-    if not student_online and not bypass_presence:
+    if not student_online:
         await create_offline_notification_message(
             booking_id=booking_id,
             teacher_id=current_user.id,

@@ -27,6 +27,7 @@ from app.core.security import (
     hash_password,
     verify_password,
 )
+from app.core.socketio import get_socketio_manager
 from app.db.redis import blacklist_jti, cache_delete, cache_get, cache_set, is_jti_blacklisted
 from app.models.student import StudentProfile
 from app.models.teacher import TeacherProfile
@@ -394,6 +395,15 @@ async def logout(
     exp = payload.get("exp")
     if jti and exp:
         await blacklist_jti(jti, int(exp))
+        
+    user_id_str = payload.get("sub")
+    if user_id_str:
+        socketio_manager = get_socketio_manager()
+        if socketio_manager:
+            try:
+                await socketio_manager.disconnect_user(UUID(user_id_str))
+            except Exception:
+                pass
 
     return {"message": "logged out"}
 

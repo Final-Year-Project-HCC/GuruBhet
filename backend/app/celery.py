@@ -44,11 +44,6 @@ celery_app.conf.update(
     # ── Beat Scheduler (Periodic Tasks) ──────────────────────────────────
     beat_schedule={
         # Notifications
-        "check-session-no-shows": {
-            "task": "app.tasks.notification_tasks.check_session_no_shows",
-            "schedule": 300,  # Every 5 minutes
-            "options": {"expires": 280},
-        },
         "send-session-reminders": {
             "task": "app.tasks.notification_tasks.send_session_reminders",
             "schedule": 1800,  # Every 30 minutes
