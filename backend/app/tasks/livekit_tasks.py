@@ -1,5 +1,6 @@
 """LiveKit room management and cleanup tasks for Celery."""
 import logging
+import asyncio
 from datetime import datetime, timezone
 from uuid import UUID
 
@@ -36,20 +37,43 @@ def cleanup_expired_livekit_room(self, session_id: str):
 
 
 async def _async_cleanup_expired_livekit_room(session_id: str) -> None:
-    """Async helper with Pessimistic Locking and Scope Safety."""
+    """
+    Ends the LiveKit room, relying on the webhook for primary business logic.
+    Acts as a localized fallback if the webhook fails.
+    """
+    room_name = None
+    # ── 1. Attempt to trigger LiveKit to close the room ──
+    async with get_db_context() as db:
+        session_obj = await get_session_for_completion(db, UUID(session_id))
+        if not session_obj or session_obj.status != SessionStatus.IN_PROGRESS:
+            return
+        room_name = session_obj.livekit_room_name
+        
+    if room_name:
+        try:
+            await end_room(room_name)
+            logger.info(f"Triggered end_room for {room_name}")
+        except Exception as e:
+            logger.warning(f"Failed to end LiveKit room {room_name} (might already be closed): {e}")
 
-    # We use a flag to track if we actually completed the session
+    # ── 2. Wait to allow LiveKit's 'room_finished' webhook to hit the server ──
+    await asyncio.sleep(5)
+
+    # ── 3. Fallback Business Logic (in case webhook is lost or server restarted) ──
     processed = False
     booking_data = {}
     async with get_db_context() as db:
         # STEP 2: Lock the row
         session_obj = await get_session_for_completion(db, UUID(session_id))
         if not session_obj:
-            logger.warning(f"Session {session_id} not found during cleanup")
+            logger.warning(f"Session {session_id} not found during cleanup fallback")
             return
         # STEP 1: Guard check (Locked)
         if session_obj.status != SessionStatus.IN_PROGRESS:
+            # Webhook successfully processed the room closing during our sleep string!
             return
+            
+        logger.warning(f"Webhook fallback triggered for session {session_id} - manually completing in DB")
         # Capture data needed for side effects before the session/transaction closes
         booking_obj = session_obj.booking
         booking_data = {
