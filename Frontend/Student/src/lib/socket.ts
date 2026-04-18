@@ -13,6 +13,7 @@ const socket: Socket = io(SOCKET_URL, {
   autoConnect: false,
   reconnectionAttempts: 5,
   reconnectionDelay: 2000,
+  transports: ["websocket"],
 });
 
 /* ── Lifecycle logging ─────────────────────────────────────────────── */

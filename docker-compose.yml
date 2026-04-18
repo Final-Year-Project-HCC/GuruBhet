@@ -121,6 +121,7 @@ services:
       - /app/.next
     environment:
       - NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1 # HTTP and Direct Port
+      - NEXT_PUBLIC_SOCKET_URL=http://localhost:8000
     # Updated to your dev2 command
     command: npm run dev2
     ports:
@@ -138,6 +139,7 @@ services:
       - /app/.next
     environment:
       - NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1 # HTTP and Direct Port
+      - NEXT_PUBLIC_SOCKET_URL=http://localhost:8000
     # Updated to your dev2 command
     command: npm run dev2
     ports:
@@ -155,6 +157,7 @@ services:
       - /app/.next
     environment:
       - NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1 # HTTP and Direct Port
+      - NEXT_PUBLIC_SOCKET_URL=http://localhost:8000
     # Updated to your dev2 command
     command: npm run dev2
     ports:
