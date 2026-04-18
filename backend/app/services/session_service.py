@@ -2,7 +2,7 @@ import logging
 from datetime import datetime, timezone
 from typing import Optional
 from sqlalchemy import select
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, selectinload
 from uuid import UUID
 from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -141,7 +141,7 @@ async def get_session_for_completion(db: AsyncSession, session_id: UUID) -> Opti
     stmt = (
         select(Session)
         .options(
-            joinedload(Session.booking) # Eager load for the service handler
+            selectinload(Session.booking) # Eager load for the service handler
         )
         .where(Session.id == session_id)
         .with_for_update() # <--- THE LOCK
@@ -149,6 +149,7 @@ async def get_session_for_completion(db: AsyncSession, session_id: UUID) -> Opti
     result = await db.execute(stmt)
     
     # .unique() is necessary when using joinedload with scalars in async
+    # (though not strictly necessary for selectinload, keeping it is harmless)
     return result.unique().scalar_one_or_none()
 
 
