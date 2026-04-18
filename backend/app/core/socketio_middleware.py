@@ -136,7 +136,7 @@ def create_socketio_auth_middleware(sio):
             # Store user_id in session for later retrieval
             session = await sio.get_session(sid)
             session["user_id"] = str(user_id)
-            await sio.set_session(sid, session)
+            await sio.save_session(sid, session)
             
             logger.info(f"Socket.IO auth successful: user_id={user_id}, sid={sid}")
             return True

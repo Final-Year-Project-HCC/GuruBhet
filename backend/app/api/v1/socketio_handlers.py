@@ -114,7 +114,7 @@ def setup_socketio_handlers(sio: socketio.AsyncServer, manager) -> None:
             # Step 4: Store user_id in Socket.IO session
             session = await sio.get_session(sid)
             session["user_id"] = str(user_id)
-            await sio.set_session(sid, session)
+            await sio.save_session(sid, session)
             
             # Step 5: Track user session
             socketio_manager.track_user_session(user_id, sid)
