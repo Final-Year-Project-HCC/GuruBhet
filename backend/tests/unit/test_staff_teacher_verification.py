@@ -214,16 +214,13 @@ class TestVerifyTeacherLogic:
         assert profile.reviewed_at is not None
         assert profile.remarks is None  # no remarks on APPROVED
 
-        for doc in profile.documents:
-            assert doc.status == VerificationStatus.APPROVED
-
         background_tasks.add_task.assert_called_once_with(
             _emit_profile_verified, teacher_id, decision
         )
 
     @pytest.mark.asyncio
-    async def test_reject_sets_remarks_on_documents(self):
-        """REJECTED decision writes remarks to all documents."""
+    async def test_reject_sets_remarks_on_profile(self):
+        """REJECTED decision writes remarks to the profile."""
         from app.api.v1.endpoints.staff import verify_teacher
 
         profile = _make_profile()
@@ -257,9 +254,8 @@ class TestVerifyTeacherLogic:
             current_staff=staff,
         )
 
+        assert profile.document_status == VerificationStatus.REJECTED
         assert profile.remarks == "NID photo too blurry"
-        for doc in profile.documents:
-            assert doc.status == VerificationStatus.REJECTED
 
     @pytest.mark.asyncio
     async def test_raises_404_when_teacher_not_found(self):

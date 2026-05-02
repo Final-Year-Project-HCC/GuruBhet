@@ -73,7 +73,6 @@ class TeacherDocumentRead(SharedConfig):
     id: UUID
     type: DocumentType
     file_url: str
-    status: VerificationStatus
     created_at: datetime
 
 

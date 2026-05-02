@@ -315,9 +315,6 @@ async def verify_teacher(
     profile.reviewed_at = now
     profile.remarks = body.remarks
 
-    for doc in profile.documents:
-        doc.status = body.action
-
     db.add(
         AuditLog(
             actor_id=current_staff.id,

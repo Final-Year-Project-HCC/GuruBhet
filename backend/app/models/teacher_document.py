@@ -4,7 +4,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, UUIDPrimaryKeyMixin, TimestampMixin
-from app.core.enums import DocumentType, VerificationStatus
+from app.core.enums import DocumentType
 
 
 class TeacherDocument(Base, UUIDPrimaryKeyMixin, TimestampMixin):
@@ -19,10 +19,6 @@ class TeacherDocument(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     type: Mapped[DocumentType] = mapped_column(SAEnum(DocumentType), nullable=False)
     file_url: Mapped[str] = mapped_column(Text, nullable=False)
     file_key: Mapped[str] = mapped_column(Text, nullable=False)  # S3 object key
-
-    status: Mapped[VerificationStatus] = mapped_column(
-        SAEnum(VerificationStatus), default=VerificationStatus.PENDING, nullable=False
-    )
 
     # ── Relationships ─────────────────────────────────────────────────────────
     teacher: Mapped["TeacherProfile"] = relationship(back_populates="documents")  # noqa: F821
