@@ -255,7 +255,7 @@ async def list_pending_teachers(
 
 @router.get("/teachers/pending/{teacher_id}", response_model=TeacherProfileForVerificationRead)
 async def get_pending_teacher_detail(
-    teacher_id: Annotated[UUID, Path(..., alias="teacherId")],
+    teacher_id: UUID,
     db: DbSession,
     current_staff: User = RequireTeacherVerify,
 ):
