@@ -46,7 +46,7 @@ export default function BookingsPage() {
   // Calculate total earned (sum of completed bookings)
   const totalEarned = bookings
     .filter((b) => b.status === "COMPLETED")
-    .reduce((sum, b) => sum + b.totalAmount, 0);
+    .reduce((sum, b) => sum + Number(b.totalAmount), 0);
 
   // Tab content mapping
   const tabContent = {

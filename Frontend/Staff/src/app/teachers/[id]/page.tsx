@@ -8,21 +8,39 @@ import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import apiClient from "@/lib/api";
 
-type TeacherDetail = {
+type DocumentType = "NID_FRONT" | "NID_BACK" | "PAN_CARD" | "SELFIE_WITH_NID";
+
+type TeacherDocumentVerificationRead = {
+  id: string;
+  type: DocumentType;
+  fileUrl: string;
+  status: string;
+  createdAt: string;
+};
+
+type UserRead = {
   id: string;
   firstName: string;
   middleName?: string;
   lastName: string;
   email: string;
-  panCardUrl?: string;
-  citizenshipUrl?: string;
-  selfieUrl?: string;
-  selfieWithCitizenshipUrl?: string;
-  submittedAt?: string;
+};
+
+type TeacherDetail = {
+  userId: string;
+  bio?: string;
+  tagline?: string;
+  documentStatus: string;
+  reviewedById?: string;
+  reviewedAt?: string;
+  remarks?: string;
+  createdAt: string;
+  user: UserRead;
+  documents: TeacherDocumentVerificationRead[];
 };
 
 async function fetchDetail(id: string): Promise<TeacherDetail> {
-  const { data } = await apiClient.get(`/staff/teachers/${id}`);
+  const { data } = await apiClient.get(`/staff/teachers/pending/${id}`);
   return data;
 }
 
@@ -33,9 +51,12 @@ export default function TeacherDetail() {
   const id = params?.id as string;
   const { data, isLoading, isError } = useQuery({ queryKey: ["staff", "teacher-detail", id], queryFn: () => fetchDetail(id), enabled: !!id });
 
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [rejectRemarks, setRejectRemarks] = useState("");
+
   const verifyMutation = useMutation({
     mutationFn: async () => {
-      const { data } = await apiClient.post(`/staff/teachers/${id}/verify`);
+      const { data } = await apiClient.post(`/staff/teachers/${id}/verify`, { action: "APPROVED" });
       return data;
     },
     onSuccess: () => {
@@ -45,16 +66,17 @@ export default function TeacherDetail() {
     onError: () => toast.error("Failed to verify"),
   });
 
-  const discardMutation = useMutation({
-    mutationFn: async () => {
-      const { data } = await apiClient.post(`/staff/teachers/${id}/discard`);
+  const rejectMutation = useMutation({
+    mutationFn: async (remarks: string) => {
+      const { data } = await apiClient.post(`/staff/teachers/${id}/verify`, { action: "REJECTED", remarks });
       return data;
     },
     onSuccess: () => {
-      toast.info("Submission discarded");
+      toast.info("Teacher application rejected");
+      setShowRejectModal(false);
       router.push("/teachers");
     },
-    onError: () => toast.error("Failed to discard"),
+    onError: () => toast.error("Failed to reject application"),
   });
 
   if (isLoading) {
@@ -74,8 +96,14 @@ export default function TeacherDetail() {
     );
   }
 
-  const fullName = [data.firstName, data.middleName, data.lastName].filter(Boolean).join(" ");
+  const fullName = [data.user.firstName, data.user.middleName, data.user.lastName].filter(Boolean).join(" ");
 
+  // Extract document URLs
+  const getDocUrl = (type: DocumentType) => data.documents?.find(d => d.type === type)?.fileUrl;
+
+  const panCardUrl = getDocUrl("PAN_CARD");
+  const nidFrontUrl = getDocUrl("NID_FRONT");
+  const nidBackUrl = getDocUrl("NID_BACK");
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-6">
@@ -88,70 +116,56 @@ export default function TeacherDetail() {
           </div>
           <div>
             <p className="text-sm text-muted-foreground">Email</p>
-            <p className="font-medium">{data.email}</p>
+            <p className="font-medium">{data.user.email}</p>
           </div>
           <div>
             <p className="text-sm text-muted-foreground">Submitted</p>
-            <p className="font-medium">{data.submittedAt ? new Date(data.submittedAt).toLocaleString() : "—"}</p>
+            <p className="font-medium">{data.createdAt ? new Date(data.createdAt).toLocaleString() : "—"}</p>
           </div>
         </div>
 
         <div>
           <h2 className="text-lg font-semibold mb-2">Documents</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            {data.panCardUrl && (
+            {panCardUrl && (
               <div className="space-y-2">
                 <p className="text-sm text-muted-foreground">PAN Card</p>
                 <Image
-                  src={data.panCardUrl}
+                  src={panCardUrl}
                   alt="PAN Card"
                   width={800}
                   height={320}
                   unoptimized
                   className="h-40 w-full object-cover rounded-md cursor-zoom-in border border-border"
-                  onClick={() => setPreviewSrc(data.panCardUrl!)}
+                  onClick={() => setPreviewSrc(panCardUrl)}
                 />
               </div>
             )}
-            {data.citizenshipUrl && (
+            {nidFrontUrl && (
               <div className="space-y-2">
-                <p className="text-sm text-muted-foreground">Citizenship</p>
+                <p className="text-sm text-muted-foreground">Citizenship (Front)</p>
                 <Image
-                  src={data.citizenshipUrl}
-                  alt="Citizenship"
+                  src={nidFrontUrl}
+                  alt="Citizenship Front"
                   width={800}
                   height={320}
                   unoptimized
                   className="h-40 w-full object-cover rounded-md cursor-zoom-in border border-border"
-                  onClick={() => setPreviewSrc(data.citizenshipUrl!)}
+                  onClick={() => setPreviewSrc(nidFrontUrl)}
                 />
               </div>
             )}
-            {data.selfieUrl && (
+            {nidBackUrl && (
               <div className="space-y-2">
-                <p className="text-sm text-muted-foreground">Selfie</p>
+                <p className="text-sm text-muted-foreground">Citizenship (Back)</p>
                 <Image
-                  src={data.selfieUrl}
-                  alt="Selfie"
+                  src={nidBackUrl}
+                  alt="Citizenship Back"
                   width={800}
                   height={320}
                   unoptimized
                   className="h-40 w-full object-cover rounded-md cursor-zoom-in border border-border"
-                  onClick={() => setPreviewSrc(data.selfieUrl!)}
-                />
-              </div>
-            )}
-            {data.selfieWithCitizenshipUrl && (
-              <div className="space-y-2">
-                <p className="text-sm text-muted-foreground">Selfie with Citizenship</p>
-                <Image
-                  src={data.selfieWithCitizenshipUrl}
-                  alt="Selfie with Citizenship"
-                  width={800}
-                  height={320}
-                  unoptimized
-                  className="h-40 w-full object-cover rounded-md cursor-zoom-in border border-border"
-                  onClick={() => setPreviewSrc(data.selfieWithCitizenshipUrl!)}
+                  onClick={() => setPreviewSrc(nidBackUrl)}
                 />
               </div>
             )}
@@ -167,9 +181,9 @@ export default function TeacherDetail() {
           </button>
           <button
             className="rounded-md bg-red-600 px-4 py-2 text-white hover:opacity-90"
-            onClick={() => discardMutation.mutate()}
+            onClick={() => setShowRejectModal(true)}
           >
-            {discardMutation.isPending ? "Discarding..." : "Discard"}
+            Reject
           </button>
           <button
             className="rounded-md border border-border px-4 py-2 hover:bg-muted"
@@ -181,6 +195,37 @@ export default function TeacherDetail() {
       </div>
 
       <ImagePreviewModal src={previewSrc} isOpen={!!previewSrc} onClose={() => setPreviewSrc("")} />
+
+      {showRejectModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-md bg-background p-6 shadow-lg">
+            <h3 className="text-lg font-semibold mb-2">Reject Application</h3>
+            <p className="text-sm text-muted-foreground mb-4">Please provide a reason for rejecting this application.</p>
+            <textarea
+              className="w-full rounded-md border border-border p-2 focus:ring focus:ring-ring mb-4"
+              rows={4}
+              placeholder="e.g. Blurry photo, mismatched names..."
+              value={rejectRemarks}
+              onChange={(e) => setRejectRemarks(e.target.value)}
+            />
+            <div className="flex justify-end gap-3">
+              <button
+                className="rounded-md px-4 py-2 hover:bg-muted"
+                onClick={() => setShowRejectModal(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className="rounded-md bg-red-600 px-4 py-2 text-white hover:opacity-90 disabled:opacity-50"
+                disabled={!rejectRemarks.trim() || rejectMutation.isPending}
+                onClick={() => rejectMutation.mutate(rejectRemarks)}
+              >
+                {rejectMutation.isPending ? "Rejecting..." : "Confirm Reject"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

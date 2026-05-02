@@ -1,50 +1,23 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import React, { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useUser } from "@/hooks";
 import apiClient from "@/lib/api";
-import socket from "@/lib/socket";
 import { Booking, Session } from "@/lib/types";
 import { Calendar, Clock, Users, BookOpen } from "lucide-react";
-import { toast } from "react-toastify";
 import { LiveKitRoom, VideoConference } from "@livekit/components-react";
 import "@livekit/components-styles";
 import Link from "next/link";
 import { TeacherRoomOverlay } from "./TeacherRoomOverlay";
+import { useTeacherSocket } from "@/hooks/useTeacherSocket";
 
 export default function TeacherDashboard() {
   const { data: user } = useUser();
-  const queryClient = useQueryClient();
-  const [activeRoom, setActiveRoom] = useState<{
-    token: string;
-    liveKitUrl: string;
-    sessionId: string;
-    bookingId: string;
-    actualStartAt: string;
-    durationMinutes: number;
-    leniencyMinutes: number;
-  } | null>(null);
   const [isJoining, setIsJoining] = useState(false);
 
   const firstName = user?.firstName ?? "Teacher";
-
-  // Socket for session teardown
-  useEffect(() => {
-    const handleSessionFinished = (payload: { session_id: string; status: string }) => {
-      if (activeRoom && payload.session_id === activeRoom.sessionId) {
-        setActiveRoom(null);
-        toast.info("Session finished.");
-        queryClient.invalidateQueries({ queryKey: ["sessions", "in-progress"] });
-        queryClient.invalidateQueries({ queryKey: ["teacherBookings"] });
-      }
-    };
-    
-    socket.on("session_finished", handleSessionFinished);
-    return () => {
-      socket.off("session_finished", handleSessionFinished);
-    };
-  }, [activeRoom, queryClient]);
+  const { activeRoom, leaveRoom, joinClassroomFromDashboard } = useTeacherSocket();
 
   // Fetch bookings for stats
   const { data: bookings = [] } = useQuery<Booking[]>({
@@ -72,18 +45,7 @@ export default function TeacherDashboard() {
     try {
       setIsJoining(true);
       const session = ongoingSessions.find((s) => s.booking.id === bookingId);
-      const { data } = await apiClient.get(`/bookings/${bookingId}/sync`);
-      setActiveRoom({
-        token: data.token,
-        liveKitUrl: data.livekit_url || data.liveKitUrl,
-        sessionId: session?.id ?? data.room_name?.replace("session-", "") ?? "",
-        bookingId,
-        actualStartAt: data.actual_start_at || session?.actualStartAt || new Date().toISOString(),
-        durationMinutes: data.session_duration_minutes ?? 60,
-        leniencyMinutes: data.leniency_minutes ?? 5,
-      });
-    } catch {
-      toast.error("Failed to join classroom. Please check if the room is ready.");
+      await joinClassroomFromDashboard(bookingId, session?.id ?? "");
     } finally {
       setIsJoining(false);
     }
@@ -102,7 +64,7 @@ export default function TeacherDashboard() {
           actualStartAt={activeRoom.actualStartAt}
           durationMinutes={activeRoom.durationMinutes}
           leniencyMinutes={activeRoom.leniencyMinutes}
-          onLeave={() => setActiveRoom(null)}
+          onLeave={leaveRoom}
         />
         <div className="flex-1 overflow-hidden">
           <LiveKitRoom

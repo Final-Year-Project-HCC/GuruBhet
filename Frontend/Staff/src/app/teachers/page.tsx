@@ -6,12 +6,13 @@ import { useQuery } from "@tanstack/react-query";
 import apiClient from "@/lib/api";
 
 type PendingTeacher = {
-  id: string;
+  userId: string;
   firstName: string;
   middleName?: string;
   lastName: string;
   email: string;
-  submittedAt?: string;
+  avatarUrl?: string;
+  createdAt: string;
 };
 
 async function fetchPending(): Promise<PendingTeacher[]> {
@@ -31,7 +32,7 @@ export default function TeachersLandingPage() {
       fallback={
         <div className="mx-auto max-w-6xl px-4 py-6">
           <h1 className="text-2xl font-semibold mb-3">Access Denied</h1>
-          <p className="text-muted-foreground">You don't have permission to view pending teachers.</p>
+          <p className="text-muted-foreground">You don&apos;t have permission to view pending teachers.</p>
         </div>
       }
     >
