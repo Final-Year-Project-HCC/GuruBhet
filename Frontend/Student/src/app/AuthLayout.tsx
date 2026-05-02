@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import AuthGuard from "@/components/AuthGuard";
 import StudentNavbar from "@/components/StudentNavbar";
 import Footer from "@/components/Footer";
@@ -8,6 +9,8 @@ import IncomingCallOverlay from "@/components/IncomingCallOverlay";
 import { useStudentSocket } from "@/hooks/useStudentSocket";
 import { LiveKitRoom, VideoConference } from "@livekit/components-react";
 import "@livekit/components-styles";
+import { StudentRoomOverlay, CountdownModal } from "./dashboard/StudentRoomOverlay";
+import socket from "@/lib/socket";
 
 /** Routes accessible without logging in */
 const PUBLIC_PATHS = ["/", "/login", "/signup", "/search-teacher"];
@@ -27,6 +30,28 @@ export default function AuthLayout({
   const pathname = usePathname();
   const isPublic = isPublicPath(pathname);
   const { incomingSession, acceptSession, rejectSession, dismissSession, activeRoom, leaveRoom } = useStudentSocket();
+  const [requestedPrematureSessionId, setRequestedPrematureSessionId] = useState<string | null>(null);
+
+  // Premature completion request from teacher
+  useEffect(() => {
+    const handlePrematureRequest = (payload: { session_id: string }) => {
+      setRequestedPrematureSessionId(payload.session_id);
+    };
+    socket.on("premature_session_completion_requested", handlePrematureRequest);
+    return () => { socket.off("premature_session_completion_requested", handlePrematureRequest); };
+  }, []);
+
+  // Teardown room when session_finished fires
+  useEffect(() => {
+    const handleSessionFinished = (payload: { session_id: string }) => {
+      if (activeRoom && payload.session_id === activeRoom.sessionId) {
+        setRequestedPrematureSessionId(null);
+        leaveRoom();
+      }
+    };
+    socket.on("session_finished", handleSessionFinished);
+    return () => { socket.off("session_finished", handleSessionFinished); };
+  }, [activeRoom, leaveRoom]);
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -39,14 +64,13 @@ export default function AuthLayout({
       {/* LiveKit room overlay triggered by acceptSession */}
       {activeRoom && (
         <div className="fixed inset-0 z-[9999] flex flex-col bg-black">
-          <div className="absolute top-4 right-4 z-50">
-            <button
-              onClick={leaveRoom}
-              className="rounded-md bg-destructive px-4 py-2 text-destructive-foreground hover:opacity-90 transition-colors"
-            >
-              Leave Room
-            </button>
-          </div>
+          <StudentRoomOverlay
+            sessionId={activeRoom.sessionId}
+            actualStartAt={activeRoom.actualStartAt}
+            durationMinutes={activeRoom.durationMinutes}
+            leniencyMinutes={activeRoom.leniencyMinutes}
+            onLeave={leaveRoom}
+          />
           <div className="flex-1 overflow-hidden">
             <LiveKitRoom
               video={true}
@@ -70,6 +94,14 @@ export default function AuthLayout({
           onAccept={acceptSession}
           onReject={rejectSession}
           onTimeout={dismissSession}
+        />
+      )}
+
+      {/* Premature completion dialog (teacher-initiated while in call-flow room) */}
+      {requestedPrematureSessionId && (
+        <CountdownModal
+          sessionId={requestedPrematureSessionId}
+          onClose={() => setRequestedPrematureSessionId(null)}
         />
       )}
     </div>

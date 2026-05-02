@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import apiClient from "@/lib/api";
 import { toast } from "react-toastify";
-import socket from "@/lib/socket";
+import { Clock } from "lucide-react";
 
 interface StudentRoomOverlayProps {
   sessionId: string;
@@ -12,7 +12,6 @@ interface StudentRoomOverlayProps {
 }
 
 export function StudentRoomOverlay({
-  sessionId,
   actualStartAt,
   durationMinutes,
   leniencyMinutes,
@@ -71,5 +70,69 @@ export function StudentRoomOverlay({
         </button>
       </div>
     </>
+  );
+}
+
+/* ── CountdownModal ─────────────────────────────────────────────────── */
+
+export function CountdownModal({ sessionId, onClose }: { sessionId: string; onClose: () => void }) {
+  const [timeLeft, setTimeLeft] = useState(60);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          onClose();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/50 backdrop-blur-sm px-4 text-center">
+      <div className="bg-background border border-border p-6 rounded-2xl max-w-sm w-full shadow-2xl relative">
+        <div className="absolute -top-3 -right-3 w-8 h-8 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center font-bold shadow-lg animate-pulse">
+          {timeLeft}
+        </div>
+        <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+          <Clock className="text-primary w-6 h-6" />
+        </div>
+        <h3 className="text-lg font-bold text-foreground mb-2">Teacher Requested Early Completion</h3>
+        <p className="text-muted-foreground text-sm mb-6">
+          Your teacher wishes to end the session early. Do you agree?
+        </p>
+        <div className="flex flex-col gap-3">
+          <button
+            onClick={async () => {
+              onClose();
+              try {
+                await apiClient.post(`/sessions/${sessionId}/accept-premature-session-completion`);
+              } catch {
+                toast.error("Action failed");
+              }
+            }}
+            className="w-full py-2.5 rounded-xl text-sm font-bold bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
+          >
+            Yes, Complete Now
+          </button>
+          <button
+            onClick={async () => {
+              onClose();
+              try {
+                await apiClient.post(`/sessions/${sessionId}/reject-premature-session-completion`);
+              } catch {
+                toast.error("Action failed");
+              }
+            }}
+            className="w-full py-2.5 rounded-xl text-sm font-medium bg-muted text-foreground hover:bg-muted/80 transition-colors"
+          >
+            No, Keep Session Open
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }

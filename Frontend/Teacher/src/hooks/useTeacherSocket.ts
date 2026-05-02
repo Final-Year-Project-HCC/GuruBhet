@@ -12,8 +12,13 @@ import apiClient from "@/lib/api";
 
 interface SessionAcceptedPayload {
   bookingId: string;
+  sessionId: string;
   token: string;
+  roomName: string;
   liveKitUrl: string;
+  actualStartAt: string | null;
+  sessionDurationMinutes: number;
+  leniencyMinutes: number;
 }
 
 export interface OutgoingSession {
@@ -26,6 +31,11 @@ export interface OutgoingSession {
 export interface ActiveRoom {
   token: string;
   liveKitUrl: string;
+  sessionId: string;
+  bookingId: string;
+  actualStartAt: string;
+  durationMinutes: number;
+  leniencyMinutes: number;
 }
 
 /* ── Hook ──────────────────────────────────────────────────────────── */
@@ -96,6 +106,11 @@ export function useTeacherSocket() {
       setActiveRoom({
         token: payload.token,
         liveKitUrl: payload.liveKitUrl,
+        sessionId: payload.sessionId ?? payload.roomName?.replace("session-", "") ?? "",
+        bookingId: payload.bookingId,
+        actualStartAt: payload.actualStartAt || new Date().toISOString(),
+        durationMinutes: payload.sessionDurationMinutes ?? 60,
+        leniencyMinutes: payload.leniencyMinutes ?? 5,
       });
     },
     []

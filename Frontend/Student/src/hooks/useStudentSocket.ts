@@ -24,6 +24,11 @@ export interface IncomingSession extends IncomingSessionPayload {
 export interface ActiveRoom {
   token: string;
   liveKitUrl: string;
+  sessionId: string;
+  bookingId: string;
+  actualStartAt: string;
+  durationMinutes: number;
+  leniencyMinutes: number;
 }
 
 /* ── Hook ──────────────────────────────────────────────────────────── */
@@ -124,7 +129,12 @@ export function useStudentSocket() {
       toast.success("Session accepted! Connecting...");
       setActiveRoom({
         token: data.token,
-        liveKitUrl: data.livekitUrl || data.liveKitUrl, // handle case variation
+        liveKitUrl: data.livekit_url || data.liveKitUrl,
+        sessionId: data.room_name?.replace("session-", "") ?? "",
+        bookingId: incomingSession.bookingId,
+        actualStartAt: data.actual_start_at || new Date().toISOString(),
+        durationMinutes: data.session_duration_minutes ?? 60,
+        leniencyMinutes: data.leniency_minutes ?? 5,
       });
     } catch {
       toast.error("Failed to accept session. Please try again.");

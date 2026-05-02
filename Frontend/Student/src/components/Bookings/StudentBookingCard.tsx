@@ -83,44 +83,9 @@ const StudentBookingCard = ({
     },
   });
 
-  const acceptSessionMutation = useMutation({
-    mutationFn: async () => {
-      return await apiClient.post(`/bookings/${booking.id}/accept-session`);
-    },
-    onSuccess: () => {
-      toast.success("Session accepted!");
-      queryClient.invalidateQueries({ queryKey: ["studentBookings"] });
-    },
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    onError: (error: any) => {
-      toast.error(error.response?.data?.detail || "Failed to accept session");
-    },
-  });
   const teacherName = booking.teacher
     ? `${booking.teacher.firstName} ${booking.teacher.lastName}`
     : "Unknown Teacher";
-
-  // Calculate remaining time until session
-  const sessionDate = new Date(booking.createdAt);
-  const now = new Date();
-  const diffMs = sessionDate.getTime() - now.getTime();
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-  const diffHours = Math.floor(
-    (diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60),
-  );
-
-  const getTimeUntilSession = () => {
-    if (diffDays > 0) {
-      return `${diffDays}d ${diffHours}h`;
-    } else if (diffHours > 0) {
-      return `${diffHours}h`;
-    } else if (diffMs > 0) {
-      const mins = Math.floor(diffMs / (1000 * 60));
-      return `${mins}m`;
-    } else {
-      return "Session started";
-    }
-  };
 
   const handleCancel = () => {
     const reason = window.prompt(
@@ -141,9 +106,6 @@ const StudentBookingCard = ({
 
   const handlePayNow = () => {
     paymentMutation.mutate();
-  };
-  const handleAcceptSession = () => {
-    acceptSessionMutation.mutate();
   };
   const isProcessing =
     cancelMutation.isPending ||
@@ -303,9 +265,6 @@ const StudentBookingCard = ({
 
         {booking.status === "ACTIVE" && (
           <div className="space-y-2">
-            <button disabled={acceptSessionMutation.isPending} onClick={handleAcceptSession} className="w-full rounded-lg bg-accent text-accent-foreground px-4 py-2.5 font-medium transition-all hover:opacity-90 text-sm">
-              {acceptSessionMutation.isPending ? "Accepting..." : "Accept Session"}
-            </button>
             <button className="w-full flex items-center justify-center gap-2 rounded-lg border border-border bg-transparent px-4 py-2.5 font-medium text-foreground transition-all hover:bg-subtle text-sm">
               <MdMessage className="h-4 w-4" />
               Message Teacher

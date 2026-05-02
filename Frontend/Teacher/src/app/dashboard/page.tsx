@@ -75,12 +75,12 @@ export default function TeacherDashboard() {
       const { data } = await apiClient.get(`/bookings/${bookingId}/sync`);
       setActiveRoom({
         token: data.token,
-        liveKitUrl: data.liveKitUrl,
-        sessionId: session?.id ?? "",
+        liveKitUrl: data.livekit_url || data.liveKitUrl,
+        sessionId: session?.id ?? data.room_name?.replace("session-", "") ?? "",
         bookingId,
-        actualStartAt: session?.actualStartAt || new Date().toISOString(),
-        durationMinutes: 60, // Mock config
-        leniencyMinutes: 5,  // Mock config
+        actualStartAt: data.actual_start_at || session?.actualStartAt || new Date().toISOString(),
+        durationMinutes: data.session_duration_minutes ?? 60,
+        leniencyMinutes: data.leniency_minutes ?? 5,
       });
     } catch {
       toast.error("Failed to join classroom. Please check if the room is ready.");

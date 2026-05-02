@@ -4,12 +4,26 @@ import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { useLogout, useUser } from "@/hooks";
+import { useQuery } from "@tanstack/react-query";
+import apiClient from "@/lib/api";
+import { Booking } from "@/lib/types";
 
 export default function StudentNavbar() {
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const { mutate: logout, isPending } = useLogout();
   const { data: user } = useUser();
+
+  const { data: bookings = [] } = useQuery<Booking[]>({
+    queryKey: ["studentBookings"],
+    queryFn: async () => {
+      const { data } = await apiClient.get("/students/me/bookings");
+      return data;
+    },
+    enabled: !!user,
+    staleTime: 1000 * 60 * 5,
+  });
+  const pendingPaymentCount = bookings.filter((b) => b.status === "PENDING_PAYMENT").length;
 
   useEffect(() => {
     function onClickOutside(e: MouseEvent) {
@@ -81,9 +95,14 @@ export default function StudentNavbar() {
                 {/* Logged-in links */}
                 <Link
                   href="/bookings"
-                  className="rounded-md px-3 py-2 text-base text-foreground hover:bg-muted"
+                  className="relative rounded-md px-3 py-2 text-base text-foreground hover:bg-muted"
                 >
                   Bookings
+                  {pendingPaymentCount > 0 && (
+                    <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white">
+                      {pendingPaymentCount}
+                    </span>
+                  )}
                 </Link>
                 <Link
                   href="/sessions"

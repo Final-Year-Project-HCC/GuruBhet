@@ -110,6 +110,7 @@ export default function StudentBookingsPage() {
   );
   useEffect(() => {
     if (paymentBookings?.length > 0 && isFirstTime.current) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setActiveTab("payment");
       isFirstTime.current = false;
     }
