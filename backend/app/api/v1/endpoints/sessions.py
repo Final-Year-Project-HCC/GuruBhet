@@ -58,7 +58,7 @@ async def get_session(
 
 @router.post("/{session_id}/request-session-completion", response_model=SessionRead)
 async def request_session_completion(
-    session_id: Annotated[UUID, Path(..., alias="sessionId")],
+    session_id: UUID,
     current_user: Annotated[User, RequireProfessionalTeacher],
     db: DbSession,
     background_tasks: BackgroundTasks,
@@ -141,7 +141,7 @@ async def request_session_completion(
 @router.post("/{session_id}/accept-premature-session-completion", response_model=SessionRead)
 async def accept_premature_session_completion(
     db: DbSession,
-    session_id: Annotated[UUID, Path(..., alias="sessionId")],
+    session_id: UUID,
     current_user: CurrentUser,
     background_tasks: BackgroundTasks,
 ):
@@ -212,7 +212,7 @@ async def accept_premature_session_completion(
 
 @router.post("/{session_id}/reject-premature-session-completion", response_model=SessionRead)
 async def reject_premature_session_completion(
-    session_id: Annotated[UUID, Path(..., alias="sessionId")],
+    session_id: UUID,
     current_user: CurrentUser,
     db: DbSession,
     background_tasks: BackgroundTasks,
@@ -276,7 +276,7 @@ async def reject_premature_session_completion(
 
 @router.post("/{session_id}/cancel", response_model=SessionRead)
 async def cancel_session(
-    session_id: Annotated[UUID, Path(..., alias="sessionId")],
+    session_id: UUID,
     current_user: CurrentUser,
     db: DbSession,
     background_tasks: BackgroundTasks,  # ✅ was missing entirely
