@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import { MdChevronRight } from "react-icons/md";
 
 type PendingTeacherItem = {
   userId: string;
@@ -24,7 +25,7 @@ function AvatarDisplay({ firstName, avatarUrl }: { firstName: string; avatarUrl?
         alt="Teacher avatar"
         width={48}
         height={48}
-        className="h-12 w-12 rounded-full object-cover border border-border"
+        className="h-12 w-12 rounded-full object-cover border border-border shrink-0"
       />
     );
   }
@@ -32,7 +33,7 @@ function AvatarDisplay({ firstName, avatarUrl }: { firstName: string; avatarUrl?
   return (
     <div
       style={{ backgroundColor: bgColor }}
-      className="h-12 w-12 rounded-full flex items-center justify-center text-white font-semibold border border-border"
+      className="h-12 w-12 rounded-full flex items-center justify-center text-white font-semibold border border-border shrink-0"
     >
       {initials}
     </div>
@@ -51,7 +52,7 @@ export default function PendingTeacherList({ items, routePrefix = "/teachers" }:
   }
 
   return (
-    <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+    <div className="flex flex-col gap-2">
       {items.map((t) => {
         const fullName = [t.firstName, t.middleName, t.lastName].filter(Boolean).join(" ");
         const submittedDate = t.createdAt ? new Date(t.createdAt) : null;
@@ -59,7 +60,7 @@ export default function PendingTeacherList({ items, routePrefix = "/teachers" }:
         return (
           <div
             key={t.userId}
-            className="rounded-lg border border-border bg-card p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+            className="flex items-center gap-4 rounded-lg border border-border bg-card px-5 py-4 shadow-sm hover:shadow-md hover:bg-accent/40 transition-all cursor-pointer"
             onClick={() => router.push(`${routePrefix}/${t.userId}`)}
             role="button"
             tabIndex={0}
@@ -68,18 +69,18 @@ export default function PendingTeacherList({ items, routePrefix = "/teachers" }:
             }}
             aria-label={`Open details for ${fullName}`}
           >
-            <div className="flex items-start gap-4">
-              <AvatarDisplay firstName={t.firstName} avatarUrl={t.avatarUrl} />
-              <div className="flex-1 min-w-0">
-                <h3 className="font-semibold text-foreground truncate">{fullName}</h3>
-                <p className="text-sm text-muted-foreground truncate">{t.email}</p>
-                {submittedDate && (
-                  <p className="text-xs text-muted-foreground mt-2">
-                    Submitted: {submittedDate.toLocaleDateString()} {submittedDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                  </p>
-                )}
-              </div>
+            <AvatarDisplay firstName={t.firstName} avatarUrl={t.avatarUrl} />
+            <div className="flex-1 min-w-0">
+              <h3 className="font-semibold text-foreground">{fullName}</h3>
+              <p className="text-sm text-muted-foreground truncate">{t.email}</p>
             </div>
+            {submittedDate && (
+              <p className="hidden sm:block text-xs text-muted-foreground shrink-0">
+                Submitted {submittedDate.toLocaleDateString()} at{" "}
+                {submittedDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+              </p>
+            )}
+            <MdChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
           </div>
         );
       })}

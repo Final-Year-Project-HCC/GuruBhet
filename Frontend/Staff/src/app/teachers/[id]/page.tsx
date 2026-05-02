@@ -5,7 +5,7 @@ import Image from "next/image";
 import { toast } from "react-toastify";
 import ImagePreviewModal from "@/components/ImagePreviewModal";
 import { useState } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import apiClient from "@/lib/api";
 
 type DocumentType = "NID_FRONT" | "NID_BACK" | "PAN_CARD" | "SELFIE_WITH_NID";
@@ -46,6 +46,7 @@ async function fetchDetail(id: string): Promise<TeacherDetail> {
 
 export default function TeacherDetail() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [previewSrc, setPreviewSrc] = useState<string>("");
   const params = useParams<{ id: string }>();
   const id = params?.id as string;
@@ -61,6 +62,7 @@ export default function TeacherDetail() {
     },
     onSuccess: () => {
       toast.success("Teacher verified");
+      queryClient.invalidateQueries({ queryKey: ["staff", "pending-teachers"] });
       router.push("/teachers");
     },
     onError: () => toast.error("Failed to verify"),
@@ -73,6 +75,7 @@ export default function TeacherDetail() {
     },
     onSuccess: () => {
       toast.info("Teacher application rejected");
+      queryClient.invalidateQueries({ queryKey: ["staff", "pending-teachers"] });
       setShowRejectModal(false);
       router.push("/teachers");
     },
@@ -104,6 +107,7 @@ export default function TeacherDetail() {
   const panCardUrl = getDocUrl("PAN_CARD");
   const nidFrontUrl = getDocUrl("NID_FRONT");
   const nidBackUrl = getDocUrl("NID_BACK");
+  const selfieWithNidUrl = getDocUrl("SELFIE_WITH_NID");
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-6">
@@ -166,6 +170,20 @@ export default function TeacherDetail() {
                   unoptimized
                   className="h-40 w-full object-cover rounded-md cursor-zoom-in border border-border"
                   onClick={() => setPreviewSrc(nidBackUrl)}
+                />
+              </div>
+            )}
+            {selfieWithNidUrl && (
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">Selfie with Citizenship</p>
+                <Image
+                  src={selfieWithNidUrl}
+                  alt="Selfie with Citizenship"
+                  width={800}
+                  height={320}
+                  unoptimized
+                  className="h-40 w-full object-cover rounded-md cursor-zoom-in border border-border"
+                  onClick={() => setPreviewSrc(selfieWithNidUrl)}
                 />
               </div>
             )}
