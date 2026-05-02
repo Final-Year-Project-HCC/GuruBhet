@@ -186,6 +186,7 @@ export interface Booking {
 }
 
 export interface Session {
+  id: string;
   sessionNumber: number;
   status: SessionStatus;
   actualStartAt?: string;

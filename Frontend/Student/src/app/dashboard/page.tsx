@@ -1,22 +1,59 @@
 "use client";
 
-import React, { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import React, { useState, useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useUser } from "@/hooks";
 import apiClient from "@/lib/api";
+import socket from "@/lib/socket";
 import { Booking, Session } from "@/lib/types";
 import { BookOpen, Clock, CheckCircle, Layers } from "lucide-react";
 import { toast } from "react-toastify";
 import { LiveKitRoom, VideoConference } from "@livekit/components-react";
 import "@livekit/components-styles";
 import Link from "next/link";
+import { StudentRoomOverlay } from "./StudentRoomOverlay";
 
 export default function StudentDashboard() {
   const { data: user } = useUser();
-  const [activeRoom, setActiveRoom] = useState<{ token: string; liveKitUrl: string } | null>(null);
+  const queryClient = useQueryClient();
+  const [activeRoom, setActiveRoom] = useState<{
+    token: string;
+    liveKitUrl: string;
+    sessionId: string;
+    bookingId: string;
+    actualStartAt: string;
+    durationMinutes: number;
+    leniencyMinutes: number;
+  } | null>(null);
   const [isJoining, setIsJoining] = useState(false);
+  const [requestedPrematureSessionId, setRequestedPrematureSessionId] = useState<string | null>(null);
 
   const firstName = user?.firstName ?? "Student";
+
+  // Sockets for premature completion & teardown
+  useEffect(() => {
+    const handleSessionFinished = (payload: { session_id: string; status: string }) => {
+      if (activeRoom && payload.session_id === activeRoom.sessionId) {
+        setActiveRoom(null);
+        toast.info("Session finished.");
+        setRequestedPrematureSessionId(null);
+        queryClient.invalidateQueries({ queryKey: ["sessions", "in-progress"] });
+        queryClient.invalidateQueries({ queryKey: ["studentBookings"] });
+      }
+    };
+
+    const handlePrematureRequest = (payload: { session_id: string; remaining_duration_seconds: number }) => {
+      setRequestedPrematureSessionId(payload.session_id);
+    };
+
+    socket.on("session_finished", handleSessionFinished);
+    socket.on("premature_session_completion_requested", handlePrematureRequest);
+
+    return () => {
+      socket.off("session_finished", handleSessionFinished);
+      socket.off("premature_session_completion_requested", handlePrematureRequest);
+    };
+  }, [activeRoom, queryClient]);
 
   // Fetch bookings for stats
   const { data: bookings = [] } = useQuery<Booking[]>({
@@ -43,8 +80,17 @@ export default function StudentDashboard() {
   const handleJoinClassroom = async (bookingId: string) => {
     try {
       setIsJoining(true);
+      const session = ongoingSessions.find((s) => s.booking.id === bookingId);
       const { data } = await apiClient.get(`/bookings/${bookingId}/sync`);
-      setActiveRoom({ token: data.token, liveKitUrl: data.liveKitUrl });
+      setActiveRoom({
+        token: data.token,
+        liveKitUrl: data.liveKitUrl,
+        sessionId: session?.id ?? "",
+        bookingId,
+        actualStartAt: session?.actualStartAt || new Date().toISOString(),
+        durationMinutes: 60, // Mock config
+        leniencyMinutes: 5,  // Mock config
+      });
     } catch {
       toast.error("Failed to join classroom. Please check if the room is ready.");
     } finally {
@@ -54,7 +100,6 @@ export default function StudentDashboard() {
 
   // Derived stats
   const activeBookings = bookings.filter((b) => b.status === "ACTIVE");
-  const completedBookings = bookings.filter((b) => b.status === "COMPLETED");
   const completedSessions = bookings.reduce((sum, b) => sum + b.completedSessions, 0);
   const totalSpent = bookings
     .filter((b) => b.status === "COMPLETED" || b.status === "ACTIVE")
@@ -63,14 +108,13 @@ export default function StudentDashboard() {
   if (activeRoom) {
     return (
       <div className="fixed inset-0 z-[9999] flex flex-col bg-black">
-        <div className="absolute top-4 right-4 z-50">
-          <button
-            onClick={() => setActiveRoom(null)}
-            className="rounded-md bg-destructive px-4 py-2 text-destructive-foreground hover:opacity-90 transition-colors"
-          >
-            Leave Room
-          </button>
-        </div>
+        <StudentRoomOverlay
+          sessionId={activeRoom.sessionId}
+          actualStartAt={activeRoom.actualStartAt}
+          durationMinutes={activeRoom.durationMinutes}
+          leniencyMinutes={activeRoom.leniencyMinutes}
+          onLeave={() => setActiveRoom(null)}
+        />
         <div className="flex-1 overflow-hidden">
           <LiveKitRoom
             video={true}
@@ -334,6 +378,75 @@ export default function StudentDashboard() {
             </div>
           </section>
         )}
+      </div>
+
+      {requestedPrematureSessionId && (
+        <CountdownModal
+          sessionId={requestedPrematureSessionId}
+          onClose={() => setRequestedPrematureSessionId(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function CountdownModal({ sessionId, onClose }: { sessionId: string; onClose: () => void }) {
+  const [timeLeft, setTimeLeft] = useState(60);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          onClose(); // auto close when expired
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/50 backdrop-blur-sm px-4 text-center">
+      <div className="bg-background border border-border p-6 rounded-2xl max-w-sm w-full shadow-2xl relative">
+        <div className="absolute -top-3 -right-3 w-8 h-8 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center font-bold shadow-lg animate-pulse">
+          {timeLeft}
+        </div>
+        <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+          <Clock className="text-primary w-6 h-6" />
+        </div>
+        <h3 className="text-lg font-bold text-foreground mb-2">Teacher Requested Early Completion</h3>
+        <p className="text-muted-foreground text-sm mb-6">
+          Your teacher wishes to end the session early. Do you agree?
+        </p>
+        <div className="flex flex-col gap-3">
+          <button
+            onClick={async () => {
+              try {
+                await apiClient.post(`/sessions/${sessionId}/accept-premature-session-completion`);
+                onClose();
+              } catch {
+                toast.error("Action failed");
+              }
+            }}
+            className="w-full py-2.5 rounded-xl text-sm font-bold bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
+          >
+            Yes, Complete Now
+          </button>
+          <button
+            onClick={async () => {
+              try {
+                await apiClient.post(`/sessions/${sessionId}/reject-premature-session-completion`);
+                onClose();
+              } catch {
+                toast.error("Action failed");
+              }
+            }}
+            className="w-full py-2.5 rounded-xl text-sm font-medium bg-muted text-foreground hover:bg-muted/80 transition-colors"
+          >
+            No, Keep Session Open
+          </button>
+        </div>
       </div>
     </div>
   );
