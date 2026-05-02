@@ -1,7 +1,6 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { useEffect } from "react";
 import AuthGuard from "@/components/AuthGuard";
 import TeacherNavbar from "@/components/TeacherNavbar";
 import Footer from "@/components/Footer";
@@ -10,7 +9,6 @@ import OutgoingCallOverlay from "@/components/OutgoingCallOverlay";
 import { LiveKitRoom, VideoConference } from "@livekit/components-react";
 import "@livekit/components-styles";
 import { TeacherRoomOverlay } from "./dashboard/TeacherRoomOverlay";
-import socket from "@/lib/socket";
 
 /** Routes accessible without logging in */
 const PUBLIC_PATHS = ["/", "/dashboard", "/login", "/signup"];
@@ -27,17 +25,6 @@ export default function AuthLayout({
   const pathname = usePathname();
   const isPublic = isPublicPath(pathname);
   const { activeRoom, leaveRoom, outgoingSession, cancelOutgoingSession } = useTeacherSocket();
-
-  // Teardown room when session_finished fires (matches current sessionId)
-  useEffect(() => {
-    const handleSessionFinished = (payload: { session_id: string }) => {
-      if (activeRoom && payload.session_id === activeRoom.sessionId) {
-        leaveRoom();
-      }
-    };
-    socket.on("session_finished", handleSessionFinished);
-    return () => { socket.off("session_finished", handleSessionFinished); };
-  }, [activeRoom, leaveRoom]);
 
   return (
     <div className="min-h-screen flex flex-col">

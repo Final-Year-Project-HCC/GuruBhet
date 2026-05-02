@@ -32,7 +32,7 @@ export default function AuthLayout({
   const { incomingSession, acceptSession, rejectSession, dismissSession, activeRoom, leaveRoom } = useStudentSocket();
   const [requestedPrematureSessionId, setRequestedPrematureSessionId] = useState<string | null>(null);
 
-  // Premature completion request from teacher
+  // Premature completion request from teacher (while in call-flow room)
   useEffect(() => {
     const handlePrematureRequest = (payload: { session_id: string }) => {
       setRequestedPrematureSessionId(payload.session_id);
@@ -41,17 +41,7 @@ export default function AuthLayout({
     return () => { socket.off("premature_session_completion_requested", handlePrematureRequest); };
   }, []);
 
-  // Teardown room when session_finished fires
-  useEffect(() => {
-    const handleSessionFinished = (payload: { session_id: string }) => {
-      if (activeRoom && payload.session_id === activeRoom.sessionId) {
-        setRequestedPrematureSessionId(null);
-        leaveRoom();
-      }
-    };
-    socket.on("session_finished", handleSessionFinished);
-    return () => { socket.off("session_finished", handleSessionFinished); };
-  }, [activeRoom, leaveRoom]);
+  // Note: session_finished is now handled by useStudentSocket hook
 
   return (
     <div className="min-h-screen flex flex-col">

@@ -93,6 +93,19 @@ export function useStudentSocket() {
     toast.info("Session request was cancelled.");
   }, []);
 
+  const handleSessionFinished = useCallback(
+    (data: unknown) => {
+      const payload = data as { session_id: string; status: string };
+      if (activeRoom && payload.session_id === activeRoom.sessionId) {
+        setActiveRoom(null);
+        toast.info("Session finished.");
+        queryClient.invalidateQueries({ queryKey: ["sessions", "in-progress"] });
+        queryClient.invalidateQueries({ queryKey: ["studentBookings"] });
+      }
+    },
+    [activeRoom, queryClient]
+  );
+
   /* ── Subscribe ─────────────────────────────────────────────────── */
 
   const events: SocketEventEntry[] = useMemo(
@@ -104,12 +117,14 @@ export function useStudentSocket() {
         event: "session_request_cancelled",
         handler: handleSessionRequestCancelled,
       },
+      { event: "session_finished", handler: handleSessionFinished },
     ],
     [
       handleBookingAccepted,
       handleBookingRejected,
       handleSessionRequested,
       handleSessionRequestCancelled,
+      handleSessionFinished,
     ]
   );
 
@@ -166,7 +181,39 @@ export function useStudentSocket() {
 
   const leaveRoom = useCallback(() => {
     setActiveRoom(null);
-  }, []);
+    queryClient.invalidateQueries({ queryKey: ["sessions", "in-progress"] });
+    queryClient.invalidateQueries({ queryKey: ["studentBookings"] });
+  }, [queryClient]);
 
-  return { incomingSession, acceptSession, rejectSession, dismissSession, activeRoom, leaveRoom };
+  const joinClassroomFromDashboard = useCallback(
+    async (bookingId: string, sessionId: string) => {
+      try {
+        const { data } = await apiClient.get(`/bookings/${bookingId}/sync`);
+        setActiveRoom({
+          token: data.token,
+          liveKitUrl: data.livekit_url || data.liveKitUrl,
+          sessionId: sessionId ?? data.room_name?.replace("session-", "") ?? "",
+          bookingId,
+          actualStartAt: data.actual_start_at || new Date().toISOString(),
+          durationMinutes: data.session_duration_minutes ?? 60,
+          leniencyMinutes: data.leniency_minutes ?? 5,
+        });
+        return true;
+      } catch {
+        toast.error("Failed to join classroom. Please check if the room is ready.");
+        return false;
+      }
+    },
+    []
+  );
+
+  return {
+    incomingSession,
+    acceptSession,
+    rejectSession,
+    dismissSession,
+    activeRoom,
+    leaveRoom,
+    joinClassroomFromDashboard,
+  };
 }

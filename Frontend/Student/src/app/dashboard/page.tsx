@@ -1,59 +1,22 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import React, { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useUser } from "@/hooks";
 import apiClient from "@/lib/api";
-import socket from "@/lib/socket";
 import { Booking, Session } from "@/lib/types";
 import { BookOpen, Clock, CheckCircle, Layers } from "lucide-react";
-import { toast } from "react-toastify";
 import { LiveKitRoom, VideoConference } from "@livekit/components-react";
 import "@livekit/components-styles";
 import Link from "next/link";
-import { StudentRoomOverlay, CountdownModal } from "./StudentRoomOverlay";
+import { StudentRoomOverlay } from "./StudentRoomOverlay";
+import { useStudentSocket } from "@/hooks/useStudentSocket";
 
 export default function StudentDashboard() {
   const { data: user } = useUser();
-  const queryClient = useQueryClient();
-  const [activeRoom, setActiveRoom] = useState<{
-    token: string;
-    liveKitUrl: string;
-    sessionId: string;
-    bookingId: string;
-    actualStartAt: string;
-    durationMinutes: number;
-    leniencyMinutes: number;
-  } | null>(null);
   const [isJoining, setIsJoining] = useState(false);
-  const [requestedPrematureSessionId, setRequestedPrematureSessionId] = useState<string | null>(null);
-
   const firstName = user?.firstName ?? "Student";
-
-  // Sockets for premature completion & teardown
-  useEffect(() => {
-    const handleSessionFinished = (payload: { session_id: string; status: string }) => {
-      if (activeRoom && payload.session_id === activeRoom.sessionId) {
-        setActiveRoom(null);
-        toast.info("Session finished.");
-        setRequestedPrematureSessionId(null);
-        queryClient.invalidateQueries({ queryKey: ["sessions", "in-progress"] });
-        queryClient.invalidateQueries({ queryKey: ["studentBookings"] });
-      }
-    };
-
-    const handlePrematureRequest = (payload: { session_id: string; remaining_duration_seconds: number }) => {
-      setRequestedPrematureSessionId(payload.session_id);
-    };
-
-    socket.on("session_finished", handleSessionFinished);
-    socket.on("premature_session_completion_requested", handlePrematureRequest);
-
-    return () => {
-      socket.off("session_finished", handleSessionFinished);
-      socket.off("premature_session_completion_requested", handlePrematureRequest);
-    };
-  }, [activeRoom, queryClient]);
+  const { activeRoom, leaveRoom, joinClassroomFromDashboard } = useStudentSocket();
 
   // Fetch bookings for stats
   const { data: bookings = [] } = useQuery<Booking[]>({
@@ -81,18 +44,7 @@ export default function StudentDashboard() {
     try {
       setIsJoining(true);
       const session = ongoingSessions.find((s) => s.booking.id === bookingId);
-      const { data } = await apiClient.get(`/bookings/${bookingId}/sync`);
-      setActiveRoom({
-        token: data.token,
-        liveKitUrl: data.livekit_url || data.liveKitUrl,
-        sessionId: session?.id ?? data.room_name?.replace("session-", "") ?? "",
-        bookingId,
-        actualStartAt: data.actual_start_at || session?.actualStartAt || new Date().toISOString(),
-        durationMinutes: data.session_duration_minutes ?? 60,
-        leniencyMinutes: data.leniency_minutes ?? 5,
-      });
-    } catch {
-      toast.error("Failed to join classroom. Please check if the room is ready.");
+      await joinClassroomFromDashboard(bookingId, session?.id ?? "");
     } finally {
       setIsJoining(false);
     }
@@ -113,7 +65,7 @@ export default function StudentDashboard() {
           actualStartAt={activeRoom.actualStartAt}
           durationMinutes={activeRoom.durationMinutes}
           leniencyMinutes={activeRoom.leniencyMinutes}
-          onLeave={() => setActiveRoom(null)}
+          onLeave={leaveRoom}
         />
         <div className="flex-1 overflow-hidden">
           <LiveKitRoom
@@ -379,13 +331,6 @@ export default function StudentDashboard() {
           </section>
         )}
       </div>
-
-      {requestedPrematureSessionId && (
-        <CountdownModal
-          sessionId={requestedPrematureSessionId}
-          onClose={() => setRequestedPrematureSessionId(null)}
-        />
-      )}
     </div>
   );
 }
