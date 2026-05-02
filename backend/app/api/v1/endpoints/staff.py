@@ -313,13 +313,10 @@ async def verify_teacher(
     profile.document_status = body.action
     profile.reviewed_by_id = current_staff.id
     profile.reviewed_at = now
+    profile.remarks = body.remarks
 
     for doc in profile.documents:
         doc.status = body.action
-        doc.verified_by_id = current_staff.id
-        doc.verified_at = now
-        if body.remarks:
-            doc.remarks = body.remarks
 
     db.add(
         AuditLog(

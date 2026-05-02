@@ -60,9 +60,6 @@ class TeacherDocumentVerificationRead(SharedConfig):
     type: DocumentType
     file_url: str
     status: VerificationStatus
-    remarks: str | None = None
-    verified_at: datetime | None = None
-    verified_by_id: UUID | None = None
     created_at: datetime
 
 
@@ -73,6 +70,7 @@ class TeacherProfileForVerificationRead(SharedConfig):
     document_status: VerificationStatus
     reviewed_by_id: UUID | None = None
     reviewed_at: datetime | None = None
+    remarks: str | None = None
     created_at: datetime
     user: "UserRead"
     documents: list[TeacherDocumentVerificationRead] = []

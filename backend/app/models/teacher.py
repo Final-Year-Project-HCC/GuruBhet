@@ -40,6 +40,7 @@ class TeacherProfile(Base, TimestampMixin):
         UUID(as_uuid=True), ForeignKey("users.id"), nullable=True
     )
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    remarks: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # ── Relationships ─────────────────────────────────────────────────────────
     user: Mapped["User"] = relationship(  # noqa: F821

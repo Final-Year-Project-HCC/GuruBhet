@@ -136,9 +136,6 @@ def _make_document(doc_id=None, status=VerificationStatus.PENDING):
     doc = MagicMock()
     doc.id = doc_id or uuid.uuid4()
     doc.status = status
-    doc.verified_by_id = None
-    doc.verified_at = None
-    doc.remarks = None
     return doc
 
 
@@ -215,11 +212,10 @@ class TestVerifyTeacherLogic:
         assert profile.document_status == VerificationStatus.APPROVED
         assert profile.reviewed_by_id == staff.id
         assert profile.reviewed_at is not None
+        assert profile.remarks is None  # no remarks on APPROVED
 
         for doc in profile.documents:
             assert doc.status == VerificationStatus.APPROVED
-            assert doc.verified_by_id == staff.id
-            assert doc.verified_at is not None
 
         background_tasks.add_task.assert_called_once_with(
             _emit_profile_verified, teacher_id, decision
@@ -261,8 +257,8 @@ class TestVerifyTeacherLogic:
             current_staff=staff,
         )
 
+        assert profile.remarks == "NID photo too blurry"
         for doc in profile.documents:
-            assert doc.remarks == "NID photo too blurry"
             assert doc.status == VerificationStatus.REJECTED
 
     @pytest.mark.asyncio
