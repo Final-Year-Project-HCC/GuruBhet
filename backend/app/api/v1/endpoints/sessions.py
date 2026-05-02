@@ -140,9 +140,9 @@ async def request_session_completion(
 
 @router.post("/{session_id}/accept-premature-session-completion", response_model=SessionRead)
 async def accept_premature_session_completion(
+    db: DbSession,
     session_id: Annotated[UUID, Path(..., alias="sessionId")],
     current_user: CurrentUser,
-    db: DbSession,
     background_tasks: BackgroundTasks,
 ):
     """

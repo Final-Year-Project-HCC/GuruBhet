@@ -1,27 +1,34 @@
 import hashlib
+import logging
 import secrets
 from datetime import UTC, datetime, timedelta
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Path, status
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Path, status
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
 from app.core.dependencies import DbSession, RequireStaffManage, RequireTeacherVerify
 from app.core.enums import AuditActionType, UserRole, VerificationStatus
-from app.core.exceptions import PermissionDeniedError, ResourceNotFoundError
+from app.core.exceptions import ConflictError, PermissionDeniedError, TeacherNotFoundError
 from app.core.security import hash_password
+from app.core.socketio import get_socketio_manager
 from app.models.audit_log import AuditLog
 from app.models.invitation import StaffInvitation
+from app.models.teacher import TeacherProfile
 from app.models.user import User
 from app.schemas.staff import (
     StaffAcceptInviteSchema,
     StaffInviteSchema,
     StaffRead,
     StaffUpdateSchema,
+    TeacherProfileForVerificationRead,
+    TeacherVerificationDecision,
 )
-from app.schemas.user import TeacherProfileRead
 from app.tasks.notification_tasks import send_staff_invite_email
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -194,57 +201,107 @@ async def update_staff_permissions(
 # ── Teacher Approvals (Requires teacher:verify) ───────────────────────────
 
 
-@router.get("/teachers/pending", response_model=list[TeacherProfileRead])
-async def list_pending_teachers(db: DbSession, current_staff: User = RequireTeacherVerify):
-    """[TEACHER:VERIFY] list teachers awaiting document verification."""
-    return []
+async def _emit_profile_verified(teacher_id: UUID, decision: TeacherVerificationDecision) -> None:
+    """Background task: emit 'profile_verified' socket event to the teacher."""
+    try:
+        sio = get_socketio_manager()
+        if not sio:
+            logger.warning("SocketIO manager unavailable; skipping profile_verified emit")
+            return
+        await sio.emit_to_user(
+            teacher_id,
+            "profile_verified",
+            {"action": decision.action.value, "remarks": decision.remarks},
+        )
+    except Exception as exc:
+        logger.warning(f"profile_verified socket emit failed for teacher {teacher_id}: {exc}")
 
 
-@router.post("/teachers/{teacher_id}/verify")
+@router.get("/teachers/pending", response_model=list[TeacherProfileForVerificationRead])
+async def get_next_pending_teacher(db: DbSession, current_staff: User = RequireTeacherVerify):
+    """
+    [TEACHER:VERIFY] Return the oldest pending teacher profile with all documents.
+    Returns a list of 0 or 1 items — empty means the queue is clear.
+    """
+    result = await db.execute(
+        select(TeacherProfile)
+        .options(
+            selectinload(TeacherProfile.user),
+            selectinload(TeacherProfile.documents),
+        )
+        .where(TeacherProfile.document_status == VerificationStatus.PENDING)
+        .order_by(TeacherProfile.created_at.asc())
+        .limit(1)
+    )
+    profile = result.scalar_one_or_none()
+    return [profile] if profile else []
+
+
+@router.post("/teachers/{teacher_id}/verify", response_model=TeacherProfileForVerificationRead)
 async def verify_teacher(
     teacher_id: Annotated[UUID, Path(..., alias="teacherId")],
-    status: VerificationStatus,
+    body: TeacherVerificationDecision,
+    background_tasks: BackgroundTasks,
     db: DbSession,
-    remarks: str | None = None,
     current_staff: User = RequireTeacherVerify,
 ):
-    """[TEACHER:VERIFY] approve or reject a teacher's verification."""
-    pass
+    """
+    [TEACHER:VERIFY] Approve or reject a teacher's profile.
 
-
-from pydantic import BaseModel
-
-class VerifyTeacherRequest(BaseModel):
-    document_status: VerificationStatus
-    is_payment_verified: bool = False
-    remarks: str | None = None
-
-@router.patch("/verify-teacher/{teacher_id}")
-async def verify_teacher_documents(
-    teacher_id: UUID,
-    body: VerifyTeacherRequest,
-    db: DbSession,
-    current_staff: User = RequireStaffManage,
-):
-    """[STAFF:MANAGE] approve or reject a teacher's verification documents and payment info."""
-    from app.models.teacher import TeacherProfile
-    from app.core.exceptions import TeacherNotFoundError
-    from datetime import datetime, UTC
-    
-    result = await db.execute(select(TeacherProfile).where(TeacherProfile.user_id == teacher_id))
+    Race-condition safe: SELECT ... FOR UPDATE locks the row so concurrent requests
+    on the same teacher block until this transaction commits, then see
+    document_status != PENDING and receive 409.
+    """
+    # Acquire a row-level write lock before reading state.
+    result = await db.execute(
+        select(TeacherProfile)
+        .options(selectinload(TeacherProfile.documents))
+        .where(TeacherProfile.user_id == teacher_id)
+        .with_for_update()
+    )
     profile = result.scalar_one_or_none()
-    
     if not profile:
         raise TeacherNotFoundError(teacher_id=str(teacher_id))
-        
-    profile.document_status = body.document_status
-    profile.is_payment_verified = body.is_payment_verified
+
+    if profile.document_status != VerificationStatus.PENDING:
+        raise ConflictError(detail="This profile has already been reviewed.")
+
+    now = datetime.now(UTC)
+    profile.document_status = body.action
     profile.reviewed_by_id = current_staff.id
-    profile.reviewed_at = datetime.now(UTC)
-    
-    # Store remarks in audit or somewhere if needed, but not strictly asked for
-    db.add(profile)
-    await db.commit()
-    await db.refresh(profile)
-    
-    return {"msg": f"Teacher verification updated to {body.document_status.value}"}
+    profile.reviewed_at = now
+
+    for doc in profile.documents:
+        doc.status = body.action
+        doc.verified_by_id = current_staff.id
+        doc.verified_at = now
+        if body.remarks:
+            doc.remarks = body.remarks
+
+    db.add(
+        AuditLog(
+            actor_id=current_staff.id,
+            action_type=AuditActionType.VERIFY,
+            target_user_id=teacher_id,
+            description=f"Teacher profile {body.action.value} by staff {current_staff.email}",
+        )
+    )
+
+    # Flush so the re-fetch below sees the updated state within this transaction.
+    await db.flush()
+
+    result = await db.execute(
+        select(TeacherProfile)
+        .options(
+            selectinload(TeacherProfile.user),
+            selectinload(TeacherProfile.documents),
+        )
+        .where(TeacherProfile.user_id == teacher_id)
+    )
+    updated_profile = result.scalar_one()
+
+    # Registered here; executes only after DatabaseSessionManager commits and the
+    # 2xx response is fully sent — never fires if the DB write fails.
+    background_tasks.add_task(_emit_profile_verified, teacher_id, body)
+
+    return updated_profile

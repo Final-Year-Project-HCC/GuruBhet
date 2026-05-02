@@ -216,9 +216,9 @@ async def initiate_payment(
 
 @router.post("/{booking_id}/request-session", response_model=dict)
 async def request_session(
+    db: DbSession,
     booking_id: UUID,
     current_user: Annotated[User, RequireProfessionalTeacher],
-    db: DbSession,
     background_tasks: BackgroundTasks,
     request: Request,
 ):
@@ -595,9 +595,9 @@ async def accept_session_request(
 
 @router.post("/{booking_id}/reject-session")
 async def reject_session_request(
+    db: DbSession,
     booking_id: Annotated[UUID, Path(..., alias="bookingId")],
     current_user: CurrentUser,
-    db: DbSession,
     background_tasks: BackgroundTasks,
 ):
     """Student rejects the session request within the 60-second window."""
