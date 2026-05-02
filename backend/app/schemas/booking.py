@@ -1,8 +1,10 @@
+import math
 from uuid import UUID
 from decimal import Decimal
 from datetime import datetime
 from pydantic import field_validator, computed_field, model_validator
 
+from app.core.config import settings
 from app.core.enums import BookingStatus, SessionStatus
 from .base import SharedConfig
 from .subject import SubjectRead
@@ -205,10 +207,17 @@ class BookingDetailedReadForTeacher(SharedConfig):
 class BookingCancelRequest(SharedConfig):
     reason: str
 
-
 class LiveKitTokenResponse(SharedConfig):
     """LiveKit credentials for joining a session."""
     token: str
     room_name: str
     livekit_url: str
+    actual_start_at: datetime | None = None
+    session_duration_minutes: int
     already_exists: bool = False
+
+    @computed_field  # type: ignore[misc]
+    @property
+    def leniency_minutes(self) -> int:
+        """Extra buffer added to session duration: 1 unit per 15 min of session."""
+        return math.ceil(self.session_duration_minutes / 15) * settings.LIVEKIT_ROOM_LENIENCY_MINUTES_PER_15MIN

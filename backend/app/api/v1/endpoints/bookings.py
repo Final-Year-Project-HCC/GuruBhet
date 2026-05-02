@@ -461,6 +461,8 @@ async def accept_session_request(
             token=token,
             room_name=existing_session.livekit_room_name,
             livekit_url=get_livekit_url_for_client(request),
+            actual_start_at=existing_session.actual_start_at,
+            session_duration_minutes=booking.session_duration_minutes,
             already_exists=True,
         )
 
@@ -545,6 +547,9 @@ async def accept_session_request(
     # ── Side effects (run after successful commit via BackgroundTasks) ──
     background_tasks.add_task(clear_pending_session_key, str(booking_id))
 
+    leniency = (booking.session_duration_minutes // 15) * settings.LIVEKIT_ROOM_LENIENCY_MINUTES_PER_15MIN
+    total_seconds = (booking.session_duration_minutes + leniency) * 60
+
     sio_manager = get_socketio_manager()
     if sio_manager:
         teacher_token = generate_room_token(
@@ -563,11 +568,11 @@ async def accept_session_request(
                 "token": teacher_token,
                 "roomName": new_session.livekit_room_name,
                 "liveKitUrl": get_livekit_url_for_client(request),
+                "actualStartAt": new_session.actual_start_at.isoformat() if new_session.actual_start_at else None,
+                "sessionDurationMinutes": booking.session_duration_minutes,
+                "leniencyMinutes": leniency,
             },
         )
-
-    leniency = (booking.session_duration_minutes // 15) * settings.LIVEKIT_ROOM_LENIENCY_MINUTES_PER_15MIN
-    total_seconds = (booking.session_duration_minutes + leniency) * 60
     background_tasks.add_task(
         cleanup_expired_livekit_room.apply_async,
         args=[str(actual_session_id)],
@@ -585,6 +590,8 @@ async def accept_session_request(
         token=student_token,
         room_name=f"session-{actual_session_id}",
         livekit_url=get_livekit_url_for_client(request),
+        actual_start_at=new_session.actual_start_at,
+        session_duration_minutes=booking.session_duration_minutes,
         already_exists=False,
     )
 
@@ -776,6 +783,9 @@ async def sync_session(
         token=token,
         room_name=session.livekit_room_name,
         livekit_url=get_livekit_url_for_client(request),
+        actual_start_at=session.actual_start_at,
+        session_duration_minutes=booking.session_duration_minutes,
+        already_exists=True,
     )
 
 
