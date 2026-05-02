@@ -74,7 +74,6 @@ class TeacherDocumentRead(SharedConfig):
     type: DocumentType
     file_url: str
     status: VerificationStatus
-    remarks: str | None = None
     created_at: datetime
 
 
@@ -89,6 +88,7 @@ class TeacherProfilePrivateRead(TeacherProfileRead):
     user: UserRead
     documents: list[TeacherDocumentRead] = []
     document_status: VerificationStatus
+    remarks: str | None = None
 
 class TeacherProfileUpdate(SharedConfig):
 
