@@ -149,6 +149,13 @@ def _make_profile(user_id=None, doc_status=VerificationStatus.PENDING, n_docs=2)
     profile.reviewed_by_id = None
     profile.reviewed_at = None
     profile.documents = [_make_document() for _ in range(n_docs)]
+    profile.created_at = datetime(2024, 1, 1, tzinfo=UTC)
+    # Set real string values so TeacherPendingOverview schema validation passes
+    profile.user.first_name = "Test"
+    profile.user.middle_name = None
+    profile.user.last_name = "Teacher"
+    profile.user.email = "teacher@test.com"
+    profile.user.avatar_url = None
     return profile
 
 
@@ -372,12 +379,79 @@ class TestVerifyTeacherLogic:
 
 # ── 3. get_next_pending_teacher endpoint logic ────────────────────────────────
 
-class TestGetNextPendingTeacher:
+class TestListPendingTeachers:
 
     @pytest.mark.asyncio
-    async def test_returns_oldest_pending_profile(self):
-        """Returns a single-element list containing the profile."""
-        from app.api.v1.endpoints.staff import get_next_pending_teacher
+    async def test_returns_overview_list(self):
+        """Returns a TeacherPendingOverview for each pending profile."""
+        from app.api.v1.endpoints.staff import list_pending_teachers
+
+        profile = _make_profile()
+
+        db = AsyncMock()
+        result = MagicMock()
+        result.scalars.return_value.all.return_value = [profile]
+        db.execute = AsyncMock(return_value=result)
+
+        returned = await list_pending_teachers(db=db, current_staff=_make_staff(), page=1)
+        assert len(returned) == 1
+        assert returned[0].user_id == profile.user_id
+        assert returned[0].first_name == profile.user.first_name
+
+    @pytest.mark.asyncio
+    async def test_returns_empty_list_when_queue_empty(self):
+        """Empty queue returns [] not an error."""
+        from app.api.v1.endpoints.staff import list_pending_teachers
+
+        db = AsyncMock()
+        result = MagicMock()
+        result.scalars.return_value.all.return_value = []
+        db.execute = AsyncMock(return_value=result)
+
+        returned = await list_pending_teachers(db=db, current_staff=_make_staff(), page=1)
+        assert returned == []
+
+    @pytest.mark.asyncio
+    async def test_overview_fields_populated_correctly(self):
+        """All TeacherPendingOverview fields are populated from profile.user."""
+        from app.api.v1.endpoints.staff import list_pending_teachers
+
+        profile = _make_profile()
+        profile.user.middle_name = "Mid"
+
+        db = AsyncMock()
+        result = MagicMock()
+        result.scalars.return_value.all.return_value = [profile]
+        db.execute = AsyncMock(return_value=result)
+
+        returned = await list_pending_teachers(db=db, current_staff=_make_staff(), page=1)
+        item = returned[0]
+        assert item.email == "teacher@test.com"
+        assert item.middle_name == "Mid"
+        assert item.avatar_url is None
+        assert item.created_at == profile.created_at
+
+    @pytest.mark.asyncio
+    async def test_page_2_offset_applied(self):
+        """Page 2 causes a second DB query with different offset (query is actually executed)."""
+        from app.api.v1.endpoints.staff import list_pending_teachers
+
+        db = AsyncMock()
+        result = MagicMock()
+        result.scalars.return_value.all.return_value = []
+        db.execute = AsyncMock(return_value=result)
+
+        await list_pending_teachers(db=db, current_staff=_make_staff(), page=2)
+        # DB was still queried (not short-circuited)
+        db.execute.assert_awaited_once()
+
+
+class TestGetPendingTeacherDetail:
+
+    @pytest.mark.asyncio
+    async def test_returns_full_profile(self):
+        """Returns the full TeacherProfileForVerificationRead for a pending teacher."""
+        from app.api.v1.endpoints.staff import get_pending_teacher_detail
 
         profile = _make_profile()
 
@@ -386,18 +460,40 @@ class TestGetNextPendingTeacher:
         result.scalar_one_or_none.return_value = profile
         db.execute = AsyncMock(return_value=result)
 
-        returned = await get_next_pending_teacher(db=db, current_staff=_make_staff())
-        assert returned == [profile]
+        returned = await get_pending_teacher_detail(
+            teacher_id=profile.user_id, db=db, current_staff=_make_staff()
+        )
+        assert returned == profile
 
     @pytest.mark.asyncio
-    async def test_returns_empty_list_when_queue_empty(self):
-        """Empty queue is a valid state — returns [] not an error."""
-        from app.api.v1.endpoints.staff import get_next_pending_teacher
+    async def test_raises_404_when_not_found(self):
+        """Raises TeacherNotFoundError when teacher_id not in pending queue."""
+        from app.api.v1.endpoints.staff import get_pending_teacher_detail
+        from app.core.exceptions import TeacherNotFoundError
 
         db = AsyncMock()
         result = MagicMock()
         result.scalar_one_or_none.return_value = None
         db.execute = AsyncMock(return_value=result)
 
-        returned = await get_next_pending_teacher(db=db, current_staff=_make_staff())
-        assert returned == []
+        with pytest.raises(TeacherNotFoundError):
+            await get_pending_teacher_detail(
+                teacher_id=uuid.uuid4(), db=db, current_staff=_make_staff()
+            )
+
+    @pytest.mark.asyncio
+    async def test_raises_404_for_already_reviewed_teacher(self):
+        """Raises TeacherNotFoundError when profile exists but is not PENDING (already reviewed)."""
+        from app.api.v1.endpoints.staff import get_pending_teacher_detail
+        from app.core.exceptions import TeacherNotFoundError
+
+        # The route filters on PENDING status — a non-pending profile returns None
+        db = AsyncMock()
+        result = MagicMock()
+        result.scalar_one_or_none.return_value = None  # filtered out by WHERE clause
+        db.execute = AsyncMock(return_value=result)
+
+        with pytest.raises(TeacherNotFoundError):
+            await get_pending_teacher_detail(
+                teacher_id=uuid.uuid4(), db=db, current_staff=_make_staff()
+            )

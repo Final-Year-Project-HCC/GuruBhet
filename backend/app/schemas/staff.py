@@ -44,6 +44,17 @@ class AuditLogRead(SharedConfig):
 
 # ── Staff-only teacher verification views ────────────────────────────────────
 
+class TeacherPendingOverview(SharedConfig):
+    """Lightweight row returned in the paginated pending-teacher list."""
+    user_id: UUID
+    first_name: str
+    middle_name: str | None = None
+    last_name: str
+    email: EmailStr
+    avatar_url: str | None = None
+    created_at: datetime
+
+
 class TeacherDocumentVerificationRead(SharedConfig):
     id: UUID
     type: DocumentType
@@ -81,4 +92,5 @@ class TeacherVerificationDecision(SharedConfig):
 # Deferred import to avoid circular dependency (user.py does not import staff.py)
 from app.schemas.user import UserRead  # noqa: E402
 TeacherProfileForVerificationRead.model_rebuild()
+TeacherPendingOverview.model_rebuild()
 

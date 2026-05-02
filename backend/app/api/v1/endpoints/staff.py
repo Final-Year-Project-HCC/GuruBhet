@@ -5,7 +5,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Path, status
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Path, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
@@ -23,6 +23,7 @@ from app.schemas.staff import (
     StaffInviteSchema,
     StaffRead,
     StaffUpdateSchema,
+    TeacherPendingOverview,
     TeacherProfileForVerificationRead,
     TeacherVerificationDecision,
 )
@@ -217,11 +218,50 @@ async def _emit_profile_verified(teacher_id: UUID, decision: TeacherVerification
         logger.warning(f"profile_verified socket emit failed for teacher {teacher_id}: {exc}")
 
 
-@router.get("/teachers/pending", response_model=list[TeacherProfileForVerificationRead])
-async def get_next_pending_teacher(db: DbSession, current_staff: User = RequireTeacherVerify):
+@router.get("/teachers/pending", response_model=list[TeacherPendingOverview])
+async def list_pending_teachers(
+    db: DbSession,
+    current_staff: User = RequireTeacherVerify,
+    page: int = Query(1, ge=1),
+):
     """
-    [TEACHER:VERIFY] Return the oldest pending teacher profile with all documents.
-    Returns a list of 0 or 1 items — empty means the queue is clear.
+    [TEACHER:VERIFY] Paginated overview list of pending teacher profiles,
+    oldest first. Each page returns up to 10 items.
+    """
+    page_size = 10
+    offset = (page - 1) * page_size
+    result = await db.execute(
+        select(TeacherProfile)
+        .options(selectinload(TeacherProfile.user))
+        .where(TeacherProfile.document_status == VerificationStatus.PENDING)
+        .order_by(TeacherProfile.created_at.asc())
+        .offset(offset)
+        .limit(page_size)
+    )
+    profiles = result.scalars().all()
+    return [
+        TeacherPendingOverview(
+            user_id=p.user_id,
+            first_name=p.user.first_name,
+            middle_name=p.user.middle_name,
+            last_name=p.user.last_name,
+            email=p.user.email,
+            avatar_url=p.user.avatar_url,
+            created_at=p.created_at,
+        )
+        for p in profiles
+    ]
+
+
+@router.get("/teachers/pending/{teacher_id}", response_model=TeacherProfileForVerificationRead)
+async def get_pending_teacher_detail(
+    teacher_id: Annotated[UUID, Path(..., alias="teacherId")],
+    db: DbSession,
+    current_staff: User = RequireTeacherVerify,
+):
+    """
+    [TEACHER:VERIFY] Full profile detail for a single pending teacher,
+    including all documents, bio, and tagline.
     """
     result = await db.execute(
         select(TeacherProfile)
@@ -229,17 +269,20 @@ async def get_next_pending_teacher(db: DbSession, current_staff: User = RequireT
             selectinload(TeacherProfile.user),
             selectinload(TeacherProfile.documents),
         )
-        .where(TeacherProfile.document_status == VerificationStatus.PENDING)
-        .order_by(TeacherProfile.created_at.asc())
-        .limit(1)
+        .where(
+            TeacherProfile.user_id == teacher_id,
+            TeacherProfile.document_status == VerificationStatus.PENDING,
+        )
     )
     profile = result.scalar_one_or_none()
-    return [profile] if profile else []
+    if not profile:
+        raise TeacherNotFoundError(teacher_id=str(teacher_id))
+    return profile
 
 
 @router.post("/teachers/{teacher_id}/verify", response_model=TeacherProfileForVerificationRead)
 async def verify_teacher(
-    teacher_id: Annotated[UUID, Path(..., alias="teacherId")],
+    teacher_id:UUID,
     body: TeacherVerificationDecision,
     background_tasks: BackgroundTasks,
     db: DbSession,
