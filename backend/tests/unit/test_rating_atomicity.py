@@ -426,7 +426,22 @@ class TestSubmitRatingValidation:
         no_existing.scalar_one_or_none.return_value = None
         booking_result = MagicMock()
         booking_result.scalar_one_or_none.return_value = booking
-        db.execute = AsyncMock(side_effect=[booking_result, no_existing])
+
+        # Third SELECT: re-fetch rating after commit to build RatingRead response
+        mock_rating = MagicMock()
+        mock_rating.id = uuid.uuid4()
+        mock_rating.score = 4
+        mock_rating.comment = None
+        mock_rating.created_at = datetime.now(tz=timezone.utc)
+        mock_rating.student.user.first_name = "Test"
+        mock_rating.student.user.middle_name = None
+        mock_rating.student.user.last_name = "Student"
+        mock_rating.student.user.avatar_url = None
+        mock_rating.subject.name = "Mathematics"
+        refetch_result = MagicMock()
+        refetch_result.scalar_one.return_value = mock_rating
+
+        db.execute = AsyncMock(side_effect=[booking_result, no_existing, refetch_result])
 
         with patch(
             "app.api.v1.endpoints.ratings.TeacherSubjectRepository"

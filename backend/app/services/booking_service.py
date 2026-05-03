@@ -4,6 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from app.models.booking import Booking
+from app.models.rating import TeacherRating
 from app.models.student import StudentProfile
 from app.models.teacher import TeacherProfile
 from app.core.enums import UserRole
@@ -20,7 +21,10 @@ async def fetch_bookings_for_user(db: AsyncSession, user_id: int, role: UserRole
     base_select = select(Booking).options(
         selectinload(Booking.sessions),
         selectinload(Booking.subject),
-        selectinload(Booking.rating),
+        selectinload(Booking.rating).options(
+            selectinload(TeacherRating.student).selectinload(StudentProfile.user),
+            selectinload(TeacherRating.subject),
+        ),
     )
 
     if role == UserRole.STUDENT:

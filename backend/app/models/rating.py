@@ -55,6 +55,7 @@ class TeacherRating(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     # ── Relationships ─────────────────────────────────────────────────────────
     booking: Mapped["Booking"] = relationship(back_populates="rating")  # noqa: F821
     student: Mapped["StudentProfile"] = relationship(back_populates="ratings_given")  # noqa: F821
+    subject: Mapped["Subject"] = relationship(foreign_keys=[subject_id], lazy="noload")  # noqa: F821
     teacher_subject: Mapped["TeacherSubject"] = relationship(  # noqa: F821
         primaryjoin=(
             "and_(TeacherRating.teacher_id == TeacherSubject.teacher_id,"

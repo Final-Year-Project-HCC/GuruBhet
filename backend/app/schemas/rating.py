@@ -19,12 +19,22 @@ class RatingCreate(SharedConfig):
         return v
 
 
+class RatingStudentRead(SharedConfig):
+    first_name: str
+    middle_name: str | None
+    last_name: str
+    avatar_url: str | None
+
+
+class RatingSubjectRead(SharedConfig):
+    name: str
+
+
 class RatingRead(SharedConfig):
 
     id: UUID
-    booking_id: UUID
-    teacher_id: UUID
-    subject_id: UUID
     score: int
     comment: str | None
     created_at: datetime
+    student: RatingStudentRead
+    subject: RatingSubjectRead

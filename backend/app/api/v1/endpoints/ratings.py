@@ -5,6 +5,7 @@ from uuid import UUID
 from fastapi import APIRouter, Path, Query
 from sqlalchemy import select, and_
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import selectinload
 
 from app.core.dependencies import CurrentUser, DbSession
 from app.core.enums import BookingStatus
@@ -16,8 +17,9 @@ from app.core.exceptions import (
 )
 from app.models.booking import Booking
 from app.models.rating import TeacherRating
+from app.models.student import StudentProfile
 from app.repositories.teacher_subject_repo import TeacherSubjectRepository
-from app.schemas.rating import RatingCreate, RatingRead
+from app.schemas.rating import RatingCreate, RatingStudentRead, RatingSubjectRead, RatingRead
 
 router = APIRouter()
 
@@ -94,8 +96,28 @@ async def submit_rating(body: RatingCreate, current_user: CurrentUser, db: DbSes
     )
 
     await db.commit()
-    await db.refresh(rating)
-    return rating
+
+    result = await db.execute(
+        select(TeacherRating)
+        .options(
+            selectinload(TeacherRating.student).selectinload(StudentProfile.user),
+            selectinload(TeacherRating.subject),
+        )
+        .where(TeacherRating.id == rating.id)
+    )
+    return RatingRead(
+        id=(r := result.scalar_one()).id,
+        score=r.score,
+        comment=r.comment,
+        created_at=r.created_at,
+        student=RatingStudentRead(
+            first_name=r.student.user.first_name,
+            middle_name=r.student.user.middle_name,
+            last_name=r.student.user.last_name,
+            avatar_url=r.student.user.avatar_url,
+        ),
+        subject=RatingSubjectRead(name=r.subject.name),
+    )
 
 
 @router.get("/teacher/{teacher_id}", response_model=list[RatingRead])
@@ -103,6 +125,8 @@ async def get_teacher_ratings(
     teacher_id: Annotated[UUID, Path(..., alias="teacherId")],
     db: DbSession,
     subject_id: UUID | None = Query(default=None, alias="subjectId"),
+    limit: int = Query(default=20, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
 ):
     """Public: list a teacher's ratings, optionally filtered by subject."""
     filters = [TeacherRating.teacher_id == teacher_id]
@@ -111,7 +135,28 @@ async def get_teacher_ratings(
 
     result = await db.execute(
         select(TeacherRating)
+        .options(
+            selectinload(TeacherRating.student).selectinload(StudentProfile.user),
+            selectinload(TeacherRating.subject),
+        )
         .where(and_(*filters))
         .order_by(TeacherRating.created_at.desc())
+        .limit(limit)
+        .offset(offset)
     )
-    return list(result.scalars().all())
+    return [
+        RatingRead(
+            id=r.id,
+            score=r.score,
+            comment=r.comment,
+            created_at=r.created_at,
+            student=RatingStudentRead(
+                first_name=r.student.user.first_name,
+                middle_name=r.student.user.middle_name,
+                last_name=r.student.user.last_name,
+                avatar_url=r.student.user.avatar_url,
+            ),
+            subject=RatingSubjectRead(name=r.subject.name),
+        )
+        for r in result.scalars().all()
+    ]

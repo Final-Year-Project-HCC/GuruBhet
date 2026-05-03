@@ -19,7 +19,7 @@ from app.core.exceptions import (
     PhoneAlreadyRegisteredError,
 )
 from app.models.booking import Booking, Session
-from app.models.student import StudentProfile
+from app.models.student import StudentProfile  # noqa: F401 – used in selectinload
 from app.models.subject import Subject, Faculty
 from app.models.rating import TeacherRating
 from app.models.teacher import TeacherProfile
@@ -28,7 +28,7 @@ from app.models.user import User
 from app.repositories.teacher_subject_repo import TeacherSubjectRepository
 from app.repositories.user_repo import UserRepository
 from app.schemas.booking import BookingDetailedReadForTeacher
-from app.schemas.rating import RatingRead
+from app.schemas.rating import RatingRead, RatingStudentRead, RatingSubjectRead
 from app.schemas.session import TeacherSessionRead, SessionDetailedReadForTeacher
 from app.schemas.subject import TeacherSearchResult, TeacherSubjectCreate, TeacherSubjectRead
 from app.schemas.user import TeacherProfileRead, TeacherProfilePrivateRead, TeacherProfileUpdate
@@ -419,8 +419,28 @@ async def get_teacher_latest_ratings(
 
     result = await db.execute(
         select(TeacherRating)
+        .options(
+            selectinload(TeacherRating.student).selectinload(StudentProfile.user),
+            selectinload(TeacherRating.subject),
+        )
         .where(TeacherRating.teacher_id == teacher_id)
         .order_by(TeacherRating.created_at.desc())
         .limit(3)
     )
-    return list(result.scalars().all())
+    ratings = result.scalars().all()
+    return [
+        RatingRead(
+            id=r.id,
+            score=r.score,
+            comment=r.comment,
+            created_at=r.created_at,
+            student=RatingStudentRead(
+                first_name=r.student.user.first_name,
+                middle_name=r.student.user.middle_name,
+                last_name=r.student.user.last_name,
+                avatar_url=r.student.user.avatar_url,
+            ),
+            subject=RatingSubjectRead(name=r.subject.name),
+        )
+        for r in ratings
+    ]
