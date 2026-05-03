@@ -121,9 +121,8 @@ const TeacherDetailPage: React.FC<TeacherDetailPageProps> = ({ teacherId, onBack
 
   // Format experience minutes as hours (e.g. 30 → 0.5h, 90 → 1.5h)
   const formatExperienceHours = (minutes: number): string => {
-    if (minutes <= 0) return '0h';
-    const hours = minutes / 60;
-    return hours % 1 === 0 ? `${hours}h` : `${hours.toFixed(1)}h`;
+    const h = Math.floor(minutes / 60);
+    return h === 0 ? '0 hrs' : `${h}+ hrs`;
   };
 
   // Subject search filter

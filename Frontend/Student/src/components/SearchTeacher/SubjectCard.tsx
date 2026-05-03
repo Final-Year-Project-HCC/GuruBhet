@@ -14,11 +14,9 @@ const SubjectCard: React.FC<SubjectCardProps> = ({
 }) => {
   const { subject, ratePerSession, experienceMinutes, avgRating, ratingCount } = teacherSubject;
 
-  // Format experience as hours (e.g. 30m → 0.5h)
   const formattedExperience = (() => {
-    if (!experienceMinutes || experienceMinutes <= 0) return '0h';
-    const hours = experienceMinutes / 60;
-    return hours % 1 === 0 ? `${hours}h` : `${hours.toFixed(1)}h`;
+    const h = Math.floor((experienceMinutes || 0) / 60);
+    return h === 0 ? '0 hrs' : `${h}+ hrs`;
   })();
 
   // Build hierarchical context string (studyLevel & board live under subject.faculty)
