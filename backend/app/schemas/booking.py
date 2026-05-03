@@ -8,6 +8,7 @@ from app.core.config import settings
 from app.core.enums import BookingStatus, SessionStatus
 from .base import SharedConfig
 from .subject import SubjectRead
+from .rating import RatingRead
 
 
 class BookingRequestCreate(SharedConfig):
@@ -181,6 +182,7 @@ class BookingDetailedReadForStudent(SharedConfig):
     created_at: datetime
     sessions: list[SessionRead] = []
     cancellation_reason: str | None = None
+    rating: RatingRead | None = None
 
 
 class BookingDetailedReadForTeacher(SharedConfig):
@@ -202,6 +204,7 @@ class BookingDetailedReadForTeacher(SharedConfig):
     teacher_approved_at: datetime | None
     created_at: datetime
     sessions: list[SessionRead] = []
+    rating: RatingRead | None = None
 
 
 class BookingCancelRequest(SharedConfig):

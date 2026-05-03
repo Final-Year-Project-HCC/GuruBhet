@@ -14,10 +14,13 @@ async def fetch_bookings_for_user(db: AsyncSession, user_id: int, role: UserRole
     """Return bookings for a user depending on their role (student or teacher).
 
     Loads common relationships used by both endpoints to keep queries consistent.
+    The rating is always eagerly loaded; it will be None for bookings that have
+    not yet been rated, letting the frontend show a prompt or the submitted score.
     """
     base_select = select(Booking).options(
         selectinload(Booking.sessions),
         selectinload(Booking.subject),
+        selectinload(Booking.rating),
     )
 
     if role == UserRole.STUDENT:
