@@ -70,7 +70,7 @@ const StarRow: React.FC<{ score: number }> = ({ score }) => (
       <svg
         key={i}
         xmlns="http://www.w3.org/2000/svg"
-        className={`h-3.5 w-3.5 ${i < score ? 'text-warning' : 'text-muted-foreground/30'}`}
+        className={`h-3.5 w-3.5 ${i < score ? 'text-foreground fill-current' : 'text-muted-foreground/30 fill-current'}`}
         viewBox="0 0 20 20"
         fill="currentColor"
       >
@@ -119,13 +119,11 @@ const TeacherDetailPage: React.FC<TeacherDetailPageProps> = ({ teacherId, onBack
     [rawSubjects]
   );
 
-  // Format experience minutes for display
-  const formatExperienceMinutes = (minutes: number): string => {
-    if (minutes <= 0) return '0m';
-    if (minutes < 60) return `${minutes}m`;
-    const hours = Math.floor(minutes / 60);
-    const remaining = minutes % 60;
-    return remaining > 0 ? `${hours}h ${remaining}m` : `${hours}h`;
+  // Format experience minutes as hours (e.g. 30 → 0.5h, 90 → 1.5h)
+  const formatExperienceHours = (minutes: number): string => {
+    if (minutes <= 0) return '0h';
+    const hours = minutes / 60;
+    return hours % 1 === 0 ? `${hours}h` : `${hours.toFixed(1)}h`;
   };
 
   // Subject search filter
@@ -287,7 +285,7 @@ const TeacherDetailPage: React.FC<TeacherDetailPageProps> = ({ teacherId, onBack
                       )}
                       {profile.totalExperienceMinutes >= 0 && (
                         <div className="flex flex-col items-center">
-                          <span className="text-lg font-black tracking-tighter">{formatExperienceMinutes(profile.totalExperienceMinutes)}</span>
+                          <span className="text-lg font-black tracking-tighter">{formatExperienceHours(profile.totalExperienceMinutes)}</span>
                           <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Experience</span>
                         </div>
                       )}
@@ -397,10 +395,10 @@ const TeacherDetailPage: React.FC<TeacherDetailPageProps> = ({ teacherId, onBack
                         <div className="flex justify-between items-start mb-3">
                           <div>
                             <h4 className="font-bold text-foreground">
-                              Verified Student
+                              {[r.student.firstName, r.student.lastName].filter(Boolean).join(' ')}
                             </h4>
                             <p className="text-xs text-muted-foreground mt-0.5">
-                              {new Date(r.createdAt).toLocaleDateString('en-US', {
+                              {r.subject.name} &bull; {new Date(r.createdAt).toLocaleDateString('en-US', {
                                 month: 'short',
                                 day: 'numeric',
                                 year: 'numeric',

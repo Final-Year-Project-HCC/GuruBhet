@@ -1,18 +1,16 @@
 "use client"
 import React, { useState, useMemo } from 'react';
 import Image from 'next/image';
-import { useTeacherForPublic, useTeacherSubjects } from '@/hooks/useTeacherProfile';
+import { useTeacherForPublic, useTeacherSubjects, useTeacherRatings } from '@/hooks/useTeacherProfile';
 import { useUser } from '@/hooks';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { TeacherSubject } from '@/lib/types';
 import SubjectCard from '@/components/SubjectCard';
 
-const formatExperienceMinutes = (minutes: number): string => {
-  if (minutes <= 0) return '0m';
-  if (minutes < 60) return `${minutes}m`;
-  const hours = Math.floor(minutes / 60);
-  const remaining = minutes % 60;
-  return remaining > 0 ? `${hours}h ${remaining}m` : `${hours}h`;
+const formatExperienceHours = (minutes: number): string => {
+  if (minutes <= 0) return '0h';
+  const hours = minutes / 60;
+  return hours % 1 === 0 ? `${hours}h` : `${hours.toFixed(1)}h`;
 };
 
 const TeacherDetailPage = () => {
@@ -20,6 +18,8 @@ const TeacherDetailPage = () => {
   const { data: user } = useUser();
   const { data: teacherData } = useTeacherForPublic(user?.id || null);
   const { data: teacherSubjects } = useTeacherSubjects(user?.id || null);
+  const { data: rawRatings, isLoading: ratingsLoading } = useTeacherRatings(user?.id || null);
+  const ratings = rawRatings ?? [];
 
   const totalSessions = useMemo(
     () => (teacherSubjects ?? []).reduce((acc: number, s: TeacherSubject) => acc + s.totalSessionsCompleted, 0),
@@ -100,7 +100,7 @@ const TeacherDetailPage = () => {
                         <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Sessions</span>
                       </div>
                       <div className="flex flex-col items-center">
-                        <span className="text-lg font-black tracking-tighter">{formatExperienceMinutes(teacherData.totalExperienceMinutes)}</span>
+                        <span className="text-lg font-black tracking-tighter">{formatExperienceHours(teacherData.totalExperienceMinutes)}</span>
                         <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Experience</span>
                       </div>
                     </div>
@@ -172,13 +172,61 @@ const TeacherDetailPage = () => {
                 )}
               </section>
 
-              {/* Student Feedback Section — placeholder until real ratings wired */}
+              {/* Student Feedback Section */}
               <section>
                 <h2 className="text-xl font-black mb-6 uppercase tracking-widest text-muted-foreground">Student Feedback</h2>
-                <div className="bg-surface border border-border rounded-3xl p-8 text-center text-muted-foreground">
-                  <p className="font-semibold">No reviews yet</p>
-                  <p className="text-xs mt-1">Reviews from students will appear here once submitted.</p>
-                </div>
+
+                {ratingsLoading && (
+                  <div className="space-y-4">
+                    {[1, 2].map((i) => (
+                      <div key={i} className="h-28 bg-muted animate-pulse rounded-3xl" />
+                    ))}
+                  </div>
+                )}
+
+                {!ratingsLoading && ratings.length > 0 && (
+                  <div className="space-y-4">
+                    {ratings.map((r) => (
+                      <div key={r.id} className="bg-surface border border-border rounded-3xl p-6">
+                        <div className="flex justify-between items-start mb-3">
+                          <div>
+                            <h4 className="font-bold text-foreground">
+                              {[r.student.firstName, r.student.lastName].filter(Boolean).join(' ')}
+                            </h4>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              {r.subject.name} &bull; {new Date(r.createdAt).toLocaleDateString('en-US', {
+                                month: 'short',
+                                day: 'numeric',
+                                year: 'numeric',
+                              })}
+                            </p>
+                          </div>
+                          <div className="flex gap-0.5">
+                            {Array.from({ length: 5 }).map((_, i) => (
+                              <svg key={i} xmlns="http://www.w3.org/2000/svg"
+                                className={`h-3.5 w-3.5 ${i < r.score ? 'text-foreground fill-current' : 'text-muted-foreground/30 fill-current'}`}
+                                viewBox="0 0 20 20">
+                                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                              </svg>
+                            ))}
+                          </div>
+                        </div>
+                        {r.comment && (
+                          <p className="text-muted-foreground text-sm italic leading-relaxed">
+                            &quot;{r.comment}&quot;
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {!ratingsLoading && ratings.length === 0 && (
+                  <div className="bg-surface border border-border rounded-3xl p-8 text-center text-muted-foreground">
+                    <p className="font-semibold">No reviews yet</p>
+                    <p className="text-xs mt-1">Reviews from students will appear here once submitted.</p>
+                  </div>
+                )}
               </section>
             </div>
           </div>

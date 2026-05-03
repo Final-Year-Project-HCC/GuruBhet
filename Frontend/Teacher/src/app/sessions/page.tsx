@@ -2,13 +2,15 @@
 
 import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { toast } from "react-toastify";
 import { LiveKitRoom, VideoConference } from "@livekit/components-react";
 import "@livekit/components-styles";
-import apiClient from "@/lib/api";
 import { Session } from "@/lib/types";
+import { useTeacherSocket } from "@/hooks/useTeacherSocket";
+import { TeacherRoomOverlay } from "@/app/dashboard/TeacherRoomOverlay";
+import apiClient from "@/lib/api";
 
 const TeacherSessionsPage: React.FC = () => {
+  const { activeRoom, leaveRoom, joinClassroomFromDashboard } = useTeacherSocket();
   const { data: inProgressSessions = [], isLoading: inProgressLoading } =
     useQuery<Session[]>({
       queryKey: ["sessions", "in-progress"],
@@ -27,16 +29,13 @@ const TeacherSessionsPage: React.FC = () => {
       },
     });
 
-  const [activeRoom, setActiveRoom] = useState<{ token: string; liveKitUrl: string } | null>(null);
   const [isJoining, setIsJoining] = useState(false);
 
   const handleJoinClassroom = async (bookingId: string) => {
+    const session = inProgressSessions.find((s) => s.booking.id === bookingId);
+    setIsJoining(true);
     try {
-      setIsJoining(true);
-      const { data } = await apiClient.get(`/bookings/${bookingId}/sync`);
-      setActiveRoom({ token: data.token, liveKitUrl: data.liveKitUrl });
-    } catch (err) {
-      toast.error("Failed to join classroom. Please check if the room is ready.");
+      await joinClassroomFromDashboard(bookingId, session?.id ?? "");
     } finally {
       setIsJoining(false);
     }
@@ -59,14 +58,13 @@ const TeacherSessionsPage: React.FC = () => {
   if (activeRoom) {
     return (
       <div className="fixed inset-0 z-[9999] flex flex-col bg-black">
-        <div className="absolute top-4 right-4 z-50">
-          <button
-            onClick={() => setActiveRoom(null)}
-            className="rounded-md bg-destructive px-4 py-2 text-white hover:bg-destructive/90 transition-colors"
-          >
-            Leave Room
-          </button>
-        </div>
+        <TeacherRoomOverlay
+          sessionId={activeRoom.sessionId}
+          actualStartAt={activeRoom.actualStartAt}
+          durationMinutes={activeRoom.durationMinutes}
+          leniencyMinutes={activeRoom.leniencyMinutes}
+          onLeave={leaveRoom}
+        />
         <div className="flex-1 overflow-hidden">
           <LiveKitRoom
             video={true}

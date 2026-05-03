@@ -186,7 +186,7 @@ export function ProfileInformation({ onSuccess }: ProfileInformationProps) {
             value={formData.bio}
             onChange={handleInputChange}
             className={`w-full px-4 py-2 border border-input rounded-md bg-background text-foreground focus:outline-none min-h-[80px] ${isEditing ? 'focus:ring-2 focus:ring-primary' : 'pointer-events-none'}`}
-            placeholder="With over 5 years of experience in the educational sector, I have helped hundreds of students navigate complex curricula including SEE/SLC, A-Levels, and Bachelor-level courses. My teaching methodology focuses on conceptual clarity followed by intensive problem-solving sessions."
+            placeholder="Example: With over 5 years of experience in the educational sector, I have helped hundreds of students navigate complex curricula including SEE/SLC, A-Levels, and Bachelor-level courses. My teaching methodology focuses on conceptual clarity followed by intensive problem-solving sessions."
             readOnly={!isEditing}
             tabIndex={!isEditing ? -1 : 0}
             rows={6}

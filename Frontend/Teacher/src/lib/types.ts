@@ -170,14 +170,11 @@ export interface Student {
 }
 
 /**
- * Rating submitted by a student for a completed/cancelled booking.
- * Matches backend RatingRead schema.
+ * Rating embedded inside a booking response (from bookings endpoint).
+ * Minimal shape — only score and comment matter here.
  */
 export interface RatingRead {
   id: string;
-  bookingId: string;
-  teacherId: string;
-  subjectId: string;
   score: number;
   comment?: string | null;
   createdAt: string;
@@ -335,14 +332,20 @@ export interface Rating {
   updatedAt?: string;
 }
 
+export interface RatingStudent {
+  firstName: string;
+  middleName?: string | null;
+  lastName: string;
+  avatarUrl?: string | null;
+}
+
 export interface TeacherRating {
   id: string;
-  sessionId: string;
-  teacherId: string;
-  subjectId: string;
   score: number;
   comment: string | null;
   createdAt: string;
+  student: RatingStudent;
+  subject: { name: string };
 }
 
 /**

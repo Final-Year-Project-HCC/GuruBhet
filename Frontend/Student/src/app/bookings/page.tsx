@@ -117,7 +117,7 @@ export default function StudentBookingsPage() {
   }, [paymentBookings]);
   // Calculate total spent
   const totalSpent = bookings
-    .filter((b) => b.status === "COMPLETED" || b.status === "ACTIVE" || b.status === "CANCELLED_BY_TEACHER")
+    .filter((b) => b.status === "COMPLETED" || b.status === "ACTIVE" || b.status === "CANCELLED_BY_STUDENT")
     .reduce((sum, b) => sum + Number(b.totalAmount), 0);
 
   // Tab content mapping

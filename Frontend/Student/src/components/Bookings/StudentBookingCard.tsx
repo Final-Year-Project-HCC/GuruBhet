@@ -238,8 +238,8 @@ const StudentBookingCard = ({
                               key={i}
                               className={`h-4 w-4 ${
                                 i < booking.rating!.score
-                                  ? "fill-yellow-400 text-yellow-400"
-                                  : "text-muted-foreground/30"
+                                  ? "fill-foreground text-foreground"
+                                  : "fill-transparent text-muted-foreground/30"
                               }`}
                             />
                           ))}

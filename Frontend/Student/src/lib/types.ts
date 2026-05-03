@@ -183,17 +183,23 @@ export interface TeacherInBooking {
 }
 
 /**
- * Rating/review for a teacher.
+ * Rating returned by GET /teachers/{id}/ratings and POST /ratings/
  * Matches backend RatingRead schema.
  */
+export interface RatingStudent {
+  firstName: string;
+  middleName?: string | null;
+  lastName: string;
+  avatarUrl?: string | null;
+}
+
 export interface TeacherRating {
   id: string;
-  bookingId: string;
-  teacherId: string;
-  subjectId: string;
   score: number;
   comment?: string | null;
   createdAt: string;
+  student: RatingStudent;
+  subject: { name: string };
 }
 
 /**
