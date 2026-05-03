@@ -47,13 +47,20 @@ async def submit_rating(body: RatingCreate, current_user: CurrentUser, db: DbSes
     if booking.status not in _RATABLE_STATUSES:
         raise InvalidRequestError("You can only rate a booking that has ended")
 
-    if booking.completed_at is None:
+    if booking.completed_sessions == 0 and booking.status != BookingStatus.CANCELLED_BY_TEACHER:
+        raise InvalidRequestError("Cannot rate a booking with no completed sessions")
+
+    # For naturally completed bookings completed_at is always set.
+    # For cancelled bookings (completed_sessions > 0) completed_at is also set,
+    # but as a safety net fall back to cancelled_at for pre-migration rows.
+    window_start = booking.completed_at or booking.cancelled_at
+    if window_start is None:
         raise InvalidRequestError("Booking has no completion timestamp")
 
     completed_at = (
-        booking.completed_at.replace(tzinfo=timezone.utc)
-        if booking.completed_at.tzinfo is None
-        else booking.completed_at
+        window_start.replace(tzinfo=timezone.utc)
+        if window_start.tzinfo is None
+        else window_start
     )
     if (datetime.now(tz=timezone.utc) - completed_at) > timedelta(days=7):
         raise InvalidRequestError("Rating window has closed (7 days after booking completion)")

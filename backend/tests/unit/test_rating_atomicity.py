@@ -377,8 +377,10 @@ class TestSubmitRatingValidation:
 
     @pytest.mark.asyncio
     async def test_missing_completed_at_rejected(self):
+        # Both completed_at AND cancelled_at absent — no window start available
         booking = _completed_booking(completed_at=None)
         booking.completed_at = None
+        booking.cancelled_at = None
         user = _user()
         db = _db()
 
