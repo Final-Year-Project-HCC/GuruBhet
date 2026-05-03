@@ -24,7 +24,7 @@ from app.core.exceptions import (
 from app.core.config import settings
 from app.core.socketio import get_socketio_manager
 from app.models.booking import Booking, Session
-from app.models.communication import Message, MessageStatus, MessageType
+from app.models.communication import Message, MessageStatus, MessageType, Notification, NotificationType
 from app.models.subject import Subject
 from app.schemas.booking import (
     BookingCancelRequest,
@@ -47,7 +47,7 @@ from app.utils.presence import (
     get_session_request_pending as get_pending_session_key,
     clear_session_request_pending as clear_pending_session_key,
 )
-from app.services.session_service import handle_session_completion
+from app.services.session_service import handle_session_completion, _schedule_rating_reminder
 from app.utils.livekit_url import get_livekit_url_for_client
 from app.utils.presence import is_user_online
 
@@ -878,6 +878,22 @@ async def cancel_booking(
     booking.cancellation_reason = body.reason
     booking.cancelled_at = datetime.now(tz=UTC)
 
+    # ── Rating prompt (only if the student had at least one completed session) ──
+    if booking.completed_sessions > 0:
+        booking.completed_at = booking.completed_at or datetime.now(tz=UTC)
+        db.add(Notification(
+            user_id=booking.student_id,
+            notification_type=NotificationType.RATE_YOUR_TEACHER,
+            title="How was your teacher?",
+            message="Your booking has ended. Rate your teacher within 7 days.",
+            booking_id=booking.id,
+        ))
+        background_tasks.add_task(
+            _schedule_rating_reminder,
+            str(booking.id),
+            str(booking.student_id),
+        )
+
     # ── Side effects (run after successful commit via BackgroundTasks) ──
     background_tasks.add_task(clear_pending_session_key, str(booking_id))
 
@@ -894,5 +910,12 @@ async def cancel_booking(
                 "cancelledBy": "student" if is_student else "teacher",
             },
         )
+        if booking.completed_sessions > 0:
+            background_tasks.add_task(
+                sio_manager.emit_to_user,
+                user_id=booking.student_id,
+                event="booking_completed",
+                data={"bookingId": str(booking.id), "teacherId": str(booking.teacher_id)},
+            )
 
     return booking

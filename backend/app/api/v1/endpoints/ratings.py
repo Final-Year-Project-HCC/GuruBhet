@@ -39,8 +39,13 @@ async def submit_rating(body: RatingCreate, current_user: CurrentUser, db: DbSes
     if booking.student_id != current_user.id:
         raise PermissionDeniedError("Only the booking's student can submit a rating")
 
-    if booking.status != BookingStatus.COMPLETED:
-        raise InvalidRequestError("You can only rate a completed booking")
+    _RATABLE_STATUSES = {
+        BookingStatus.COMPLETED,
+        BookingStatus.CANCELLED_BY_STUDENT,
+        BookingStatus.CANCELLED_BY_TEACHER,
+    }
+    if booking.status not in _RATABLE_STATUSES:
+        raise InvalidRequestError("You can only rate a booking that has ended")
 
     if booking.completed_at is None:
         raise InvalidRequestError("Booking has no completion timestamp")

@@ -27,7 +27,14 @@ logger = logging.getLogger(__name__)
 
 # --- SIDE EFFECT LOGIC (POST-COMMIT) ---
 
-async def _run_side_effects(session_id: str, student_id: str, teacher_id: str, status: SessionStatus):
+async def _run_side_effects(
+    session_id: str,
+    student_id: str,
+    teacher_id: str,
+    status: SessionStatus,
+    booking_id: str | None = None,
+    booking_just_closed: bool = False,
+):
     """
     Executed as a FastAPI BackgroundTask ONLY after DB commit success.
     This handles all external service integrations.
@@ -44,6 +51,14 @@ async def _run_side_effects(session_id: str, student_id: str, teacher_id: str, s
             payload = {"session_id": session_id, "status": status_value}
             await sio.emit_to_user(student_id, "session_finished", payload)
             await sio.emit_to_user(teacher_id, "session_finished", payload)
+            # Tell the student immediately that their booking is closed so the
+            # rating UI can appear without waiting for a page refresh.
+            if booking_just_closed and booking_id:
+                await sio.emit_to_user(
+                    student_id,
+                    "booking_completed",
+                    {"bookingId": booking_id, "teacherId": teacher_id},
+                )
     except Exception as e:
         logger.warning(f"SocketIO background task failed: {e}")
 
@@ -160,9 +175,11 @@ async def handle_session_completion(
         background_tasks.add_task(
             _run_side_effects,
             str(session.id),
-            str(booking.student_id),  # ✅ was missing str()
-            str(booking.teacher_id),  # ✅ was missing str()
+            str(booking.student_id),
+            str(booking.teacher_id),
             completion_status,
+            str(booking.id),
+            booking.status == BookingStatus.COMPLETED,
         )
         # Schedule 24h rating re-prompt if the booking just completed
         if booking.status == BookingStatus.COMPLETED:

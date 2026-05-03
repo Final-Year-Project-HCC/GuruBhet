@@ -366,13 +366,13 @@ class TestSubmitRatingValidation:
             await self._call_endpoint(booking, other_student, db)
 
     @pytest.mark.asyncio
-    async def test_non_completed_booking_rejected(self):
+    async def test_non_terminal_booking_rejected(self):
         booking = _completed_booking()
-        booking.status = BookingStatus.ACTIVE  # not COMPLETED
+        booking.status = BookingStatus.ACTIVE  # not a terminal/ratable status
         user = _user()
         db = _db()
 
-        with pytest.raises(InvalidRequestError, match="completed booking"):
+        with pytest.raises(InvalidRequestError, match="ended"):
             await self._call_endpoint(booking, user, db)
 
     @pytest.mark.asyncio
