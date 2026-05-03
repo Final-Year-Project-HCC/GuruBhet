@@ -68,6 +68,7 @@ class Booking(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     # eSewa transaction reference for the initial payment
     esewa_transaction_uuid: Mapped[str | None] = mapped_column(Text, nullable=True, unique=True)
 
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     cancellation_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 

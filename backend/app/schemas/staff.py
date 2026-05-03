@@ -80,8 +80,10 @@ class TeacherVerificationDecision(SharedConfig):
     remarks: str | None = None
 
     @model_validator(mode="after")
-    def remarks_required_on_reject(self) -> "TeacherVerificationDecision":
-        if self.action == VerificationStatus.REJECTED and not (self.remarks and self.remarks.strip()):
+    def validate_remarks(self) -> "TeacherVerificationDecision":
+        if self.action == VerificationStatus.APPROVED:
+            self.remarks = None
+        elif not (self.remarks and self.remarks.strip()):
             raise ValueError("remarks are required when rejecting a teacher profile")
         return self
 

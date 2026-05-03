@@ -18,7 +18,7 @@ class TeacherDocument(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     )
     type: Mapped[DocumentType] = mapped_column(SAEnum(DocumentType), nullable=False)
     file_url: Mapped[str] = mapped_column(Text, nullable=False)
-    file_key: Mapped[str] = mapped_column(Text, nullable=False)  # S3 object key
+    file_key: Mapped[str] = mapped_column(Text, nullable=False)  # Cloudinary public_id (used for deletion)
 
     # ── Relationships ─────────────────────────────────────────────────────────
     teacher: Mapped["TeacherProfile"] = relationship(back_populates="documents")  # noqa: F821

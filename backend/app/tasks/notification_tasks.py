@@ -357,3 +357,48 @@ def send_verification_email(self, email_to: str, token: str, role: str = "studen
     except Exception as e:
         logger.error(f"Failed to send verification email to {email_to}: {e}")
         raise self.retry(exc=e)
+
+
+@celery_app.task(
+    name="app.tasks.notification_tasks.send_rating_reminder",
+    bind=True,
+    max_retries=1,
+    default_retry_delay=3600,
+)
+def send_rating_reminder(self, booking_id: str, student_id: str):
+    """
+    24-hour re-prompt: if the student still hasn't rated, create another
+    persistent Notification row so they see it on their next app open.
+    Scheduled via Celery ETA, expires at 7 days after booking completion.
+    """
+    import asyncio
+    from uuid import UUID as _UUID
+    from sqlalchemy import select as _select
+    from app.db.session import get_db_context
+    from app.models.rating import TeacherRating
+    from app.models.communication import Notification, NotificationType
+
+    async def _check_and_notify():
+        async with get_db_context() as db:
+            existing = await db.execute(
+                _select(TeacherRating).where(
+                    TeacherRating.booking_id == _UUID(booking_id)
+                )
+            )
+            if existing.scalar_one_or_none():
+                return  # already rated — nothing to do
+            db.add(Notification(
+                user_id=_UUID(student_id),
+                notification_type=NotificationType.RATE_YOUR_TEACHER,
+                title="Don't forget to rate your teacher",
+                message="You still have time to leave a rating for your recent booking.",
+                booking_id=_UUID(booking_id),
+            ))
+            await db.commit()
+            logger.info(f"Rating re-prompt notification created for booking {booking_id}")
+
+    try:
+        asyncio.run(_check_and_notify())
+    except Exception as exc:
+        logger.error(f"Rating reminder task failed for booking {booking_id}: {exc}", exc_info=True)
+        raise self.retry(exc=exc, countdown=3600)

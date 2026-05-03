@@ -1,7 +1,7 @@
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import select, func, and_
+from sqlalchemy import select, func, and_, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
@@ -42,9 +42,15 @@ class TeacherSubjectRepository:
         if max_rate is not None:
             filters.append(TeacherSubject.rate_per_session <= max_rate)
 
+        # Bayesian-adjusted rating: adjusted = (m*C + n*r) / (m + n)
+        # C=3.5 (prior mean), m=10 (confidence weight)
+        bayesian_avg = (
+            (10 * 3.5 + TeacherSubject.rating_count * TeacherSubject.avg_rating)
+            / (10 + TeacherSubject.rating_count)
+        )
         # Composite recommendation score
         score_expr = (
-            TeacherSubject.avg_rating * 0.6
+            bayesian_avg * 0.6
             + func.log(TeacherSubject.total_sessions_completed + 1) * 0.4
         )
 
@@ -77,23 +83,89 @@ class TeacherSubjectRepository:
         self, teacher_id: UUID, subject_id: UUID, new_score: int
     ) -> None:
         """
-        Incrementally update avg_rating and rating_count after a new rating.
-        Uses a running average formula: new_avg = (old_avg * n + score) / (n + 1)
+        Update avg_rating + rating_count with full atomicity:
+
+        Step 1 — TeacherSubject: single SQL UPDATE using the running-average formula
+          entirely within the DB engine.  No Python read-modify-write, so concurrent
+          calls for the same row are serialised by the DB row lock.
+
+          new_avg = ROUND((avg_rating * rating_count + score) / (rating_count + 1), 2)
+          new_count = rating_count + 1
+
+        Step 2 — TeacherProfile: correlated-subquery UPDATE that recomputes the
+          weighted average across ALL subjects for this teacher in a single statement.
+          A flush between the two steps guarantees the subquery sees the freshly
+          updated subject row within the same transaction.
         """
-        ts = await self.get_by_teacher_and_subject(teacher_id, subject_id)
-        if not ts:
-            return
-        n = ts.rating_count
-        new_avg = (ts.avg_rating * n + Decimal(new_score)) / Decimal(n + 1)
-        ts.avg_rating = new_avg.quantize(Decimal("0.01"))
-        ts.rating_count = n + 1
+        # Step 1: atomic running-average on the subject row (no SELECT needed)
+        await self.db.execute(
+            update(TeacherSubject)
+            .where(
+                TeacherSubject.teacher_id == teacher_id,
+                TeacherSubject.subject_id == subject_id,
+            )
+            .values(
+                avg_rating=func.round(
+                    (
+                        TeacherSubject.avg_rating * TeacherSubject.rating_count
+                        + new_score
+                    )
+                    / (TeacherSubject.rating_count + 1),
+                    2,
+                ),
+                rating_count=TeacherSubject.rating_count + 1,
+            )
+        )
+        # Flush so the profile subquery below sees the updated subject row
         await self.db.flush()
 
+        # Step 2: recompute profile aggregate via correlated subquery — one statement
+        subq_avg = (
+            select(
+                func.coalesce(
+                    func.round(
+                        func.sum(
+                            TeacherSubject.avg_rating * TeacherSubject.rating_count
+                        )
+                        / func.nullif(func.sum(TeacherSubject.rating_count), 0),
+                        2,
+                    ),
+                    Decimal("0.00"),
+                )
+            )
+            .where(TeacherSubject.teacher_id == teacher_id)
+            .scalar_subquery()
+        )
+        subq_count = (
+            select(func.coalesce(func.sum(TeacherSubject.rating_count), 0))
+            .where(TeacherSubject.teacher_id == teacher_id)
+            .scalar_subquery()
+        )
+        await self.db.execute(
+            update(TeacherProfile)
+            .where(TeacherProfile.user_id == teacher_id)
+            .values(avg_rating=subq_avg, rating_count=subq_count)
+        )
+
     async def increment_completed_sessions(self, teacher_id: UUID, subject_id: UUID) -> None:
-        ts = await self.get_by_teacher_and_subject(teacher_id, subject_id)
-        if ts:
-            ts.total_sessions_completed += 1
-            await self.db.flush()
+        await self.db.execute(
+            update(TeacherSubject)
+            .where(
+                TeacherSubject.teacher_id == teacher_id,
+                TeacherSubject.subject_id == subject_id,
+            )
+            .values(total_sessions_completed=TeacherSubject.total_sessions_completed + 1)
+        )
+
+    async def increment_experience_minutes(self, teacher_id: UUID, subject_id: UUID, minutes: int) -> None:
+        await self.db.execute(
+            update(TeacherSubject)
+            .where(
+                TeacherSubject.teacher_id == teacher_id,
+                TeacherSubject.subject_id == subject_id,
+            )
+            .values(experience_minutes=TeacherSubject.experience_minutes + minutes)
+        )
 
     async def list_by_teacher(self, teacher_id: UUID) -> list[TeacherSubject]:
         result = await self.db.execute(

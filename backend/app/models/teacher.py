@@ -2,7 +2,8 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, Enum as SAEnum, ForeignKey, Text
+from decimal import Decimal
+from sqlalchemy import DateTime, Enum as SAEnum, ForeignKey, Integer, Numeric, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -35,6 +36,10 @@ class TeacherProfile(Base, TimestampMixin):
     )
     esewa_id: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_payment_verified: Mapped[bool] = mapped_column(default=False, nullable=False)
+    total_experience_minutes: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    # Denormalised rating aggregate (weighted across all subjects)
+    avg_rating: Mapped[Decimal] = mapped_column(Numeric(3, 2), default=Decimal("0.00"), nullable=False)
+    rating_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     # Admin who reviewed and approved/rejected
     reviewed_by_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id"), nullable=True

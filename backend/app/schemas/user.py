@@ -1,3 +1,4 @@
+from decimal import Decimal
 from uuid import UUID
 from datetime import datetime
 from pydantic import EmailStr, field_validator
@@ -81,6 +82,9 @@ class TeacherProfileRead(SharedConfig):
     user_id: UUID
     bio: str | None
     tagline: str | None
+    total_experience_minutes: int
+    avg_rating: Decimal
+    rating_count: int
     user: UserPublicRead
 
 class TeacherProfilePrivateRead(TeacherProfileRead):

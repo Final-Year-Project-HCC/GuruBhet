@@ -1,7 +1,7 @@
 import logging
 from datetime import datetime, timezone
 from typing import Optional
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import joinedload, selectinload
 from uuid import UUID
 from typing import Optional
@@ -18,6 +18,7 @@ from app.core.enums import (
     BookingStatus,
     UserRole,
 )
+from app.models.communication import Notification, NotificationType
 from app.repositories.teacher_subject_repo import TeacherSubjectRepository
 from app.models.booking import Session
 
@@ -64,6 +65,22 @@ async def _run_side_effects(session_id: str, student_id: str, teacher_id: str, s
             logger.warning(f"Celery task dispatch failed: {e}")
 
 
+async def _schedule_rating_reminder(booking_id: str, student_id: str):
+    """Queue a Celery task to re-prompt the student to rate 24 h after booking completion."""
+    try:
+        from datetime import timedelta
+        from app.tasks.notification_tasks import send_rating_reminder
+        eta = datetime.now(tz=timezone.utc) + timedelta(hours=24)
+        expires = datetime.now(tz=timezone.utc) + timedelta(days=7)
+        send_rating_reminder.apply_async(
+            args=[booking_id, student_id],
+            eta=eta,
+            expires=expires,
+        )
+    except Exception as e:
+        logger.warning(f"Failed to schedule rating reminder: {e}")
+
+
 # --- THE SERVICE HANDLER ---
 
 async def handle_session_completion(
@@ -100,14 +117,34 @@ async def handle_session_completion(
             booking_id=booking.id,
             session_id=session.id,
         ))
+        # Atomically accumulate experience minutes (per-subject and global aggregate)
+        minutes = booking.session_duration_minutes
+        await TeacherSubjectRepository(db).increment_experience_minutes(
+            teacher_id=booking.teacher_id,
+            subject_id=booking.subject_id,
+            minutes=minutes,
+        )
+        await db.execute(
+            update(TeacherProfile)
+            .where(TeacherProfile.user_id == booking.teacher_id)
+            .values(total_experience_minutes=TeacherProfile.total_experience_minutes + minutes)
+        )
 
     booking.completed_sessions += 1
     if booking.completed_sessions >= booking.total_sessions:
         booking.status = BookingStatus.COMPLETED
+        booking.completed_at = now
+        # Persistent notification so the student sees it even if offline
+        db.add(Notification(
+            user_id=booking.student_id,
+            notification_type=NotificationType.RATE_YOUR_TEACHER,
+            title="How was your teacher?",
+            message="Your booking is complete. Rate your teacher within 7 days.",
+            booking_id=booking.id,
+        ))
 
-    # Update Teacher XP
-    ts_repo = TeacherSubjectRepository(db)
-    await ts_repo.increment_completed_sessions(
+    # Atomically increment completed sessions counter (always, regardless of cancellation actor)
+    await TeacherSubjectRepository(db).increment_completed_sessions(
         teacher_id=booking.teacher_id,
         subject_id=booking.subject_id,
     )
@@ -127,6 +164,13 @@ async def handle_session_completion(
             str(booking.teacher_id),  # ✅ was missing str()
             completion_status,
         )
+        # Schedule 24h rating re-prompt if the booking just completed
+        if booking.status == BookingStatus.COMPLETED:
+            background_tasks.add_task(
+                _schedule_rating_reminder,
+                str(booking.id),
+                str(booking.student_id),
+            )
 
 
 

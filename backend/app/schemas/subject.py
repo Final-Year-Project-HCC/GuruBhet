@@ -156,6 +156,7 @@ class TeacherSubjectRead(SharedConfig):
     teacher_id: UUID
     rate_per_session: Decimal
     years_of_experience: int
+    experience_minutes: int
     total_sessions_completed: int
     avg_rating: Decimal
     rating_count: int
@@ -167,6 +168,7 @@ class TeacherSearchResult(SharedConfig):
     subject_id: UUID
     rate_per_session: Decimal
     years_of_experience: int
+    experience_minutes: int
     avg_rating: Decimal
     rating_count: int
     total_sessions_completed: int

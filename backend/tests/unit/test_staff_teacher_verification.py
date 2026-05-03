@@ -35,9 +35,9 @@ class TestTeacherVerificationDecision:
         d = TeacherVerificationDecision(action=VerificationStatus.APPROVED)
         assert d.remarks is None
 
-    def test_approved_with_remarks_is_valid(self):
+    def test_approved_remarks_are_cleared(self):
         d = TeacherVerificationDecision(action=VerificationStatus.APPROVED, remarks="Looks good")
-        assert d.remarks == "Looks good"
+        assert d.remarks is None
 
     def test_rejected_with_remarks_is_valid(self):
         d = TeacherVerificationDecision(action=VerificationStatus.REJECTED, remarks="NID unclear")
@@ -72,7 +72,7 @@ class TestEmitProfileVerified:
         sio.emit_to_user.assert_awaited_once_with(
             teacher_id,
             "profile_verified",
-            {"action": "APPROVED", "remarks": "Looks good"},
+            {"action": "APPROVED", "remarks": None},
         )
 
     @pytest.mark.asyncio

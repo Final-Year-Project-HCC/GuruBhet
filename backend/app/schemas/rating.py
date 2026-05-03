@@ -7,10 +7,9 @@ from .base import SharedConfig
 
 class RatingCreate(SharedConfig):
 
-    session_id: UUID
+    booking_id: UUID
     score: int
     comment: str | None = None
-    is_anonymous: bool = False
 
     @field_validator("score")
     @classmethod
@@ -23,10 +22,9 @@ class RatingCreate(SharedConfig):
 class RatingRead(SharedConfig):
 
     id: UUID
-    session_id: UUID
+    booking_id: UUID
     teacher_id: UUID
     subject_id: UUID
     score: int
     comment: str | None
-    is_anonymous: bool
     created_at: datetime

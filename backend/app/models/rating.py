@@ -51,7 +51,6 @@ class TeacherRating(Base, UUIDPrimaryKeyMixin, TimestampMixin):
 
     score: Mapped[int] = mapped_column(SmallInteger, nullable=False)
     comment: Mapped[str | None] = mapped_column(Text, nullable=True)
-    is_anonymous: Mapped[bool] = mapped_column(default=False, nullable=False)
 
     # ── Relationships ─────────────────────────────────────────────────────────
     booking: Mapped["Booking"] = relationship(back_populates="rating")  # noqa: F821

@@ -17,6 +17,7 @@ class TeacherSubject(Base, TimestampMixin):
     Design additions vs original:
       - `rate_per_session` stored as NUMERIC(10,2) in NPR paisa → rupees.
       - `years_of_experience` — teacher self-declared, used in recommendation scoring.
+      - `experience_minutes` — auto-accumulated on session completion (COMPLETED or CANCELLED_BY_STUDENT).
       - `total_sessions_completed` — auto-incremented by the session completion worker.
       - `avg_rating` — denormalised aggregate updated after each new TeacherRating.
         Avoids expensive AVG() on every search query.
@@ -41,6 +42,7 @@ class TeacherSubject(Base, TimestampMixin):
         Numeric(10, 2), nullable=False
     )
     years_of_experience: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    experience_minutes: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
     # ── Denormalised recommendation signals ──────────────────────────────────
     total_sessions_completed: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
