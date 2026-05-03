@@ -11,6 +11,7 @@ import { LiveKitRoom, VideoConference } from "@livekit/components-react";
 import "@livekit/components-styles";
 import { StudentRoomOverlay, CountdownModal } from "./dashboard/StudentRoomOverlay";
 import socket from "@/lib/socket";
+import { RatingModal } from "@/components/Bookings";
 
 /** Routes accessible without logging in */
 const PUBLIC_PATHS = ["/", "/login", "/signup", "/search-teacher"];
@@ -29,7 +30,7 @@ export default function AuthLayout({
 }) {
   const pathname = usePathname();
   const isPublic = isPublicPath(pathname);
-  const { incomingSession, acceptSession, rejectSession, dismissSession, activeRoom, leaveRoom } = useStudentSocket();
+  const { incomingSession, acceptSession, rejectSession, dismissSession, activeRoom, leaveRoom, pendingRatingBooking, dismissRatingModal } = useStudentSocket();
   const [requestedPrematureSessionId, setRequestedPrematureSessionId] = useState<string | null>(null);
 
   // Premature completion request from teacher (while in call-flow room)
@@ -92,6 +93,14 @@ export default function AuthLayout({
         <CountdownModal
           sessionId={requestedPrematureSessionId}
           onClose={() => setRequestedPrematureSessionId(null)}
+        />
+      )}
+
+      {/* Rating modal triggered by booking_completed socket event */}
+      {pendingRatingBooking && (
+        <RatingModal
+          booking={pendingRatingBooking}
+          onClose={dismissRatingModal}
         />
       )}
     </div>

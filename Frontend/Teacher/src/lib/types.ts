@@ -28,6 +28,9 @@ export interface TeacherPublicData {
   userId: string;
   bio?: string;
   tagline?: string;
+  avgRating: number;
+  ratingCount: number;
+  totalExperienceMinutes: number;
   user: {
     firstName: string;
     middleName: string;
@@ -123,6 +126,7 @@ export interface TeacherSubject {
   teacherId: string;
   ratePerSession: number;
   yearsOfExperience: number;
+  experienceMinutes: number;
   totalSessionsCompleted: number;
   avgRating: number;
   ratingCount: number;
@@ -165,6 +169,20 @@ export interface Student {
   phoneNumber?: string;
 }
 
+/**
+ * Rating submitted by a student for a completed/cancelled booking.
+ * Matches backend RatingRead schema.
+ */
+export interface RatingRead {
+  id: string;
+  bookingId: string;
+  teacherId: string;
+  subjectId: string;
+  score: number;
+  comment?: string | null;
+  createdAt: string;
+}
+
 export interface Booking {
   id: string;
   teacherId: string;
@@ -183,6 +201,8 @@ export interface Booking {
   cancelledAt?: string;
   cancellationReason?: string;
   nextSessionDate?: string;
+  /** Rating submitted by the student — present on completed/cancelled bookings once backend populates it */
+  rating?: RatingRead | null;
 }
 
 export interface Session {
@@ -322,7 +342,6 @@ export interface TeacherRating {
   subjectId: string;
   score: number;
   comment: string | null;
-  isAnonymous: boolean;
   createdAt: string;
 }
 

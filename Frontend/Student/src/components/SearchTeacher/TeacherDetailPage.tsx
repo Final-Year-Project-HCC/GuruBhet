@@ -113,25 +113,20 @@ const TeacherDetailPage: React.FC<TeacherDetailPageProps> = ({ teacherId, onBack
     [rawSubjects]
   );
 
-  // Overall stats derived from subjects
-  const avgRating = useMemo(() => {
-    if (rawSubjects.length === 0) return 0;
-    const rated = rawSubjects.filter((s) => s.ratingCount > 0);
-    if (rated.length === 0) return 0;
-    const total = rated.reduce((acc, s) => acc + s.avgRating * s.ratingCount, 0);
-    const count = rated.reduce((acc, s) => acc + s.ratingCount, 0);
-    return count > 0 ? total / count : 0;
-  }, [rawSubjects]);
-
+  // Total completed sessions (not provided at profile level, derived from subjects)
   const totalSessions = useMemo(
     () => rawSubjects.reduce((acc, s) => acc + s.totalSessionsCompleted, 0),
     [rawSubjects]
   );
 
-  const maxExperience = useMemo(
-    () => (rawSubjects.length > 0 ? Math.max(...rawSubjects.map((s) => s.yearsOfExperience)) : 0),
-    [rawSubjects]
-  );
+  // Format experience minutes for display
+  const formatExperienceMinutes = (minutes: number): string => {
+    if (minutes <= 0) return '0m';
+    if (minutes < 60) return `${minutes}m`;
+    const hours = Math.floor(minutes / 60);
+    const remaining = minutes % 60;
+    return remaining > 0 ? `${hours}h ${remaining}m` : `${hours}h`;
+  };
 
   // Subject search filter
   const filteredSubjects = useMemo(() => {
@@ -194,7 +189,7 @@ const TeacherDetailPage: React.FC<TeacherDetailPageProps> = ({ teacherId, onBack
         </div>
         <h1 className="text-2xl font-bold text-foreground">Teacher not found</h1>
         <p className="text-muted-foreground text-sm text-center max-w-xs">
-          This teacher's profile is unavailable. They may not be verified yet.
+          This teacher&apos;s profile is unavailable. They may not be verified yet.
         </p>
         <button onClick={onBack} className="text-primary font-bold hover:underline text-sm">
           ← Go back to search
@@ -271,23 +266,29 @@ const TeacherDetailPage: React.FC<TeacherDetailPageProps> = ({ teacherId, onBack
 
                   {/* Stats */}
                   <div className="space-y-4 mb-6 pb-6 border-b border-border/50">
-                    {avgRating > 0 ? (
+                    {profile.avgRating >= 0 ? (
                       <div className="flex flex-col items-center">
-                        <span className="text-3xl font-black tracking-tighter">{avgRating.toFixed(1)}</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-3xl font-black tracking-tighter">{Number(profile.avgRating).toFixed(1)}</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-foreground" viewBox="0 0 20 20" fill="currentColor">
+                          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                        </svg>
+                        <span className="text-sm text-muted-foreground">({profile.ratingCount || 0})</span>
+                      </div>
                         <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Average Rating</span>
                       </div>
                     ) : null}
                     <div className="grid grid-cols-2 gap-4">
-                      {totalSessions > 0 && (
+                      {totalSessions >= 0 && (
                         <div className="flex flex-col items-center">
                           <span className="text-lg font-black tracking-tighter">{totalSessions}+</span>
                           <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Sessions</span>
                         </div>
                       )}
-                      {maxExperience > 0 && (
+                      {profile.totalExperienceMinutes >= 0 && (
                         <div className="flex flex-col items-center">
-                          <span className="text-lg font-black tracking-tighter">{maxExperience}+</span>
-                          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Years XP</span>
+                          <span className="text-lg font-black tracking-tighter">{formatExperienceMinutes(profile.totalExperienceMinutes)}</span>
+                          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Experience</span>
                         </div>
                       )}
                     </div>
@@ -373,12 +374,6 @@ const TeacherDetailPage: React.FC<TeacherDetailPageProps> = ({ teacherId, onBack
                     )}
                   </div>
                 )}
-
-                <div className="bg-muted/30 border border-border rounded-2xl p-4">
-                  <p className="text-xs text-muted-foreground">
-                    💡 <span className="font-semibold">Pro Tip:</span> Each subject has its own rate and experience level. Select a subject above to book a session tailored to your specific academic needs.
-                  </p>
-                </div>
               </section>
 
               {/* Recent Reviews */}
@@ -402,7 +397,7 @@ const TeacherDetailPage: React.FC<TeacherDetailPageProps> = ({ teacherId, onBack
                         <div className="flex justify-between items-start mb-3">
                           <div>
                             <h4 className="font-bold text-foreground">
-                              {r.isAnonymous ? 'Anonymous Student' : 'Verified Student'}
+                              Verified Student
                             </h4>
                             <p className="text-xs text-muted-foreground mt-0.5">
                               {new Date(r.createdAt).toLocaleDateString('en-US', {
@@ -416,7 +411,7 @@ const TeacherDetailPage: React.FC<TeacherDetailPageProps> = ({ teacherId, onBack
                         </div>
                         {r.comment && (
                           <p className="text-muted-foreground text-sm italic leading-relaxed">
-                            "{r.comment}"
+                            &quot;{r.comment}&quot;
                           </p>
                         )}
                       </div>

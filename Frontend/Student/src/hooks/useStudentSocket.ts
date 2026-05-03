@@ -7,6 +7,7 @@ import { connectSocket, disconnectSocket } from "@/lib/socket";
 import { useSocketEvents, SocketEventEntry } from "./useSocketEvents";
 import { useUser } from "./useCurrentUser";
 import apiClient from "@/lib/api";
+import type { Booking } from "@/lib/types";
 
 /* ── Payload types ─────────────────────────────────────────────────── */
 
@@ -31,6 +32,14 @@ export interface ActiveRoom {
   leniencyMinutes: number;
 }
 
+export interface PendingRatingBooking {
+  bookingId: string;
+  teacherName: string;
+  subjectName: string;
+  totalSessions: number;
+  completedSessions: number;
+}
+
 /* ── Hook ──────────────────────────────────────────────────────────── */
 
 export function useStudentSocket() {
@@ -40,6 +49,8 @@ export function useStudentSocket() {
   const [incomingSession, setIncomingSession] =
     useState<IncomingSession | null>(null);
   const [activeRoom, setActiveRoom] = useState<ActiveRoom | null>(null);
+  const [pendingRatingBooking, setPendingRatingBooking] =
+    useState<PendingRatingBooking | null>(null);
 
   /* ── Connect / disconnect based on auth ────────────────────────── */
 
@@ -106,6 +117,34 @@ export function useStudentSocket() {
     [activeRoom, queryClient]
   );
 
+  const handleBookingCompleted = useCallback(
+    (data: unknown) => {
+      const payload = data as { bookingId: string; teacherId: string };
+
+      // Try to enrich the context from the React Query cache before invalidating
+      const cachedBookings = queryClient.getQueryData<Booking[]>(["studentBookings"]);
+      const booking = cachedBookings?.find((b) => b.id === payload.bookingId);
+
+      const teacherName = booking?.teacher
+        ? `${booking.teacher.firstName} ${booking.teacher.lastName}`
+        : "Your Teacher";
+      const subjectName = booking?.subject?.name || "Completed Subject";
+      const totalSessions = booking?.totalSessions ?? 1;
+      const completedSessions = booking?.completedSessions ?? 1;
+
+      queryClient.invalidateQueries({ queryKey: ["studentBookings"] });
+
+      setPendingRatingBooking({
+        bookingId: payload.bookingId,
+        teacherName,
+        subjectName,
+        totalSessions,
+        completedSessions,
+      });
+    },
+    [queryClient]
+  );
+
   /* ── Subscribe ─────────────────────────────────────────────────── */
 
   const events: SocketEventEntry[] = useMemo(
@@ -118,6 +157,7 @@ export function useStudentSocket() {
         handler: handleSessionRequestCancelled,
       },
       { event: "session_finished", handler: handleSessionFinished },
+      { event: "booking_completed", handler: handleBookingCompleted },
     ],
     [
       handleBookingAccepted,
@@ -125,6 +165,7 @@ export function useStudentSocket() {
       handleSessionRequested,
       handleSessionRequestCancelled,
       handleSessionFinished,
+      handleBookingCompleted,
     ]
   );
 
@@ -215,5 +256,7 @@ export function useStudentSocket() {
     activeRoom,
     leaveRoom,
     joinClassroomFromDashboard,
+    pendingRatingBooking,
+    dismissRatingModal: () => setPendingRatingBooking(null),
   };
 }

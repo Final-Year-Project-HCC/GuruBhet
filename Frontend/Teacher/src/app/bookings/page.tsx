@@ -32,6 +32,7 @@ export default function BookingsPage() {
   );
   useEffect(() => {
     if (requestBookings?.length > 0 && isFirstTime.current) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setActiveTab("requests");
       isFirstTime.current = false;
     }
@@ -45,7 +46,7 @@ export default function BookingsPage() {
 
   // Calculate total earned (sum of completed bookings)
   const totalEarned = bookings
-    .filter((b) => b.status === "COMPLETED")
+    .filter(((b) => b.status === "COMPLETED" || b.status === "CANCELLED_BY_STUDENT"))
     .reduce((sum, b) => sum + Number(b.totalAmount), 0);
 
   // Tab content mapping

@@ -8,7 +8,7 @@ interface SubjectCardProps {
 const SubjectCard: React.FC<SubjectCardProps> = ({
     teacherSubject,
 }) => {
-    const { subject, ratePerSession, yearsOfExperience } = teacherSubject;
+    const { subject, ratePerSession, experienceMinutes } = teacherSubject;
 
     // Build hierarchical context string
     const hierarchyBadges = [
@@ -19,6 +19,14 @@ const SubjectCard: React.FC<SubjectCardProps> = ({
 
     // Unit context: e.g., "Semester 5" or "Grade 12"
     const unitContext = `${subject.faculty?.unitType || 'Unit'} ${subject.unitValue}`;
+
+    const formattedExperience = (() => {
+        if (!experienceMinutes || experienceMinutes <= 0) return '0m';
+        if (experienceMinutes < 60) return `${experienceMinutes}m`;
+        const hours = Math.floor(experienceMinutes / 60);
+        const remaining = experienceMinutes % 60;
+        return remaining > 0 ? `${hours}h ${remaining}m` : `${hours}h`;
+    })();
 
     return (
         <div className="bg-surface border border-border rounded-3xl p-6 hover:shadow-lg transition-all hover:border-primary/50 group">
@@ -65,8 +73,7 @@ const SubjectCard: React.FC<SubjectCardProps> = ({
                         Experience
                     </p>
                     <p className="text-2xl font-black tracking-tighter">
-                        {yearsOfExperience}
-                        <span className="text-xs font-bold text-muted-foreground ml-1">yrs</span>
+                        {formattedExperience}
                     </p>
                 </div>
             </div>

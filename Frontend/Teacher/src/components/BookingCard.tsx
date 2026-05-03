@@ -1,12 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import apiClient from "@/lib/api";
 import { toast } from "react-toastify";
-import { MessageCircle, CheckCircle, XCircle, AlertCircle } from "lucide-react";
+import { MessageCircle, CheckCircle, XCircle, AlertCircle, Star } from "lucide-react";
 import { Booking } from "@/lib/types";
 
 interface BookingCardProps {
@@ -284,22 +283,80 @@ const BookingCard = ({
         )}
 
         {booking.status === "COMPLETED" && (
-          <p className="text-center text-sm font-medium text-foreground">
-            ✓ Booking completed
-          </p>
+          <div className="space-y-3">
+            <p className="text-center text-sm font-medium text-foreground">
+              ✓ Booking completed
+            </p>
+            {booking.rating != null ? (
+              <div className="rounded-lg bg-muted/40 border border-border p-3">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Student Rating</p>
+                <div className="flex items-center gap-2">
+                  <div className="flex gap-0.5">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <Star
+                        key={i}
+                        className={`h-4 w-4 ${
+                          i < booking.rating!.score
+                            ? "fill-yellow-400 text-yellow-400"
+                            : "text-muted-foreground/30"
+                        }`}
+                      />
+                    ))}
+                  </div>
+                  <span className="text-sm font-bold text-foreground">{booking.rating.score}/5</span>
+                </div>
+                {booking.rating.comment && (
+                  <p className="mt-2 text-xs text-muted-foreground italic leading-relaxed">
+                    &ldquo;{booking.rating.comment}&rdquo;
+                  </p>
+                )}
+              </div>
+            ) : (
+              <p className="text-center text-xs text-muted-foreground">No rating submitted yet</p>
+            )}
+          </div>
         )}
 
         {booking.status.includes("CANCELLED") && (
-          <div className="space-y-2">
-            <p className="text-center text-sm font-medium text-destructive">
-              Cancelled{" "}
-              {booking.cancelledAt &&
-                `on ${new Date(booking.cancelledAt).toLocaleDateString("en-IN")}`}
-            </p>
-            {booking.cancellationReason && (
-              <p className="text-xs text-muted-foreground">
-                Reason: {booking.cancellationReason}
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <p className="text-center text-sm font-medium text-destructive">
+                Cancelled{" "}
+                {booking.cancelledAt &&
+                  `on ${new Date(booking.cancelledAt).toLocaleDateString("en-IN")}`}
               </p>
+              {booking.cancellationReason && (
+                <p className="text-xs text-muted-foreground">
+                  Reason: {booking.cancellationReason}
+                </p>
+              )}
+            </div>
+            {booking.rating != null ? (
+              <div className="rounded-lg bg-muted/40 border border-border p-3">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Student Rating</p>
+                <div className="flex items-center gap-2">
+                  <div className="flex gap-0.5">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <Star
+                        key={i}
+                        className={`h-4 w-4 ${
+                          i < booking.rating!.score
+                            ? "fill-yellow-400 text-yellow-400"
+                            : "text-muted-foreground/30"
+                        }`}
+                      />
+                    ))}
+                  </div>
+                  <span className="text-sm font-bold text-foreground">{booking.rating.score}/5</span>
+                </div>
+                {booking.rating.comment && (
+                  <p className="mt-2 text-xs text-muted-foreground italic leading-relaxed">
+                    &ldquo;{booking.rating.comment}&rdquo;
+                  </p>
+                )}
+              </div>
+            ) : (
+              <p className="text-center text-xs text-muted-foreground">Not rated</p>
             )}
           </div>
         )}
