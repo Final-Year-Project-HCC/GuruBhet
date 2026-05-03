@@ -92,6 +92,7 @@ export function adaptToTeacherSubject(ts: TeacherSubjectRead): TeacherSubject {
     teacherId: ts.teacherId,
     ratePerSession: ts.ratePerSession,
     yearsOfExperience: ts.yearsOfExperience,
+    experienceMinutes: ts.experienceMinutes,
     totalSessionsCompleted: ts.totalSessionsCompleted,
     avgRating: ts.avgRating,
     ratingCount: ts.ratingCount,

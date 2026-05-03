@@ -12,7 +12,16 @@ const SubjectCard: React.FC<SubjectCardProps> = ({
   onBookNow,
   requireAuth,
 }) => {
-  const { subject, ratePerSession, yearsOfExperience } = teacherSubject;
+  const { subject, ratePerSession, experienceMinutes } = teacherSubject;
+
+  // Format experience minutes for display
+  const formattedExperience = (() => {
+    if (experienceMinutes <= 0) return '0m';
+    if (experienceMinutes < 60) return `${experienceMinutes}m`;
+    const hours = Math.floor(experienceMinutes / 60);
+    const remaining = experienceMinutes % 60;
+    return remaining > 0 ? `${hours}h ${remaining}m` : `${hours}h`;
+  })();
 
   // Build hierarchical context string (studyLevel & board live under subject.faculty)
   const hierarchyBadges = [
@@ -69,8 +78,7 @@ const SubjectCard: React.FC<SubjectCardProps> = ({
             Experience
           </p>
           <p className="text-2xl font-black tracking-tighter">
-            {yearsOfExperience}
-            <span className="text-xs font-bold text-muted-foreground ml-1">yrs</span>
+            {formattedExperience}
           </p>
         </div>
       </div>

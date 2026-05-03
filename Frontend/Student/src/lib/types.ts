@@ -133,6 +133,9 @@ export interface TeacherPublicProfile {
   userId: string;
   bio?: string | null;
   tagline?: string | null;
+  totalExperienceMinutes: number;
+  avgRating: number;
+  ratingCount: number;
   user: UserPublicRead;
 }
 
@@ -144,6 +147,7 @@ export interface TeacherSubjectRead {
   teacherId: string;
   ratePerSession: number;
   yearsOfExperience: number;
+  experienceMinutes: number;
   totalSessionsCompleted: number;
   avgRating: number;
   ratingCount: number;
@@ -159,6 +163,7 @@ export interface TeacherSubject {
   teacherId: string;
   ratePerSession: number;
   yearsOfExperience: number;
+  experienceMinutes: number;
   totalSessionsCompleted: number;
   avgRating: number;
   ratingCount: number;
@@ -167,17 +172,38 @@ export interface TeacherSubject {
 }
 
 /**
+ * Minimal teacher info embedded inside booking responses for students.
+ * Matches backend TeacherInBooking schema.
+ */
+export interface TeacherInBooking {
+  id: string;
+  firstName: string;
+  lastName: string;
+  profilePictureUrl?: string | null;
+}
+
+/**
  * Rating/review for a teacher.
  * Matches backend RatingRead schema.
  */
 export interface TeacherRating {
   id: string;
-  sessionId: string;
+  bookingId: string;
   teacherId: string;
   subjectId: string;
   score: number;
   comment?: string | null;
-  isAnonymous: boolean;
+  createdAt: string;
+}
+
+/**
+ * Rating included in a completed/cancelled booking response.
+ * Populated once backend team adds it to BookingDetailedReadForStudent.
+ */
+export interface BookingRating {
+  id: string;
+  score: number;
+  comment?: string | null;
   createdAt: string;
 }
 
@@ -190,6 +216,7 @@ export interface TeacherSearchResult {
   subjectId: string;
   ratePerSession: number;
   yearsOfExperience: number;
+  experienceMinutes: number;
   avgRating: number;
   ratingCount: number;
   totalSessionsCompleted: number;
@@ -229,7 +256,9 @@ export interface Booking {
   subjectId: string;
   subject?: Subject | null;
   /** Embedded teacher details — available from BookingDetailedReadForStudent */
-  teacher?: Teacher | null;
+  teacher?: TeacherInBooking | null;
+  /** Rating submitted for this booking — populated by backend once team implements it */
+  rating?: BookingRating | null;
   status: BookingStatus;
   totalAmount: number;
   ratePerSession: number;
@@ -302,7 +331,6 @@ export interface Rating {
   studentId: string;
   score: number;
   comment?: string | null;
-  isAnonymous: boolean;
   createdAt: string;
 }
 
