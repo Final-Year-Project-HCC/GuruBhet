@@ -32,12 +32,12 @@ async def _run_side_effects(
     student_id: str,
     teacher_id: str,
     status: SessionStatus,
-    booking_id: str | None = None,
-    booking_just_closed: bool = False,
 ):
     """
     Executed as a FastAPI BackgroundTask ONLY after DB commit success.
-    This handles all external service integrations.
+    Handles session-level side effects: socket notifications and LiveKit cleanup.
+    Booking-level events (booking_completed) are emitted directly by the route/service
+    that sets the terminal booking status.
     """
     room_name = f"session-{session_id}"
 
@@ -51,14 +51,6 @@ async def _run_side_effects(
             payload = {"session_id": session_id, "status": status_value}
             await sio.emit_to_user(student_id, "session_finished", payload)
             await sio.emit_to_user(teacher_id, "session_finished", payload)
-            # Tell the student immediately that their booking is closed so the
-            # rating UI can appear without waiting for a page refresh.
-            if booking_just_closed and booking_id:
-                await sio.emit_to_user(
-                    student_id,
-                    "booking_completed",
-                    {"bookingId": booking_id, "teacherId": teacher_id},
-                )
     except Exception as e:
         logger.warning(f"SocketIO background task failed: {e}")
 
@@ -178,11 +170,19 @@ async def handle_session_completion(
             str(booking.student_id),
             str(booking.teacher_id),
             completion_status,
-            str(booking.id),
-            booking.status == BookingStatus.COMPLETED,
         )
-        # Schedule 24h rating re-prompt if the booking just completed
+        # Booking-level events: emitted here for the natural-completion path;
+        # cancel_booking emits the same event for the cancellation path.
         if booking.status == BookingStatus.COMPLETED:
+            from app.core.socketio import get_socketio_manager
+            sio_manager = get_socketio_manager()
+            if sio_manager:
+                background_tasks.add_task(
+                    sio_manager.emit_to_user,
+                    user_id=str(booking.student_id),
+                    event="booking_completed",
+                    data={"bookingId": str(booking.id), "teacherId": str(booking.teacher_id)},
+                )
             background_tasks.add_task(
                 _schedule_rating_reminder,
                 str(booking.id),

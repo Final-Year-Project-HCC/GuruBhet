@@ -1,7 +1,8 @@
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import select, func, and_, update
+from sqlalchemy import select, func, and_, update, literal
+from sqlalchemy.types import Float, Integer
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
@@ -44,14 +45,18 @@ class TeacherSubjectRepository:
 
         # Bayesian-adjusted rating: adjusted = (m*C + n*r) / (m + n)
         # C=3.5 (prior mean), m=10 (confidence weight)
+        # Literals are explicitly typed as Float so Postgres doesn't inherit
+        # NUMERIC(3,2) from avg_rating and overflow on values like 35.0.
+        prior_weight = literal(10, Integer)
+        prior_mean_x_weight = literal(35.0, Float)  # 10 * 3.5
         bayesian_avg = (
-            (10 * 3.5 + TeacherSubject.rating_count * TeacherSubject.avg_rating)
-            / (10 + TeacherSubject.rating_count)
+            (prior_mean_x_weight + TeacherSubject.rating_count * TeacherSubject.avg_rating)
+            / (prior_weight + TeacherSubject.rating_count)
         )
         # Composite recommendation score
         score_expr = (
-            bayesian_avg * 0.6
-            + func.log(TeacherSubject.total_sessions_completed + 1) * 0.4
+            bayesian_avg * literal(0.6, Float)
+            + func.log(TeacherSubject.total_sessions_completed + 1) * literal(0.4, Float)
         )
 
         stmt = (
