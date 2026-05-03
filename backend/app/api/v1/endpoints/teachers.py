@@ -83,6 +83,7 @@ async def search_teachers(
             subject_id=ts.subject_id,
             rate_per_session=ts.rate_per_session,
             years_of_experience=ts.years_of_experience,
+            experience_minutes=ts.experience_minutes,
             avg_rating=ts.avg_rating,
             rating_count=ts.rating_count,
             total_sessions_completed=ts.total_sessions_completed,
