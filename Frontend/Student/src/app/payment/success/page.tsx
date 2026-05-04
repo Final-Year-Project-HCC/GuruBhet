@@ -14,24 +14,37 @@ export default function PaymentSuccessPage() {
     called.current = true;
 
     const params = new URLSearchParams(window.location.search);
+
+    // Log the full URL for debugging
+    console.log("[eSewa callback] full URL:", window.location.href);
+    console.log(
+      "[eSewa callback] search params:",
+      Object.fromEntries(params.entries()),
+    );
+
     const bookingId = params.get("booking_id");
 
-    // eSewa v2 sends a single base64-encoded JSON `data` param, not individual fields.
+    // eSewa v2 can send either:
+    // (a) a single base64-encoded JSON `data` param, OR
+    // (b) individual params directly (transaction_code, status, etc.)
     const rawData = params.get("data");
 
-    if (!bookingId || !rawData) {
-      toast.error("Invalid payment response.");
-      router.replace("/bookings");
-      return;
-    }
-
     let esewaData: Record<string, string>;
-    try {
-      esewaData = JSON.parse(atob(rawData));
-    } catch {
-      toast.error("Could not decode payment response.");
-      router.replace("/bookings");
-      return;
+
+    if (rawData) {
+      // Format (a): decode the base64 JSON
+      try {
+        esewaData = JSON.parse(atob(rawData));
+        console.log("[eSewa callback] decoded data:", esewaData);
+      } catch {
+        toast.error("Could not decode payment response.");
+        router.replace("/bookings");
+        return;
+      }
+    } else {
+      // Format (b): individual params already in the URL
+      esewaData = Object.fromEntries(params.entries());
+      console.log("[eSewa callback] individual params:", esewaData);
     }
 
     const {
@@ -44,8 +57,13 @@ export default function PaymentSuccessPage() {
       signature,
     } = esewaData;
 
-    if (!transaction_code || !signature) {
-      toast.error("Incomplete payment response.");
+    if (!bookingId || !transaction_code || !signature) {
+      console.error("[eSewa callback] missing required fields", {
+        bookingId,
+        transaction_code,
+        signature,
+      });
+      toast.error("Invalid payment response.");
       router.replace("/bookings");
       return;
     }
