@@ -47,8 +47,8 @@ def generate_payment_params(amount: Decimal, booking_id: str) -> dict:
         "product_delivery_charge": "0",
         "total_amount": str(total),
         "transaction_uuid": transaction_uuid,
-        "success_url": f"https://gurubhet.tech/payment/success?booking_id={booking_id}",
-        "failure_url": f"https://gurubhet.tech/payment/failure?booking_id={booking_id}",
+        "success_url": f"https://gurubhet.tech/payment/success/{booking_id}",
+        "failure_url": f"https://gurubhet.tech/payment/failure/{booking_id}",
         "signed_field_names": signed_fields,
         "signature": _sign(message),
     }
