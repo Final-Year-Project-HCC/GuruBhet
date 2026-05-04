@@ -15,16 +15,37 @@ export default function PaymentSuccessPage() {
 
     const params = new URLSearchParams(window.location.search);
     const bookingId = params.get("booking_id");
-    const transactionCode = params.get("transaction_code");
-    const status = params.get("status");
-    const totalAmount = params.get("total_amount");
-    const transactionUuid = params.get("transaction_uuid");
-    const productCode = params.get("product_code");
-    const signedFieldNames = params.get("signed_field_names");
-    const signature = params.get("signature");
 
-    if (!bookingId || !transactionCode || !signature) {
+    // eSewa v2 sends a single base64-encoded JSON `data` param, not individual fields.
+    const rawData = params.get("data");
+
+    if (!bookingId || !rawData) {
       toast.error("Invalid payment response.");
+      router.replace("/bookings");
+      return;
+    }
+
+    let esewaData: Record<string, string>;
+    try {
+      esewaData = JSON.parse(atob(rawData));
+    } catch {
+      toast.error("Could not decode payment response.");
+      router.replace("/bookings");
+      return;
+    }
+
+    const {
+      transaction_code,
+      status,
+      total_amount,
+      transaction_uuid,
+      product_code,
+      signed_field_names,
+      signature,
+    } = esewaData;
+
+    if (!transaction_code || !signature) {
+      toast.error("Incomplete payment response.");
       router.replace("/bookings");
       return;
     }
@@ -32,12 +53,12 @@ export default function PaymentSuccessPage() {
     apiClient
       .post("/payments/esewa/callback", {
         booking_id: bookingId,
-        transaction_code: transactionCode,
+        transaction_code,
         status,
-        total_amount: totalAmount,
-        transaction_uuid: transactionUuid,
-        product_code: productCode,
-        signed_field_names: signedFieldNames,
+        total_amount,
+        transaction_uuid,
+        product_code,
+        signed_field_names,
         signature,
       })
       .then(() => {
