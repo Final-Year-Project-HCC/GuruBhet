@@ -21,6 +21,7 @@ class EsewaPaymentInitResponse(SharedConfig):
 
 class EsewaCallbackRequest(SharedConfig):
 
+    booking_id: UUID
     transaction_code: str
     status: str
     total_amount: str

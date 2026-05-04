@@ -2,7 +2,7 @@ name: Build and Push GuruBhet
 
 on:
   push:
-    branches: ["main"]
+    branches: ["feature/fyp-payment"]
     paths:
       - "backend/**"
       - "Frontend/**"

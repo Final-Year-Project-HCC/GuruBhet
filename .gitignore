@@ -22,3 +22,8 @@ backend/celerybeat-schedule*
 
 # Local IDE / type-check caches
 .mypy_cache/
+
+docs/
+
+
+.github/workflows/deploy.prod.yml

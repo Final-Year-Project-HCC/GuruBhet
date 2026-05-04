@@ -48,11 +48,26 @@ const StudentBookingCard = ({
   // Payment mutation
   const paymentMutation = useMutation({
     mutationFn: async () => {
-      return await apiClient.post(`/bookings/${booking.id}/initiate-payment`);
+      const response = await apiClient.post(`/bookings/${booking.id}/initiate-payment`);
+      return response.data;
     },
-    onSuccess: () => {
-      toast.success("Payment successful!");
-      queryClient.invalidateQueries({ queryKey: ["studentBookings"] });
+    onSuccess: (params) => {
+      // Build a hidden form and POST it to eSewa's checkout page.
+      // This is the standard eSewa v2 redirect integration.
+      const form = document.createElement("form");
+      form.method = "POST";
+      form.action = "https://rc-epay.esewa.com.np/api/epay/main/v2/form";
+
+      Object.entries(params).forEach(([key, value]) => {
+        const input = document.createElement("input");
+        input.type = "hidden";
+        input.name = key;
+        input.value = String(value);
+        form.appendChild(input);
+      });
+
+      document.body.appendChild(form);
+      form.submit();
     },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     onError: (error: any) => {
