@@ -11,6 +11,8 @@ class EsewaPaymentInitResponse(SharedConfig):
     product_code: str
     amount: Decimal
     tax_amount: Decimal
+    product_service_charge: Decimal
+    product_delivery_charge: Decimal
     total_amount: Decimal
     transaction_uuid: str
     success_url: str

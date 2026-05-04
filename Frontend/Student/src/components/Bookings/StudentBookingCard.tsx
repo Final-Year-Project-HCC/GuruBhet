@@ -7,7 +7,13 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import apiClient from "@/lib/api";
 import { toast } from "react-toastify";
 import { Booking } from "@/lib/types";
-import { MessageCircle, CheckCircle, XCircle, AlertCircle, Star } from "lucide-react";
+import {
+  MessageCircle,
+  CheckCircle,
+  XCircle,
+  AlertCircle,
+  Star,
+} from "lucide-react";
 import RatingModal from "./RatingModal";
 
 interface StudentBookingCardProps {
@@ -48,7 +54,9 @@ const StudentBookingCard = ({
   // Payment mutation
   const paymentMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiClient.post(`/bookings/${booking.id}/initiate-payment`);
+      const response = await apiClient.post(
+        `/bookings/${booking.id}/initiate-payment`,
+      );
       return response.data;
     },
     onSuccess: (params) => {
@@ -71,12 +79,16 @@ const StudentBookingCard = ({
     },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     onError: (error: any) => {
-      toast.error(error.response?.data?.detail || "Payment failed. Please try again.");
+      toast.error(
+        error.response?.data?.detail || "Payment failed. Please try again.",
+      );
     },
   });
 
   const handleCancel = () => {
-    const reason = window.prompt("Please tell us why you're cancelling this booking:");
+    const reason = window.prompt(
+      "Please tell us why you're cancelling this booking:",
+    );
     if (reason !== null && reason.trim()) {
       cancelMutation.mutate(reason.trim());
     } else if (reason === "") {
@@ -91,7 +103,7 @@ const StudentBookingCard = ({
   const isProcessing = cancelMutation.isPending || paymentMutation.isPending;
 
   // Determine if student has already rated (either via hasReview flag or rating field)
-  const hasRated = booking.hasReview || (booking.rating != null);
+  const hasRated = booking.hasReview || booking.rating != null;
 
   const isHistoryStatus =
     booking.status === "COMPLETED" || booking.status.includes("CANCELLED");
@@ -107,43 +119,52 @@ const StudentBookingCard = ({
         <div className="border-b border-border bg-muted/30 p-5">
           <div className="flex gap-3 mb-4">
             <Link
-              href={booking.teacher ? `/teacher-profile/${booking.teacher.id}` : "#"}
+              href={
+                booking.teacher ? `/teacher-profile/${booking.teacher.id}` : "#"
+              }
               className="flex gap-3 flex-1 min-w-0 group"
             >
-            <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full border border-border">
-              {booking.teacher?.profilePictureUrl ? (
-                <Image
-                  src={booking.teacher.profilePictureUrl}
-                  alt={teacherName}
-                  width={48}
-                  height={48}
-                  className="h-full w-full object-cover"
-                />
-              ) : (
-                <div className="flex h-full w-full items-center justify-center text-sm font-bold bg-muted text-foreground">
-                  {booking.teacher?.firstName?.[0] || "T"}
-                </div>
-              )}
-            </div>
+              <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full border border-border">
+                {booking.teacher?.profilePictureUrl ? (
+                  <Image
+                    src={booking.teacher.profilePictureUrl}
+                    alt={teacherName}
+                    width={48}
+                    height={48}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center text-sm font-bold bg-muted text-foreground">
+                    {booking.teacher?.firstName?.[0] || "T"}
+                  </div>
+                )}
+              </div>
 
-            <div className="flex-1 min-w-0">
-              <p className="font-bold text-foreground truncate group-hover:text-primary transition-colors">{teacherName}</p>
-              <p className="text-sm text-muted-foreground truncate">
-                {booking.subject?.name || "Unknown Subject"}
-              </p>
-            </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-bold text-foreground truncate group-hover:text-primary transition-colors">
+                  {teacherName}
+                </p>
+                <p className="text-sm text-muted-foreground truncate">
+                  {booking.subject?.name || "Unknown Subject"}
+                </p>
+              </div>
             </Link>
           </div>
 
           <span
             className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wide ${statusColor}`}
           >
-            {(booking.status === "PENDING_APPROVAL" || booking.status === "PENDING_PAYMENT") && (
+            {(booking.status === "PENDING_APPROVAL" ||
+              booking.status === "PENDING_PAYMENT") && (
               <AlertCircle className="h-3 w-3" />
             )}
             {booking.status === "ACTIVE" && <CheckCircle className="h-3 w-3" />}
-            {booking.status === "COMPLETED" && <CheckCircle className="h-3 w-3" />}
-            {booking.status.includes("CANCELLED") && <XCircle className="h-3 w-3" />}
+            {booking.status === "COMPLETED" && (
+              <CheckCircle className="h-3 w-3" />
+            )}
+            {booking.status.includes("CANCELLED") && (
+              <XCircle className="h-3 w-3" />
+            )}
             {statusLabel}
           </span>
         </div>
@@ -199,14 +220,18 @@ const StudentBookingCard = ({
             </div>
           </div>
 
-          <p className="text-xs text-muted-foreground">Requested on {formattedDate}</p>
+          <p className="text-xs text-muted-foreground">
+            Requested on {formattedDate}
+          </p>
         </div>
 
         {/* ── Footer Actions ──────────────────────────────────────────── */}
         <div className="border-t border-border bg-muted/20 p-5">
           {booking.status === "PENDING_APPROVAL" && (
             <div className="space-y-2">
-              <p className="text-xs text-muted-foreground">Teacher will respond within 24 hours</p>
+              <p className="text-xs text-muted-foreground">
+                Teacher will respond within 24 hours
+              </p>
               <button
                 onClick={handleCancel}
                 disabled={cancelMutation.isPending}
@@ -264,7 +289,9 @@ const StudentBookingCard = ({
                         </span>
                       </div>
                     ) : (
-                      <p className="text-sm font-medium text-muted-foreground">Review submitted</p>
+                      <p className="text-sm font-medium text-muted-foreground">
+                        Review submitted
+                      </p>
                     )}
                   </div>
                   <button className="w-full flex items-center justify-center gap-2 rounded-lg border border-border bg-transparent px-4 py-2.5 font-medium text-foreground transition-opacity hover:opacity-80">
@@ -318,7 +345,9 @@ const StudentBookingCard = ({
                 </>
               )}
               {hasRated && (
-                <p className="text-center text-xs text-muted-foreground">Review submitted</p>
+                <p className="text-center text-xs text-muted-foreground">
+                  Review submitted
+                </p>
               )}
             </div>
           )}
