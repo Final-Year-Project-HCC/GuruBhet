@@ -2,16 +2,24 @@ from uuid import UUID
 from decimal import Decimal
 from datetime import datetime
 
+from pydantic import BaseModel, ConfigDict
 from app.core.enums import TransactionType, TransactionReason, PayoutStatus, EsewaCallbackStatus
 from .base import SharedConfig
 
 
-class EsewaPaymentInitResponse(SharedConfig):
+class EsewaPaymentInitResponse(BaseModel):
+    """eSewa checkout form params — must use snake_case keys, NOT camelCase.
+    These field names are submitted verbatim as HTML form field names to eSewa.
+    Do NOT inherit from SharedConfig (which adds camelCase alias_generator).
+    """
+    model_config = ConfigDict(populate_by_name=True, from_attributes=True)
 
     product_code: str
-    amount: Decimal
-    tax_amount: Decimal
-    total_amount: Decimal
+    amount: str
+    tax_amount: str
+    product_service_charge: str
+    product_delivery_charge: str
+    total_amount: str
     transaction_uuid: str
     success_url: str
     failure_url: str
@@ -21,6 +29,7 @@ class EsewaPaymentInitResponse(SharedConfig):
 
 class EsewaCallbackRequest(SharedConfig):
 
+    booking_id: UUID
     transaction_code: str
     status: str
     total_amount: str

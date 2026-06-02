@@ -2,11 +2,10 @@ name: Build and Push GuruBhet
 
 on:
   push:
-    branches: ["main"]
+    branches: ["feature/fyp-payment"]
     paths:
       - "backend/**"
       - "Frontend/**"
-      - ".github/workflows/deploy.yml"
 
 jobs:
   changes:
@@ -16,7 +15,6 @@ jobs:
       student: ${{ steps.filter.outputs.student }}
       teacher: ${{ steps.filter.outputs.teacher }}
       staff: ${{ steps.filter.outputs.staff }}
-      workflow: ${{ steps.filter.outputs.workflow }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -27,11 +25,10 @@ jobs:
             student: 'Frontend/Student/**'
             teacher: 'Frontend/Teacher/**'
             staff: 'Frontend/Staff/**'
-            workflow: '.github/workflows/deploy.yml'
 
   build-backend:
     needs: changes
-    if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.workflow == 'true' }}
+    if: ${{ needs.changes.outputs.backend == 'true' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -56,7 +53,7 @@ jobs:
 
   build-student:
     needs: changes
-    if: ${{ needs.changes.outputs.student == 'true' || needs.changes.outputs.workflow == 'true' }}
+    if: ${{ needs.changes.outputs.student == 'true' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -83,7 +80,7 @@ jobs:
 
   build-teacher:
     needs: changes
-    if: ${{ needs.changes.outputs.teacher == 'true' || needs.changes.outputs.workflow == 'true' }}
+    if: ${{ needs.changes.outputs.teacher == 'true' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -110,7 +107,7 @@ jobs:
 
   build-staff:
     needs: changes
-    if: ${{ needs.changes.outputs.staff == 'true' || needs.changes.outputs.workflow == 'true' }}
+    if: ${{ needs.changes.outputs.staff == 'true' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read

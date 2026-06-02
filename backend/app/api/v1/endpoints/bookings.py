@@ -38,6 +38,8 @@ from app.tasks.session_request_tasks import (
     create_session_request_message,
     handle_session_request_timeout_task,
 )
+from app.utils.esewa import generate_payment_params
+from app.schemas.payment import EsewaPaymentInitResponse
 from app.utils.livekit import (
     create_room,
     generate_room_token,
@@ -160,7 +162,7 @@ async def approve_booking_request(
 # Step 3: Student initiates payment
 # ──────────────────────────────────────────────────────────────────────────────
 
-@router.post("/{booking_id}/initiate-payment")
+@router.post("/{booking_id}/initiate-payment", response_model=EsewaPaymentInitResponse)
 async def initiate_payment(
     booking_id: UUID,
     current_user: CurrentUser,
@@ -168,9 +170,9 @@ async def initiate_payment(
     background_tasks: BackgroundTasks,
 ):
     """
-    Student initiates payment. Moves PENDING_PAYMENT → ACTIVE.
-
-    TODO: Replace bypass with real eSewa payment integration.
+    Student initiates payment.
+    Returns signed eSewa payment params — frontend redirects user to eSewa checkout.
+    Booking stays PENDING_PAYMENT until eSewa callback confirms the charge.
     """
     if current_user.role != UserRole.STUDENT:
         raise PermissionDeniedError(detail="Only students can pay for bookings")
@@ -193,26 +195,12 @@ async def initiate_payment(
             context={"current_status": booking.status.value, "required_status": "PENDING_PAYMENT"},
         )
 
-    # DEVELOPMENT BYPASS — remove once real payment webhook activates the booking
-    booking.status = BookingStatus.ACTIVE
-
-    # Commit explicitly so the status change is visible before the response
-    # is returned (avoids a race where the client refetches before the
-    # session-level auto-commit fires on teardown).
-    await db.commit()
-
-    sio_manager = get_socketio_manager()
-    if sio_manager:
-        background_tasks.add_task(
-            sio_manager.emit_to_user,
-            user_id=booking.teacher_id,
-            event="booking_paid",
-            data={
-                "studentName": current_user.full_name,
-            },
-        )
-        
-    return {"message": "Payment successful"}
+    # Generate signed params for eSewa checkout.
+    # The frontend will use these to redirect the student to eSewa's payment page.
+    # Once the student pays, eSewa redirects them to success_url and the frontend
+    # calls POST /payments/esewa/callback to activate this booking.
+    params = generate_payment_params(booking.total_amount, str(booking.id))
+    return EsewaPaymentInitResponse(**params)
 
 
 # ──────────────────────────────────────────────────────────────────────────────
