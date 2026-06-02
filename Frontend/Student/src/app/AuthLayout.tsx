@@ -73,7 +73,8 @@ export default function AuthLayout({
               <PiPVideoLayout extraControls={
                 <button
                   onClick={leaveRoom}
-                  className="px-4 py-2 rounded-xl bg-destructive/90 text-white text-sm font-bold hover:bg-destructive transition shadow-lg"
+                  className="lk-button"
+                  style={{ color: "var(--lk-danger, #ef4444)" }}
                 >
                   Leave
                 </button>

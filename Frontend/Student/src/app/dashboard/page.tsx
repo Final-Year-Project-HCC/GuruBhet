@@ -37,7 +37,7 @@ export default function StudentDashboard() {
       return data;
     },
     enabled: !!user,
-    staleTime: 1000 * 60 * 2,
+    staleTime: 0,
   });
 
   const handleJoinClassroom = async (bookingId: string) => {
@@ -78,7 +78,8 @@ export default function StudentDashboard() {
             <PiPVideoLayout extraControls={
               <button
                 onClick={leaveRoom}
-                className="px-4 py-2 rounded-xl bg-destructive/90 text-white text-sm font-bold hover:bg-destructive transition shadow-lg"
+                className="lk-button"
+                style={{ color: "var(--lk-danger, #ef4444)" }}
               >
                 Leave
               </button>

@@ -90,7 +90,8 @@ export function TeacherRoomActions({
         <button
           onClick={() => setShowCancelConfirm(true)}
           disabled={isPending || isCancelling}
-          className="px-3 py-2 rounded-xl bg-black/60 backdrop-blur text-white text-sm font-medium hover:bg-black/80 transition disabled:opacity-50"
+          className="lk-button"
+          style={{ color: "var(--lk-warning, #f59e0b)" }}
         >
           Cancel
         </button>
@@ -98,7 +99,8 @@ export function TeacherRoomActions({
       <button
         onClick={handleComplete}
         disabled={isPending || isCancelling || isExpired}
-        className="px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:opacity-90 shadow-lg transition disabled:opacity-50"
+        className="lk-button"
+        style={{ color: "var(--lk-success, #22c55e)" }}
       >
         {isPending ? "Waiting..." : "Complete"}
       </button>

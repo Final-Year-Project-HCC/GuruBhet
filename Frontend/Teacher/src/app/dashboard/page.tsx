@@ -39,7 +39,7 @@ export default function TeacherDashboard() {
       return data;
     },
     enabled: !!user,
-    staleTime: 1000 * 60 * 2,
+    staleTime: 0,
   });
 
   const handleJoinClassroom = async (bookingId: string) => {

@@ -19,6 +19,7 @@ const TeacherSessionsPage: React.FC = () => {
         const { data } = await apiClient.get("/teachers/me/sessions/in-progress");
         return data;
       },
+      staleTime: 0,
     });
 
   const { data: completedSessions = [], isLoading: completedLoading } =

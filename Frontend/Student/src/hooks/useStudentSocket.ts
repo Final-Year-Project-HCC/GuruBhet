@@ -107,7 +107,7 @@ export function useStudentSocket() {
   const handleSessionFinished = useCallback(
     (data: unknown) => {
       const payload = data as { session_id: string; status: string };
-      if (activeRoom && payload.session_id === activeRoom.sessionId) {
+      if (activeRoom) {
         setActiveRoom(null);
         toast.info("Session finished.");
         queryClient.invalidateQueries({ queryKey: ["sessions", "in-progress"] });

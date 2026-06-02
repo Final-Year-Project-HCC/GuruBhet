@@ -2,11 +2,9 @@
 
 import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { toast } from "react-toastify";
-import { LiveKitRoom } from "@livekit/components-react";
 import apiClient from "@/lib/api";
-import PiPVideoLayout from "@/components/PiPVideoLayout";
 import { Session } from "@/lib/types";
+import { useStudentSocket } from "@/hooks/useStudentSocket";
 
 const SessionsPage: React.FC = () => {
   const { data: inProgressSessions = [], isLoading: inProgressLoading } =
@@ -16,6 +14,7 @@ const SessionsPage: React.FC = () => {
         const { data } = await apiClient.get("/students/me/sessions/in-progress");
         return data;
       },
+      staleTime: 0,
     });
 
   const { data: completedSessions = [], isLoading: completedLoading } =
@@ -27,16 +26,14 @@ const SessionsPage: React.FC = () => {
       },
     });
 
-  const [activeRoom, setActiveRoom] = useState<{ token: string; liveKitUrl: string } | null>(null);
+  const { joinClassroomFromDashboard } = useStudentSocket();
   const [isJoining, setIsJoining] = useState(false);
 
   const handleJoinClassroom = async (bookingId: string) => {
+    const session = inProgressSessions.find((s) => s.booking.id === bookingId);
+    setIsJoining(true);
     try {
-      setIsJoining(true);
-      const { data } = await apiClient.get(`/bookings/${bookingId}/sync`);
-      setActiveRoom({ token: data.token, liveKitUrl: data.liveKitUrl });
-    } catch (err) {
-      toast.error("Failed to join classroom. Please check if the room is ready.");
+      await joinClassroomFromDashboard(bookingId, session?.id ?? "");
     } finally {
       setIsJoining(false);
     }
@@ -55,33 +52,6 @@ const SessionsPage: React.FC = () => {
     total: completedSessions.length,
     totalHours: completedSessions.length, // approximation
   };
-
-  if (activeRoom) {
-    return (
-      <div className="fixed inset-0 z-[9999] flex flex-col bg-black">
-        <div className="flex-1 overflow-hidden">
-          <LiveKitRoom
-            video={true}
-            audio={true}
-            token={activeRoom.token}
-            serverUrl={activeRoom.liveKitUrl || "wss://live.gurubhet.tech"}
-            connect={true}
-            data-lk-theme="default"
-            style={{ height: '100%', width: '100%' }}
-          >
-            <PiPVideoLayout extraControls={
-              <button
-                onClick={() => setActiveRoom(null)}
-                className="px-4 py-2 rounded-xl bg-destructive/90 text-white text-sm font-bold hover:bg-destructive transition shadow-lg"
-              >
-                Leave
-              </button>
-            } />
-          </LiveKitRoom>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="bg-surface-muted min-h-screen py-12">

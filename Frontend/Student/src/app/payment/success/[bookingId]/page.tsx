@@ -67,6 +67,7 @@ export default function PaymentSuccessPage() {
       .then(() => {
         toast.success("Payment confirmed! Your booking is now active.");
         queryClient.invalidateQueries({ queryKey: ["studentBookings"] });
+        queryClient.invalidateQueries({ queryKey: ["sessions", "in-progress"] });
         router.replace("/bookings");
       })
       .catch(() => {
