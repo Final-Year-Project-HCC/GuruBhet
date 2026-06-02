@@ -6,10 +6,11 @@ import { useUser } from "@/hooks";
 import apiClient from "@/lib/api";
 import { Booking, Session } from "@/lib/types";
 import { Calendar, Clock, Users, BookOpen } from "lucide-react";
-import { LiveKitRoom, VideoConference } from "@livekit/components-react";
-import "@livekit/components-styles";
+import { LiveKitRoom } from "@livekit/components-react";
 import Link from "next/link";
 import { TeacherRoomOverlay } from "./TeacherRoomOverlay";
+import { TeacherRoomActions } from "./TeacherRoomActions";
+import PiPVideoLayout from "@/components/PiPVideoLayout";
 import { useTeacherSocket } from "@/hooks/useTeacherSocket";
 
 export default function TeacherDashboard() {
@@ -60,11 +61,9 @@ export default function TeacherDashboard() {
     return (
       <div className="fixed inset-0 z-[9999] flex flex-col bg-black">
         <TeacherRoomOverlay
-          sessionId={activeRoom.sessionId}
           actualStartAt={activeRoom.actualStartAt}
           durationMinutes={activeRoom.durationMinutes}
           leniencyMinutes={activeRoom.leniencyMinutes}
-          onLeave={leaveRoom}
         />
         <div className="flex-1 overflow-hidden">
           <LiveKitRoom
@@ -76,7 +75,15 @@ export default function TeacherDashboard() {
             data-lk-theme="default"
             style={{ height: "100%", width: "100%" }}
           >
-            <VideoConference />
+            <PiPVideoLayout extraControls={
+              <TeacherRoomActions
+                sessionId={activeRoom.sessionId}
+                actualStartAt={activeRoom.actualStartAt}
+                durationMinutes={activeRoom.durationMinutes}
+                leniencyMinutes={activeRoom.leniencyMinutes}
+                onLeave={leaveRoom}
+              />
+            } />
           </LiveKitRoom>
         </div>
       </div>

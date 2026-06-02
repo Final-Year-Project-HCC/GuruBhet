@@ -3,9 +3,9 @@
 import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "react-toastify";
-import { LiveKitRoom, VideoConference } from "@livekit/components-react";
-import "@livekit/components-styles";
+import { LiveKitRoom } from "@livekit/components-react";
 import apiClient from "@/lib/api";
+import PiPVideoLayout from "@/components/PiPVideoLayout";
 import { Session } from "@/lib/types";
 
 const SessionsPage: React.FC = () => {
@@ -59,14 +59,6 @@ const SessionsPage: React.FC = () => {
   if (activeRoom) {
     return (
       <div className="fixed inset-0 z-[9999] flex flex-col bg-black">
-        <div className="absolute top-4 right-4 z-50">
-          <button
-            onClick={() => setActiveRoom(null)}
-            className="rounded-md bg-destructive px-4 py-2 text-white hover:bg-destructive/90 transition-colors"
-          >
-            Leave Room
-          </button>
-        </div>
         <div className="flex-1 overflow-hidden">
           <LiveKitRoom
             video={true}
@@ -77,7 +69,14 @@ const SessionsPage: React.FC = () => {
             data-lk-theme="default"
             style={{ height: '100%', width: '100%' }}
           >
-            <VideoConference />
+            <PiPVideoLayout extraControls={
+              <button
+                onClick={() => setActiveRoom(null)}
+                className="px-4 py-2 rounded-xl bg-destructive/90 text-white text-sm font-bold hover:bg-destructive transition shadow-lg"
+              >
+                Leave
+              </button>
+            } />
           </LiveKitRoom>
         </div>
       </div>

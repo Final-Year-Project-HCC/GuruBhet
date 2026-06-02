@@ -6,9 +6,10 @@ import TeacherNavbar from "@/components/TeacherNavbar";
 import Footer from "@/components/Footer";
 import { useTeacherSocket } from "@/hooks/useTeacherSocket";
 import OutgoingCallOverlay from "@/components/OutgoingCallOverlay";
-import { LiveKitRoom, VideoConference } from "@livekit/components-react";
-import "@livekit/components-styles";
+import { LiveKitRoom } from "@livekit/components-react";
 import { TeacherRoomOverlay } from "./dashboard/TeacherRoomOverlay";
+import { TeacherRoomActions } from "./dashboard/TeacherRoomActions";
+import PiPVideoLayout from "@/components/PiPVideoLayout";
 
 /** Routes accessible without logging in */
 const PUBLIC_PATHS = ["/", "/dashboard", "/login", "/signup"];
@@ -38,11 +39,9 @@ export default function AuthLayout({
       {activeRoom && (
         <div className="fixed inset-0 z-[9999] flex flex-col bg-black">
           <TeacherRoomOverlay
-            sessionId={activeRoom.sessionId}
             actualStartAt={activeRoom.actualStartAt}
             durationMinutes={activeRoom.durationMinutes}
             leniencyMinutes={activeRoom.leniencyMinutes}
-            onLeave={leaveRoom}
           />
           <div className="flex-1 overflow-hidden">
             <LiveKitRoom
@@ -54,7 +53,15 @@ export default function AuthLayout({
               data-lk-theme="default"
               style={{ height: "100%", width: "100%" }}
             >
-              <VideoConference />
+              <PiPVideoLayout extraControls={
+                <TeacherRoomActions
+                  sessionId={activeRoom.sessionId}
+                  actualStartAt={activeRoom.actualStartAt}
+                  durationMinutes={activeRoom.durationMinutes}
+                  leniencyMinutes={activeRoom.leniencyMinutes}
+                  onLeave={leaveRoom}
+                />
+              } />
             </LiveKitRoom>
           </div>
         </div>

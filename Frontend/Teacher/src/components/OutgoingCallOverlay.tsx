@@ -22,7 +22,7 @@ export default function OutgoingCallOverlay({
   /* ── Ringtone ─────────────────────────────────────────────────────── */
 
   useEffect(() => {
-    const audio = new Audio("/sounds/callerSideRingtone.mp4");
+    const audio = new Audio("/sounds/callerSideRingtone.mp3");
     audio.loop = true;
     audioRef.current = audio;
 

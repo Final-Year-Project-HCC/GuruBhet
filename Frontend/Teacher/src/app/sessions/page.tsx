@@ -2,11 +2,12 @@
 
 import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { LiveKitRoom, VideoConference } from "@livekit/components-react";
-import "@livekit/components-styles";
+import { LiveKitRoom } from "@livekit/components-react";
 import { Session } from "@/lib/types";
+import PiPVideoLayout from "@/components/PiPVideoLayout";
 import { useTeacherSocket } from "@/hooks/useTeacherSocket";
 import { TeacherRoomOverlay } from "@/app/dashboard/TeacherRoomOverlay";
+import { TeacherRoomActions } from "@/app/dashboard/TeacherRoomActions";
 import apiClient from "@/lib/api";
 
 const TeacherSessionsPage: React.FC = () => {
@@ -59,11 +60,9 @@ const TeacherSessionsPage: React.FC = () => {
     return (
       <div className="fixed inset-0 z-[9999] flex flex-col bg-black">
         <TeacherRoomOverlay
-          sessionId={activeRoom.sessionId}
           actualStartAt={activeRoom.actualStartAt}
           durationMinutes={activeRoom.durationMinutes}
           leniencyMinutes={activeRoom.leniencyMinutes}
-          onLeave={leaveRoom}
         />
         <div className="flex-1 overflow-hidden">
           <LiveKitRoom
@@ -75,7 +74,15 @@ const TeacherSessionsPage: React.FC = () => {
             data-lk-theme="default"
             style={{ height: '100%', width: '100%' }}
           >
-            <VideoConference />
+            <PiPVideoLayout extraControls={
+              <TeacherRoomActions
+                sessionId={activeRoom.sessionId}
+                actualStartAt={activeRoom.actualStartAt}
+                durationMinutes={activeRoom.durationMinutes}
+                leniencyMinutes={activeRoom.leniencyMinutes}
+                onLeave={leaveRoom}
+              />
+            } />
           </LiveKitRoom>
         </div>
       </div>

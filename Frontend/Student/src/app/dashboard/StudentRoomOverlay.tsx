@@ -4,18 +4,15 @@ import { toast } from "react-toastify";
 import { Clock } from "lucide-react";
 
 interface StudentRoomOverlayProps {
-  sessionId: string;
   actualStartAt: string;
   durationMinutes: number;
   leniencyMinutes: number;
-  onLeave: () => void;
 }
 
 export function StudentRoomOverlay({
   actualStartAt,
   durationMinutes,
   leniencyMinutes,
-  onLeave,
 }: StudentRoomOverlayProps) {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
@@ -55,21 +52,11 @@ export function StudentRoomOverlay({
   }
 
   return (
-    <>
-      <div className="absolute top-4 left-4 z-50 bg-black/60 backdrop-blur text-white px-4 py-2 rounded-xl flex items-center gap-3">
-        <div className={`font-mono text-lg font-bold tracking-wider ${isRed ? "text-destructive animate-pulse" : ""}`}>
-          {timerText}
-        </div>
+    <div className="absolute top-4 left-4 z-50 bg-black/60 backdrop-blur text-white px-4 py-2 rounded-xl flex items-center gap-3">
+      <div className={`font-mono text-lg font-bold tracking-wider ${isRed ? "text-destructive animate-pulse" : ""}`}>
+        {timerText}
       </div>
-      <div className="absolute top-4 right-4 z-50">
-        <button
-          onClick={onLeave}
-          className="rounded-md bg-destructive px-4 py-2 text-destructive-foreground hover:opacity-90 transition-colors shadow-lg font-medium text-sm"
-        >
-          Leave Room
-        </button>
-      </div>
-    </>
+    </div>
   );
 }
 

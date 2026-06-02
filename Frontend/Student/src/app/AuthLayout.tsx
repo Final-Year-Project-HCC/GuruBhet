@@ -7,9 +7,9 @@ import StudentNavbar from "@/components/StudentNavbar";
 import Footer from "@/components/Footer";
 import IncomingCallOverlay from "@/components/IncomingCallOverlay";
 import { useStudentSocket } from "@/hooks/useStudentSocket";
-import { LiveKitRoom, VideoConference } from "@livekit/components-react";
-import "@livekit/components-styles";
+import { LiveKitRoom } from "@livekit/components-react";
 import { StudentRoomOverlay, CountdownModal } from "./dashboard/StudentRoomOverlay";
+import PiPVideoLayout from "@/components/PiPVideoLayout";
 import socket from "@/lib/socket";
 import { RatingModal } from "@/components/Bookings";
 
@@ -56,11 +56,9 @@ export default function AuthLayout({
       {activeRoom && (
         <div className="fixed inset-0 z-[9999] flex flex-col bg-black">
           <StudentRoomOverlay
-            sessionId={activeRoom.sessionId}
             actualStartAt={activeRoom.actualStartAt}
             durationMinutes={activeRoom.durationMinutes}
             leniencyMinutes={activeRoom.leniencyMinutes}
-            onLeave={leaveRoom}
           />
           <div className="flex-1 overflow-hidden">
             <LiveKitRoom
@@ -72,7 +70,14 @@ export default function AuthLayout({
               data-lk-theme="default"
               style={{ height: "100%", width: "100%" }}
             >
-              <VideoConference />
+              <PiPVideoLayout extraControls={
+                <button
+                  onClick={leaveRoom}
+                  className="px-4 py-2 rounded-xl bg-destructive/90 text-white text-sm font-bold hover:bg-destructive transition shadow-lg"
+                >
+                  Leave
+                </button>
+              } />
             </LiveKitRoom>
           </div>
         </div>

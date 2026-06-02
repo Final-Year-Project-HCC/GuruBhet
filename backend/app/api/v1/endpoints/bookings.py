@@ -196,6 +196,11 @@ async def initiate_payment(
     # DEVELOPMENT BYPASS — remove once real payment webhook activates the booking
     booking.status = BookingStatus.ACTIVE
 
+    # Commit explicitly so the status change is visible before the response
+    # is returned (avoids a race where the client refetches before the
+    # session-level auto-commit fires on teardown).
+    await db.commit()
+
     sio_manager = get_socketio_manager()
     if sio_manager:
         background_tasks.add_task(

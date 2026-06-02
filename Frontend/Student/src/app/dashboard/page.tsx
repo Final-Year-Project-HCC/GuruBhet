@@ -6,10 +6,10 @@ import { useUser } from "@/hooks";
 import apiClient from "@/lib/api";
 import { Booking, Session } from "@/lib/types";
 import { BookOpen, Clock, CheckCircle, Layers } from "lucide-react";
-import { LiveKitRoom, VideoConference } from "@livekit/components-react";
-import "@livekit/components-styles";
+import { LiveKitRoom } from "@livekit/components-react";
 import Link from "next/link";
 import { StudentRoomOverlay } from "./StudentRoomOverlay";
+import PiPVideoLayout from "@/components/PiPVideoLayout";
 import { useStudentSocket } from "@/hooks/useStudentSocket";
 
 export default function StudentDashboard() {
@@ -61,11 +61,9 @@ export default function StudentDashboard() {
     return (
       <div className="fixed inset-0 z-[9999] flex flex-col bg-black">
         <StudentRoomOverlay
-          sessionId={activeRoom.sessionId}
           actualStartAt={activeRoom.actualStartAt}
           durationMinutes={activeRoom.durationMinutes}
           leniencyMinutes={activeRoom.leniencyMinutes}
-          onLeave={leaveRoom}
         />
         <div className="flex-1 overflow-hidden">
           <LiveKitRoom
@@ -77,7 +75,14 @@ export default function StudentDashboard() {
             data-lk-theme="default"
             style={{ height: "100%", width: "100%" }}
           >
-            <VideoConference />
+            <PiPVideoLayout extraControls={
+              <button
+                onClick={leaveRoom}
+                className="px-4 py-2 rounded-xl bg-destructive/90 text-white text-sm font-bold hover:bg-destructive transition shadow-lg"
+              >
+                Leave
+              </button>
+            } />
           </LiveKitRoom>
         </div>
       </div>
