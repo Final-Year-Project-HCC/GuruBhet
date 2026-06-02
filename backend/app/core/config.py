@@ -69,7 +69,8 @@ class Settings(BaseSettings):
     ESEWA_MERCHANT_CODE: str
     ESEWA_SECRET_KEY: str
     ESEWA_BASE_URL: str = "https://rc-epay.esewa.com.np"
-    ESEWA_PLATFORM_ACCOUNT: str 
+    ESEWA_PLATFORM_ACCOUNT: str
+    FRONTEND_BASE_URL: str = "https://gurubhet.tech"  # overridden locally via docker-compose
 
     # ── LiveKit ──────────────────────────────────────────────────────
     LIVEKIT_API_KEY: str

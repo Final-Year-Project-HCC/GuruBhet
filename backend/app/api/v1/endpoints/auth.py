@@ -245,12 +245,13 @@ async def login(body: LoginRequest, db: DbSession, response: Response, request: 
         else "none"
     )
     securePolicy = False if settings.ENVIRONMENT == "development2" else True
+    cookieDomain = None if settings.ENVIRONMENT == "development2" else f'.{settings.DOMAIN_NAME}'
     # Set tokens as HttpOnly cookies with SameSite=Lax
     response.set_cookie(
         "access_token",
         access,
         httponly=True,
-        domain=f'.{settings.DOMAIN_NAME}',
+        domain=cookieDomain,
         samesite=sameSitePolicy,
         secure=securePolicy,
         max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
@@ -260,7 +261,7 @@ async def login(body: LoginRequest, db: DbSession, response: Response, request: 
         "refresh_token",
         refresh,
         httponly=True,
-        domain=f'.{settings.DOMAIN_NAME}',
+        domain=cookieDomain,
         samesite=sameSitePolicy,
         secure=securePolicy,
         max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
@@ -328,11 +329,12 @@ async def refresh(
         else "none"
     )
     securePolicy = False if settings.ENVIRONMENT == "development2" else True
+    cookieDomain = None if settings.ENVIRONMENT == "development2" else f'.{settings.DOMAIN_NAME}'
     response.set_cookie(
         "access_token",
         access,
         httponly=True,
-        domain=f'.{settings.DOMAIN_NAME}',
+        domain=cookieDomain,
         samesite=sameSitePolicy,
         secure=securePolicy,
         max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
@@ -342,7 +344,7 @@ async def refresh(
         "refresh_token",
         refresh,
         httponly=True,
-        domain=f'.{settings.DOMAIN_NAME}',
+        domain=cookieDomain,
         samesite=sameSitePolicy,
         secure=securePolicy,
         max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,

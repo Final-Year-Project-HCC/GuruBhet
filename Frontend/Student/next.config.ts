@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  /* config options her */
   output: "standalone",
   reactCompiler: true,
   images: {
@@ -19,7 +19,7 @@ const nextConfig: NextConfig = {
         hostname: "res.cloudinary.com",
       },
     ],
-  }
+  },
 };
 
 export default nextConfig;

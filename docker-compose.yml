@@ -38,12 +38,16 @@ services:
       dockerfile: Dockerfile.dev
     volumes:
       - ./backend:/app
+    env_file: ./backend/.env # load all vars from .env first
     environment:
-      - ENVIRONMENT=development2 # Triggering your new cookie logic
+      # these override .env values for local docker networking
+      - ENVIRONMENT=development2
       - REDIS_URL=redis://redis:6379/0
       - CELERY_BROKER_URL=redis://redis:6379/1
       - CELERY_RESULT_BACKEND=redis://redis:6379/2
       - LIVEKIT_URL=http://livekit:7880
+      - LIVEKIT_WS_URL=ws://localhost:7880 # browser connects to localhost
+      - FRONTEND_BASE_URL=http://localhost:3000 # used in eSewa success_url
     # No changes needed to command unless you want to remove --proxy-headers,
     # but keeping them doesn't hurt.
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --proxy-headers --forwarded-allow-ips='*'
@@ -59,9 +63,13 @@ services:
 
   # --- CELERY INFRASTRUCTURE ---
   worker:
-    image: gurubhet-local-api # <-- Reuses the api image
+    image: gurubhet-local-api
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
     volumes:
       - ./backend:/app
+    env_file: ./backend/.env
     environment:
       - ENVIRONMENT=development2
       - REDIS_URL=redis://redis:6379/0
@@ -77,9 +85,13 @@ services:
       - gurubhet-network
 
   beat:
-    image: gurubhet-local-api # <-- Reuses the api image
+    image: gurubhet-local-api
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
     volumes:
       - ./backend:/app
+    env_file: ./backend/.env
     environment:
       - ENVIRONMENT=development2
       - REDIS_URL=redis://redis:6379/0
@@ -93,9 +105,13 @@ services:
       - gurubhet-network
 
   flower:
-    image: gurubhet-local-api # <-- Reuses the api image
+    image: gurubhet-local-api
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
     volumes:
       - ./backend:/app
+    env_file: ./backend/.env
     environment:
       - ENVIRONMENT=development2
       - REDIS_URL=redis://redis:6379/0
@@ -120,8 +136,8 @@ services:
       - /app/node_modules
       - /app/.next
     environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1 # HTTP and Direct Port
-      - NEXT_PUBLIC_SOCKET_URL=http://api.gurubhet.tech
+      - NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
+      - NEXT_PUBLIC_SOCKET_URL=http://localhost:8000
     # Updated to your dev2 command
     command: npm run dev2
     ports:
@@ -138,8 +154,8 @@ services:
       - /app/node_modules
       - /app/.next
     environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1 # HTTP and Direct Port
-      - NEXT_PUBLIC_SOCKET_URL=http://api.gurubhet.tech
+      - NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
+      - NEXT_PUBLIC_SOCKET_URL=http://localhost:8000
     # Updated to your dev2 command
     command: npm run dev2
     ports:
@@ -156,8 +172,8 @@ services:
       - /app/node_modules
       - /app/.next
     environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1 # HTTP and Direct Port
-      - NEXT_PUBLIC_SOCKET_URL=http://api.gurubhet.tech
+      - NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
+      - NEXT_PUBLIC_SOCKET_URL=http://localhost:8000
     # Updated to your dev2 command
     command: npm run dev2
     ports:
