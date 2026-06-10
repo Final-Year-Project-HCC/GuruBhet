@@ -187,7 +187,7 @@ export default function SearchTeacherPage() {
         </div>
 
         {/* ── Main Layout ─────────────────────────────────────────────────── */}
-        <div className="flex flex-col lg:flex-row gap-8 items-start">
+        <div className="flex flex-col lg:flex-row gap-8 lg:items-start">
 
           {/* ── Left: Sidebar ── */}
           <aside className="w-full lg:w-72 shrink-0">

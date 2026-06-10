@@ -1,6 +1,9 @@
+import Link from "next/link";
 import React from "react";
 
 const CTA: React.FC = () => {
+  const teacherAppUrl = process.env.NEXT_PUBLIC_TEACHER_APP_URL ?? "";
+
   return (
     <section className="bg-primary text-primary-foreground py-24">
       <div className="max-w-7xl mx-auto px-4 text-center">
@@ -12,31 +15,18 @@ const CTA: React.FC = () => {
           Secured by verified profiles and escrowed eSewa payments.
         </p>
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <button className="bg-background text-foreground px-10 py-5 rounded-2xl font-bold text-lg hover:scale-[1.02] transition-transform shadow-xl">
+          <Link
+            href="/search-teacher"
+            className="bg-background text-foreground px-10 py-5 rounded-2xl font-bold text-lg hover:scale-[1.02] transition-transform shadow-xl inline-block"
+          >
             Explore All Tutors
-          </button>
-          <button className="border border-primary-foreground/25 bg-primary-foreground/10 text-primary-foreground px-10 py-5 rounded-2xl font-bold text-lg hover:bg-primary-foreground/20 transition-colors">
+          </Link>
+          <a
+            href={teacherAppUrl ? `${teacherAppUrl}/signup` : "https://teacher.gurubhet.tech/signup"}
+            className="border border-primary-foreground/25 bg-primary-foreground/10 text-primary-foreground px-10 py-5 rounded-2xl font-bold text-lg hover:bg-primary-foreground/20 transition-colors"
+          >
             Apply to Teach
-          </button>
-        </div>
-
-        <div className="mt-16 pt-16 border-t border-primary-foreground/10 grid grid-cols-2 md:grid-cols-4 gap-8">
-          <div>
-            <p className="text-4xl font-extrabold mb-1">98%</p>
-            <p className="text-sm opacity-60">Satisfaction Rate</p>
-          </div>
-          <div>
-            <p className="text-4xl font-extrabold mb-1">500+</p>
-            <p className="text-sm opacity-60">Verified Tutors</p>
-          </div>
-          <div>
-            <p className="text-4xl font-extrabold mb-1">10k+</p>
-            <p className="text-sm opacity-60">Success Stories</p>
-          </div>
-          <div>
-            <p className="text-4xl font-extrabold mb-1">24/7</p>
-            <p className="text-sm opacity-60">Academic Support</p>
-          </div>
+          </a>
         </div>
       </div>
     </section>
