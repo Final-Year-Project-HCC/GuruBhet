@@ -1,14 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 
 /**
- * PROTECTED ROUTES - Require authentication
+ * PROTECTED ROUTES -Require authentication
  * Routes that require user to be logged in
  */
-const PROTECTED_ROUTES = [
-  "/teachers",
-  "/academic-setup",
-  "/",
-];
+const PROTECTED_ROUTES = ["/teachers", "/academic-setup", "/"];
 
 /**
  * PUBLIC ROUTES - Accessible without authentication
@@ -102,8 +98,8 @@ export async function middleware(request: NextRequest) {
           response.headers.append("Set-Cookie", cookieString);
 
           // Parse name and value to update the CURRENT request
-          const [cookieNameValuePair] = cookieString.split(';');
-          const [name, value] = cookieNameValuePair.split('=');
+          const [cookieNameValuePair] = cookieString.split(";");
+          const [name, value] = cookieNameValuePair.split("=");
 
           // Update the request object so Server Components see the new token now
           request.cookies.set(name, value);
@@ -133,9 +129,7 @@ export async function middleware(request: NextRequest) {
  * Verify token with backend by calling /auth/me endpoint
  * Server-to-server communication (no CORS issues)
  */
-async function verifyTokenWithBackend(
-  accessToken: string
-): Promise<Response> {
+async function verifyTokenWithBackend(accessToken: string): Promise<Response> {
   const apiBaseUrl =
     process.env.NEXT_PUBLIC_API_URL || "https://api.gurubhet.tech/api/v1";
 
@@ -163,7 +157,7 @@ async function verifyTokenWithBackend(
  * Returns response with Set-Cookie headers for new tokens
  */
 async function refreshTokenWithBackend(
-  refreshToken: string
+  refreshToken: string,
 ): Promise<Response> {
   const apiBaseUrl =
     process.env.NEXT_PUBLIC_API_URL || "https://api.gurubhet.tech/api/v1";
