@@ -114,18 +114,6 @@ export default function TeacherNavbar() {
                     </span>
                   )}
                 </Link>
-                <Link
-                  href="/earnings"
-                  className="rounded-md px-3 py-2 text-base text-foreground hover:bg-muted"
-                >
-                  Earnings
-                </Link>
-                <Link
-                  href="/messages"
-                  className="rounded-md px-3 py-2 text-base text-foreground hover:bg-muted"
-                >
-                  Messages
-                </Link>
 
                 {/* Profile dropdown */}
                 <div className="relative" ref={menuRef}>
@@ -277,20 +265,6 @@ export default function TeacherNavbar() {
                       {pendingApprovalCount}
                     </span>
                   )}
-                </Link>
-                <Link
-                  href="/earnings"
-                  onClick={() => setMobileOpen(false)}
-                  className="rounded-md px-3 py-2.5 text-base text-foreground hover:bg-muted"
-                >
-                  Earnings
-                </Link>
-                <Link
-                  href="/messages"
-                  onClick={() => setMobileOpen(false)}
-                  className="rounded-md px-3 py-2.5 text-base text-foreground hover:bg-muted"
-                >
-                  Messages
                 </Link>
                 <div className="my-1 border-t border-border" />
                 <Link
