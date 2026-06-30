@@ -5,6 +5,9 @@ import { useQuery } from "@tanstack/react-query";
 import apiClient from "@/lib/api";
 import { Session } from "@/lib/types";
 import { useStudentSocket } from "@/hooks/useStudentSocket";
+import { LiveKitRoom } from "@livekit/components-react";
+import { StudentRoomOverlay } from "@/app/dashboard/StudentRoomOverlay";
+import PiPVideoLayout from "@/components/PiPVideoLayout";
 
 const SessionsPage: React.FC = () => {
   const { data: inProgressSessions = [], isLoading: inProgressLoading } =
@@ -26,7 +29,7 @@ const SessionsPage: React.FC = () => {
       },
     });
 
-  const { joinClassroomFromDashboard } = useStudentSocket();
+  const { joinClassroomFromDashboard, activeRoom, leaveRoom } = useStudentSocket();
   const [isJoining, setIsJoining] = useState(false);
 
   const handleJoinClassroom = async (bookingId: string) => {
@@ -52,6 +55,39 @@ const SessionsPage: React.FC = () => {
     total: completedSessions.length,
     totalHours: completedSessions.length, // approximation
   };
+
+  if (activeRoom) {
+    return (
+      <div className="fixed inset-0 z-[9999] flex flex-col bg-black">
+        <StudentRoomOverlay
+          actualStartAt={activeRoom.actualStartAt}
+          durationMinutes={activeRoom.durationMinutes}
+          leniencyMinutes={activeRoom.leniencyMinutes}
+        />
+        <div className="flex-1 overflow-hidden">
+          <LiveKitRoom
+            video={true}
+            audio={true}
+            token={activeRoom.token}
+            serverUrl={activeRoom.liveKitUrl || "wss://live.gurubhet.tech"}
+            connect={true}
+            data-lk-theme="default"
+            style={{ height: "100%", width: "100%" }}
+          >
+            <PiPVideoLayout extraControls={
+              <button
+                onClick={leaveRoom}
+                className="lk-button"
+                style={{ color: "var(--lk-danger, #ef4444)" }}
+              >
+                Leave
+              </button>
+            } />
+          </LiveKitRoom>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-surface-muted min-h-screen py-12">
