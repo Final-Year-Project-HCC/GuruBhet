@@ -219,12 +219,14 @@ async def fetch_sessions_for_user(
     user_id: UUID,
     role: UserRole,
     in_progress: bool = True,
+    statuses: list[SessionStatus] | None = None,
 ) -> list[Session]:
     """
     Fetch sessions for a given user (student or teacher).
 
     - `role` determines whether to filter by booking.student_id or booking.teacher_id
     - `in_progress=True` filters to sessions with status IN_PROGRESS
+    - `statuses` overrides `in_progress` and filters by the given list of statuses
     Returns a list of `Session` ORM objects with the `booking` relationship loaded.
     """
     stmt = (
@@ -242,7 +244,9 @@ async def fetch_sessions_for_user(
     else:
         stmt = stmt.where(Booking.teacher_id == user_id)
 
-    if in_progress:
+    if statuses is not None:
+        stmt = stmt.where(Session.status.in_(statuses))
+    elif in_progress:
         stmt = stmt.where(Session.status == SessionStatus.IN_PROGRESS)
 
     stmt = stmt.order_by(Session.created_at.desc())

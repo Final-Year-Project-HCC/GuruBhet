@@ -254,6 +254,17 @@ async def get_my_sessions(current_user: Annotated[User, RequireTeacher], db: DbS
     sessions = await fetch_sessions_for_user(db, current_user.id, UserRole.TEACHER, in_progress=True)
     return sessions
 
+@router.get("/me/sessions/history", response_model=list[SessionDetailedReadForTeacher])
+async def get_my_sessions_history(current_user: Annotated[User, RequireTeacher], db: DbSession):
+    """Return completed sessions for the logged-in teacher."""
+    sessions = await fetch_sessions_for_user(
+        db,
+        current_user.id,
+        UserRole.TEACHER,
+        statuses=[SessionStatus.COMPLETED],
+    )
+    return sessions
+
 @router.get("/me/bookings", response_model=list[BookingDetailedReadForTeacher])
 async def get_my_bookings(current_user: Annotated[User, RequireTeacher], db: DbSession):
     bookings = await fetch_bookings_for_user(db, current_user.id, UserRole.TEACHER)

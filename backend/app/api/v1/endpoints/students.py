@@ -87,6 +87,27 @@ async def get_my_sessions(current_user: CurrentUser, db: DbSession):
     return sessions
 
 
+@router.get("/me/sessions/history", response_model=list[SessionDetailedReadForStudent])
+async def get_my_sessions_history(current_user: CurrentUser, db: DbSession):
+    """Return completed sessions for the logged-in student."""
+    if current_user.role != UserRole.STUDENT:
+        raise PermissionDeniedError(detail="Only students can access this")
+
+    profile_result = await db.execute(
+        select(StudentProfile).where(StudentProfile.user_id == current_user.id)
+    )
+    if not profile_result.scalar_one_or_none():
+        raise StudentNotFoundError(student_id=str(current_user.id))
+
+    sessions = await fetch_sessions_for_user(
+        db,
+        current_user.id,
+        UserRole.STUDENT,
+        statuses=[SessionStatus.COMPLETED],
+    )
+    return sessions
+
+
 @router.get("/me/bookings", response_model=list[BookingDetailedReadForStudent])
 async def get_my_bookings(current_user: CurrentUser, db: DbSession):
     """Return all bookings for the logged-in student with teacher and subject details."""
