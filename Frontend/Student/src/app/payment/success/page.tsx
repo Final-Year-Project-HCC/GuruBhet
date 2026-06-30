@@ -2,11 +2,13 @@
 
 import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import apiClient from "@/lib/api";
 import { toast } from "react-toastify";
 
 export default function PaymentSuccessPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const called = useRef(false); // prevent double-call in React StrictMode
 
   useEffect(() => {
@@ -81,6 +83,7 @@ export default function PaymentSuccessPage() {
       })
       .then(() => {
         toast.success("Payment confirmed! Your booking is now active.");
+        queryClient.invalidateQueries({ queryKey: ["studentBookings"] });
         router.replace("/bookings");
       })
       .catch(() => {
