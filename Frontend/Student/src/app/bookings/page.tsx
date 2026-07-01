@@ -96,6 +96,7 @@ export default function StudentBookingsPage() {
       return data;
     },
     staleTime: 1000 * 60 * 5, // 5 minutes
+    refetchOnMount: "always",
   });
   // Filter bookings by status
   const approvalBookings = bookings.filter(

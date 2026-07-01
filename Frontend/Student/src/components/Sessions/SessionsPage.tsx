@@ -30,6 +30,10 @@ const SessionsPage: React.FC = () => {
     });
 
   const { joinClassroomFromDashboard, activeRoom, leaveRoom } = useStudentSocket();
+  const completedStats = {
+    total: completedSessions.length,
+  };
+
   const [isJoining, setIsJoining] = useState(false);
 
   const handleJoinClassroom = async (bookingId: string) => {
@@ -40,20 +44,6 @@ const SessionsPage: React.FC = () => {
     } finally {
       setIsJoining(false);
     }
-  };
-
-  const activeStats = {
-    total: inProgressSessions.length,
-    remaining: inProgressSessions.reduce(
-      (acc, s) => acc + (s.booking.totalSessions - s.sessionNumber + 1),
-      0
-    ),
-    liveCount: inProgressSessions.length,
-  };
-
-  const completedStats = {
-    total: completedSessions.length,
-    totalHours: completedSessions.length, // approximation
   };
 
   if (activeRoom) {
@@ -104,42 +94,13 @@ const SessionsPage: React.FC = () => {
 
         {/* Section 1: Active Sessions */}
         <div className="mb-20">
-          <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-6">
-            <div>
-              <h2 className="text-2xl font-black tracking-tight text-primary">
-                Active Learning Tracks
-              </h2>
-              <p className="text-sm text-muted-foreground font-bold uppercase tracking-wider mt-1">
-                Ongoing Classes
-              </p>
-            </div>
-            {/* Quick Stats Grid */}
-            <div className="grid grid-cols-3 gap-4">
-              <div className="bg-surface border border-border p-4 rounded-2xl shadow-sm text-center min-w-25">
-                <p className="text-2xl font-black text-primary leading-none">
-                  {activeStats.total}
-                </p>
-                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-tighter mt-1">
-                  Tracks
-                </p>
-              </div>
-              <div className="bg-surface border border-border p-4 rounded-2xl shadow-sm text-center min-w-25">
-                <p className="text-2xl font-black text-primary leading-none">
-                  {activeStats.remaining}
-                </p>
-                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-tighter mt-1">
-                  To Go
-                </p>
-              </div>
-              <div className="bg-surface border border-border p-4 rounded-2xl shadow-sm text-center min-w-25">
-                <p className="text-2xl font-black text-success leading-none">
-                  {activeStats.liveCount}
-                </p>
-                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-tighter mt-1">
-                  Live Now
-                </p>
-              </div>
-            </div>
+          <div className="mb-8">
+            <h2 className="text-2xl font-black tracking-tight text-primary">
+              Active Learning Tracks
+            </h2>
+            <p className="text-sm text-muted-foreground font-bold uppercase tracking-wider mt-1">
+              Ongoing Classes
+            </p>
           </div>
 
           {inProgressLoading ? (
@@ -249,22 +210,13 @@ const SessionsPage: React.FC = () => {
                 Review your past achievements
               </p>
             </div>
-            {/* Quick Stats Grid */}
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 gap-4">
               <div className="bg-surface border border-border p-4 rounded-2xl shadow-sm text-center min-w-25">
                 <p className="text-2xl font-black text-primary leading-none">
                   {completedStats.total}
                 </p>
                 <p className="text-[10px] font-black text-muted-foreground uppercase tracking-tighter mt-1">
                   Sessions
-                </p>
-              </div>
-              <div className="bg-surface border border-border p-4 rounded-2xl shadow-sm text-center min-w-25">
-                <p className="text-2xl font-black text-primary leading-none">
-                  -
-                </p>
-                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-tighter mt-1">
-                  Hours
                 </p>
               </div>
             </div>

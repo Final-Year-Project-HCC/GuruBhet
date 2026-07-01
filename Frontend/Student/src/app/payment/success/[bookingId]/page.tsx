@@ -66,8 +66,11 @@ export default function PaymentSuccessPage() {
       })
       .then(() => {
         toast.success("Payment confirmed! Your booking is now active.");
-        queryClient.invalidateQueries({ queryKey: ["studentBookings"] });
-        queryClient.invalidateQueries({ queryKey: ["sessions", "in-progress"] });
+        // Remove cached data so the bookings page cannot render stale state.
+        // invalidateQueries only marks as stale but serves cached data while
+        // the background refetch is in-flight — removeQueries forces a fresh fetch.
+        queryClient.removeQueries({ queryKey: ["studentBookings"] });
+        queryClient.removeQueries({ queryKey: ["sessions", "in-progress"] });
         router.replace("/bookings");
       })
       .catch(() => {
