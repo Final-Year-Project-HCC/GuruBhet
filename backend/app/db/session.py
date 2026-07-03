@@ -34,11 +34,15 @@ class DatabaseSessionManager:
 
         self._engine = create_async_engine(
             db_url,
-            pool_recycle=300,
-            pool_pre_ping=True,
+            # Supavisor already pools connections server-side; pooling again on
+            # our end doubles connection churn against its own connection cap
+            # and makes it more likely a stuck/half-open handshake is left to
+            # hang instead of failing fast.
+            poolclass=NullPool,
             # Supavisor transaction mode: disable server-side statement cache
             connect_args={
                 "statement_cache_size": 0,
+                "timeout": 10,
                 "server_settings": {
                     "jit": "off"
                 }
