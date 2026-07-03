@@ -27,3 +27,4 @@ docs/
 
 
 .github/workflows/deploy.prod.yml
+*.zip
