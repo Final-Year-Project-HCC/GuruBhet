@@ -217,7 +217,6 @@ async def submit_onboarding_documents(
                 type=doc_type,
                 file_url=upload_result.get("secure_url"),
                 file_key=public_id,
-                status=VerificationStatus.PENDING
             )
             db.add(doc)
 
