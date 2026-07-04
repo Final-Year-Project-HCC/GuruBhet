@@ -12,7 +12,7 @@ import { TeacherRoomActions } from "./dashboard/TeacherRoomActions";
 import PiPVideoLayout from "@/components/PiPVideoLayout";
 
 /** Routes accessible without logging in */
-const PUBLIC_PATHS = ["/", "/dashboard", "/login", "/signup"];
+const PUBLIC_PATHS = ["/", "/dashboard", "/login", "/signup", "/account/verify-email"];
 
 function isPublicPath(pathname: string) {
   return PUBLIC_PATHS.includes(pathname);

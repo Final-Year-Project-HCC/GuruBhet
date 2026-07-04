@@ -14,7 +14,7 @@ import socket from "@/lib/socket";
 import { RatingModal } from "@/components/Bookings";
 
 /** Routes accessible without logging in */
-const PUBLIC_PATHS = ["/", "/login", "/signup", "/search-teacher"];
+const PUBLIC_PATHS = ["/", "/login", "/signup", "/search-teacher", "/account/verify-email"];
 
 function isPublicPath(pathname: string) {
   return (
