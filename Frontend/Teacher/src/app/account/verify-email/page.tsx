@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams, useRouter} from "next/navigation";
 import { useMutation } from "@tanstack/react-query";
 import axios from "axios";
 import apiClient from "@/lib/api";
 import LoadingSpinner from "@/components/LoadingSpinner";
 
-export default function VerifyEmailPage() {
+function VerifyEmailContent() {
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
   const router = useRouter();
@@ -149,5 +149,21 @@ export default function VerifyEmailPage() {
         </button>
       </div>
     </div>
+  );
+}
+
+// useSearchParams() requires a Suspense boundary during static prerender,
+// otherwise the production build fails. Wrap the content accordingly.
+export default function VerifyEmailPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center p-6">
+          <LoadingSpinner />
+        </div>
+      }
+    >
+      <VerifyEmailContent />
+    </Suspense>
   );
 }
