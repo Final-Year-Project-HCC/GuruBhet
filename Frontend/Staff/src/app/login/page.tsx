@@ -46,9 +46,13 @@ export default function LoginPage() {
       }
       toast.error(message);
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       toast.success("Logged in successfully");
-      queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+      // Await the refetch so the current-user cache holds the real user
+      // BEFORE we navigate. Otherwise AuthGuard on the destination reads the
+      // stale pre-login `null` still sitting in the cache and bounces us back
+      // to /login before the background refetch resolves.
+      await queryClient.refetchQueries({ queryKey: QUERY_KEY });
       router.push("/academic-setup");
     },
   });
