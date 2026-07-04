@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import axios from "axios";
 import apiClient from "@/lib/api";
 import type { CurrentUser, Permission } from "@/lib/types";
 
@@ -10,10 +11,18 @@ async function fetchCurrentUser(): Promise<CurrentUser | null> {
   try {
     const { data } = await apiClient.get<CurrentUser>("/auth/me");
     return data;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } catch (error: any) {
-    // throw error;
-    return null;
+  } catch (error) {
+    // Only a 401/403 means "not logged in". Anything else (network failure,
+    // 5xx, timeout) must NOT be swallowed as null — treating an outage as
+    // "logged out" bounces authenticated staff back to /login whenever
+    // /auth/me has a transient failure.
+    if (
+      axios.isAxiosError(error) &&
+      (error.response?.status === 401 || error.response?.status === 403)
+    ) {
+      return null;
+    }
+    throw error;
   }
 }
 
@@ -24,7 +33,7 @@ async function fetchCurrentUser(): Promise<CurrentUser | null> {
  * - staleTime: 1 hour - Data is fresh for 1 hour before refetching
  * - gcTime (cacheTime): 1 hour - Keep data in cache for 1 hour after component unmounts
  * - refetchOnWindowFocus: true - Refetch when window regains focus for security
- * - retry: false - Don't retry on failure, let it fail fast for 401s
+ * - retry: 2 - 401s resolve to null (never retried); only real failures retry
  */
 export function useUser() {
   return useQuery({
@@ -33,7 +42,10 @@ export function useUser() {
     staleTime: 1000 * 60 * 60, // 1 hour
     gcTime: 1000 * 60 * 60, // 1 hour cache retention
     refetchOnWindowFocus: true, // Refetch on window focus for security
-    retry: false, // Don't retry on 401 errors
+    // 401/403 resolve to null (success path), so they never hit retry.
+    // Only genuine network/server failures retry, riding out transient
+    // blips instead of kicking a logged-in user back to /login.
+    retry: 2,
   });
 }
 
