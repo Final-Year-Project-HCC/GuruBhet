@@ -100,7 +100,7 @@ async def list_study_levels(
 ) -> list[StudyLevelRead]:
     """[STAFF] List all StudyLevels."""
     await verify_inactive_access(is_active, db, request)
-    stmt = select(StudyLevel.id, StudyLevel.name, StudyLevel.description)
+    stmt = select(StudyLevel.id, StudyLevel.name, StudyLevel.description, StudyLevel.is_active)
     stmt = stmt.where(StudyLevel.is_active == is_active)
     stmt = stmt.order_by(StudyLevel.name)
     result = await db.execute(stmt)
@@ -209,7 +209,7 @@ async def list_boards(
     """
     await verify_inactive_access(is_active, db, request)
 
-    stmt = select(Board.id, Board.name, Board.description).where(Board.is_active == is_active)
+    stmt = select(Board.id, Board.name, Board.description, Board.is_active).where(Board.is_active == is_active)
 
     if study_level_id:
         stmt = stmt.join(board_study_levels).where(
@@ -346,7 +346,7 @@ async def list_faculties(
                 detail=f"Association between Board '{board_id}' and StudyLevel '{study_level_id}' not found"
             )
 
-    stmt = select(Faculty.id, Faculty.name, Faculty.description, Faculty.unit_type, Faculty.total_units).where(Faculty.is_active == is_active)
+    stmt = select(Faculty.id, Faculty.name, Faculty.description, Faculty.unit_type, Faculty.total_units, Faculty.is_active).where(Faculty.is_active == is_active)
 
     if study_level_id:
         stmt = stmt.where(Faculty.study_level_id == study_level_id)
@@ -479,7 +479,7 @@ async def list_subjects(
     """
     await verify_inactive_access(is_active, db, request)
 
-    stmt = select(Subject.id, Subject.name, Subject.unit_value).where(Subject.is_active == is_active)
+    stmt = select(Subject.id, Subject.name, Subject.unit_value, Subject.is_active).where(Subject.is_active == is_active)
 
     if faculty_id:
         stmt = stmt.where(Subject.faculty_id == faculty_id)
