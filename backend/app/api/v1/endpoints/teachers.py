@@ -62,9 +62,9 @@ async def list_all_teachers(db: DbSession, limit: int = Query(default=100, le=10
 async def search_teachers(
     subject_id: Annotated[UUID, Query(..., alias="subjectId")],
     db: DbSession,
-    min_rating: float = Query(default=0.0, ge=0.0, le=5.0),
-    min_rate: Decimal | None = Query(default=None),
-    max_rate: Decimal | None = Query(default=None),
+    min_rating: float = Query(default=0.0, ge=0.0, le=5.0, alias="minRating"),
+    min_rate: Decimal | None = Query(default=None, alias="minRate"),
+    max_rate: Decimal | None = Query(default=None, alias="maxRate"),
     limit: int = Query(default=20, le=50),
     offset: int = Query(default=0, ge=0),
 ):
