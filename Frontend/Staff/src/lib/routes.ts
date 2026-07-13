@@ -82,17 +82,17 @@ export function getAccessibleRoutes(
     }
 
     // Single permission check
-    if (route.requiredPermission && permissions.includes(route.requiredPermission)) {
+    if (route.requiredPermission && permissions?.includes(route.requiredPermission)) {
       return true;
     }
 
     // Any permission check
-    if (route.requiredAnyPermission && route.requiredAnyPermission.some((p) => permissions.includes(p))) {
+    if (route.requiredAnyPermission && route.requiredAnyPermission.some((p) => permissions?.includes(p))) {
       return true;
     }
 
     // All permissions check
-    if (route.requiredAllPermissions && route.requiredAllPermissions.every((p) => permissions.includes(p))) {
+    if (route.requiredAllPermissions && route.requiredAllPermissions.every((p) => permissions?.includes(p))) {
       return true;
     }
 
