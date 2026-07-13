@@ -62,7 +62,7 @@ export function PermissionGate({
   }
   // Single permission check
   if (require) {
-    const hasPermission = user.isSuperuser || user.permissions.includes(require);
+    const hasPermission = user?.isSuperuser || user?.permissions?.includes(require);
     if (!hasPermission) {
       return fallback ?? <div className="p-4 text-destructive">Permission denied: {require}</div>;
     }
@@ -70,7 +70,7 @@ export function PermissionGate({
 
   // Any permission check
   if (requireAny) {
-    const hasAnyPermission = user.isSuperuser || requireAny.some((p) => user.permissions.includes(p));
+    const hasAnyPermission = user?.isSuperuser || requireAny.some((p) => user?.permissions?.includes(p));
     if (!hasAnyPermission) {
       return fallback ?? <div className="p-4 text-destructive">Insufficient permissions</div>;
     }
@@ -78,7 +78,7 @@ export function PermissionGate({
 
   // All permissions check
   if (requireAll) {
-    const hasAllPermissions = user.isSuperuser || requireAll.every((p) => user.permissions.includes(p));
+    const hasAllPermissions = user?.isSuperuser || requireAll.every((p) => user?.permissions?.includes(p));
     if (!hasAllPermissions) {
       return fallback ?? <div className="p-4 text-destructive">Insufficient permissions</div>;
     }
